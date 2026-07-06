@@ -1,0 +1,213 @@
+<view class="container guess-page">
+  <!-- Background Image -->
+  <image class="bg-image" src="/beijing.png" mode="aspectFill" />
+
+  <!-- Game Mode Selection Modal -->
+  <view class="modal-mask" wx:if="{{showModeSelection}}" style="z-index: 100;">
+    <view class="modal-content">
+      <view class="modal-title">选择游戏模式</view>
+      <view class="mode-buttons">
+        <button class="mode-btn" bindtap="selectGameMode" data-mode="personal">
+          <text class="mode-icon">🎯</text>
+          <view class="mode-text">
+            <text class="mode-name">个人练习</text>
+            <text class="mode-desc">独自挑战，猜出随机选手</text>
+          </view>
+        </button>
+        <button class="mode-btn" bindtap="selectGameMode" data-mode="friend">
+          <text class="mode-icon">👥</text>
+          <view class="mode-text">
+            <text class="mode-name">好友PK</text>
+            <text class="mode-desc">邀请好友，比拼谁先猜出答案</text>
+          </view>
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- Difficulty Selection Modal -->
+  <view class="modal-mask" wx:if="{{showDifficultySelection}}" style="z-index: 99;">
+    <view class="modal-content">
+      <view class="modal-title">选择难度</view>
+      <view class="mode-buttons">
+        <button class="mode-btn" bindtap="selectDifficulty" data-diff="easy">
+          <text class="mode-icon">🌟</text>
+          <view class="mode-text">
+            <text class="mode-name">简单</text>
+            <text class="mode-desc">目标选手来自世界排名前 60 的战队</text>
+          </view>
+        </button>
+        <button class="mode-btn" bindtap="selectDifficulty" data-diff="hard">
+          <text class="mode-icon">⚔️</text>
+          <view class="mode-text">
+            <text class="mode-name">困难</text>
+            <text class="mode-desc">目标选手所属现役战队</text>
+          </view>
+        </button>
+        <button class="mode-btn" bindtap="selectDifficulty" data-diff="hell">
+          <text class="mode-icon">💀</text>
+          <view class="mode-text">
+            <text class="mode-name">地狱</text>
+            <text class="mode-desc">包含自由人/退役选手，范围最大</text>
+          </view>
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- Header -->
+  <view class="header">
+    <view class="title"><text class="highlight">弗一把</text></view>
+  </view>
+
+  <!-- Game Board -->
+  <view class="game-board">
+    <!-- Legend -->
+    <view class="legend">
+      <text class="legend-item green">【绿色】正确</text>
+      <text class="legend-item yellow">【黄色】接近</text>
+      <text class="legend-item grey">【无色】不正确</text>
+    </view>
+
+    <!-- Search Input -->
+    <view class="search-section" wx:if="{{gameStatus === 'playing'}}">
+      <view class="search-bar">
+        <icon type="search" size="18" color="#aaa" />
+        <input 
+          class="search-input" 
+          placeholder="输入选手ID或姓名搜索" 
+          placeholder-class="placeholder"
+          bindinput="onSearchInput"
+          value="{{searchQuery}}"
+        />
+      </view>
+      <!-- Dropdown Results -->
+      <scroll-view scroll-y class="search-results" wx:if="{{searchResults.length > 0}}" bindscrolltolower="onSearchScrollToLower" lower-threshold="50">
+        <view
+          class="result-item"
+          wx:for="{{searchResults}}"
+          wx:key="_id"
+          catchtap="selectPlayer"
+          data-id="{{item._id}}"
+        >
+          <image class="player-avatar-sm" src="{{item.avatarUrl}}" mode="aspectFit" />
+          <view class="result-info">
+            <text class="player-name">{{item.name}}</text>
+            <text class="player-team">{{item.team}}</text>
+          </view>
+          <text class="result-id">ID: {{item.playerId}}</text>
+        </view>
+        <view class="loading-more" wx:if="{{searchLoading}}">
+          <text>加载中...</text>
+        </view>
+        <view class="no-more" wx:if="{{!searchHasMore && searchResults.length > 0 && !searchLoading}}">
+          <text>没有更多了</text>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- Result Message -->
+    <view class="game-result" wx:if="{{gameStatus !== 'playing'}}">
+      <view class="result-box">
+        <text wx:if="{{gameStatus === 'won'}}" class="result-text won">恭喜回答正确！</text>
+        <text wx:if="{{gameStatus === 'lost'}}" class="result-text lost">正确答案: {{targetPlayer.name}}</text>
+        <button class="btn-restart" bindtap="checkAdLogic">下一局</button>
+      </view>
+    </view>
+
+    <!-- Table Header -->
+    <view class="table-header">
+      <view class="th col-name">姓名</view>
+      <view class="th col-team">战队</view>
+      <view class="th col-country">国家</view>
+      <view class="th col-age">年龄</view>
+      <view class="th col-pos">位置</view>
+      <view class="th col-major">Major次数</view>
+    </view>
+
+    <!-- Guesses List -->
+    <scroll-view scroll-y class="guesses-list">
+      <view class="guess-row" wx:for="{{guesses}}" wx:key="index">
+        <!-- Name -->
+        <view class="td col-name">
+          <text>{{item.player.name}}</text>
+        </view>
+        
+        <!-- Team -->
+        <view class="td col-team {{item.status.team}}">
+          <text>{{item.player.team}}</text>
+        </view>
+        
+        <!-- Country -->
+        <view class="td col-country {{item.status.country}}">
+          <text>{{item.player.country}}</text>
+        </view>
+        
+        <!-- Age -->
+        <view class="td col-age {{item.status.age}}">
+          <text>{{item.player.age}}</text>
+          <text wx:if="{{item.status.ageDir === 'up'}}" class="arrow">↑</text>
+          <text wx:if="{{item.status.ageDir === 'down'}}" class="arrow">↓</text>
+        </view>
+
+        <!-- Position -->
+        <view class="td col-pos {{item.status.position}}">
+          <text>{{item.player.position}}</text>
+        </view>
+
+        <!-- Major Appearances -->
+        <view class="td col-major {{item.status.major}}">
+          <text>{{item.player.majorAppearances}}</text>
+          <text wx:if="{{item.status.majorDir === 'up'}}" class="arrow">↑</text>
+          <text wx:if="{{item.status.majorDir === 'down'}}" class="arrow">↓</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- Attempts Indicator (only show for non-unlimited mode) -->
+    <view class="attempts-indicator" wx:if="{{gameMode !== 'personal'}}">
+      <view
+        class="attempt-box {{index < (10 - attemptsLeft) ? (gameStatus === 'won' && index === (10 - attemptsLeft - 1) ? 'success' : 'used') : ''}}"
+        wx:for="{{10}}"
+        wx:key="*this"
+      ></view>
+    </view>
+
+    <!-- Give Up Button - Personal Mode (页面底端) -->
+    <button class="btn-give-up" wx:if="{{gameStatus === 'playing' && gameMode === 'personal'}}" bindtap="onGiveUp">服了，认输</button>
+
+  </view>
+
+  <!-- Result Modal（猜对/猜错后弹出，点击空白可关闭） -->
+  <view class="modal-mask" wx:if="{{showResultModal}}" bindtap="onResultMaskTap">
+    <view class="modal-content" catchtap="onResultContentTap">
+      <view class="modal-title">{{resultTitle}}</view>
+      <view class="modal-body">
+        <text>{{resultContent}}</text>
+        <view class="result-target-info" wx:if="{{targetPlayer}}">
+          <image class="result-target-avatar" src="{{targetAvatarUrl}}" mode="aspectFill"></image>
+          <view class="result-target-detail">
+            <text class="result-target-label">答案选手</text>
+            <text class="result-target-name">{{targetPlayer.name}}</text>
+            <text class="result-target-team">{{targetPlayer.team || '无战队'}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="modal-footer">
+        <button class="btn-primary" bindtap="onResultRestart">再来一局</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- Ad Modal (Simulated) -->
+  <view class="modal-mask" wx:if="{{showAdModal}}">
+    <view class="modal-content">
+      <view class="modal-title">观看广告开始下一局？</view>
+      <view class="modal-body">每日免费次数已用完，观看视频获取更多机会。</view>
+      <view class="modal-footer">
+        <button class="btn-secondary" bindtap="onSkipAd">跳过(测试)</button>
+        <button class="btn-primary" bindtap="onWatchAd">观看视频</button>
+      </view>
+    </view>
+  </view>
+</view>

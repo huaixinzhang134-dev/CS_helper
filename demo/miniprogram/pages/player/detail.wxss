@@ -1,0 +1,169 @@
+/* miniprogram/pages/player/detail.wxss */
+
+.detail-page {
+  padding: 40rpx;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 60rpx;
+}
+
+.avatar-lg {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  border: 4rpx solid var(--primary-color);
+  margin-right: 40rpx;
+  background-color: #000;
+}
+
+.info {
+  flex: 1;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.nickname {
+  font-size: 48rpx;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-right: 20rpx;
+}
+
+.country-badge {
+  font-size: 24rpx;
+  background-color: rgba(127, 127, 127, 0.2);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  color: var(--text-primary);
+}
+
+.real-name {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.team-info {
+  font-size: 28rpx;
+}
+
+.team-label {
+  color: var(--text-primary);
+  font-size: 18px;
+  margin-right: 10rpx;
+}
+
+.team-val {
+  color: var(--primary-color);
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* 曾属队伍 */
+.former-teams {
+  margin-top: 12rpx;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.former-teams-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  flex: 1;
+}
+
+.former-team-tag {
+  font-size: 22rpx;
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.08);
+  padding: 4rpx 14rpx;
+  border-radius: 6rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
+}
+
+.stats-card {
+  background-color: var(--bg-card);
+  border-radius: 20rpx;
+  padding: 100rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.3);
+}
+
+.stats-grid {
+  display: flex;
+  justify-content: space-between;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: var(--text-primary);
+  margin-bottom: 12rpx;
+}
+
+.stat-value {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.loading {
+  text-align: center;
+  margin-top: 100rpx;
+  color: var(--text-primary);
+}
+
+.stats-detail-card {
+  background-color: var(--bg-card);
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-top: 30rpx;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.3);
+}
+
+.stats-detail-title {
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  margin-bottom: 20rpx;
+  line-height: 1.4;
+}
+
+.stats-detail-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.stats-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 64rpx;
+  padding: 0 10rpx;
+}
+
+.stats-detail-label {
+  font-size: 28rpx;
+  color: var(--text-primary);
+}
+
+.stats-detail-value {
+  font-size: 26rpx;
+  color: var(--primary-color);
+  font-weight: bold;
+}

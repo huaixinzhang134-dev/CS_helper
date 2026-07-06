@@ -1,0 +1,54 @@
+{
+  "pages": [
+    "pages/match/match",
+    "pages/matchDetail/matchDetail",
+    "pages/guess/guess",
+    "pages/player/list",
+    "pages/player/detail",
+    "pages/user/index",
+    "pages/admin/index",
+    "pages/index/index",
+    "pages/logs/logs"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#0F111A",
+    "navigationBarTitleText": "云雪CS助手",
+    "navigationBarTextStyle": "white"
+  },
+  "tabBar": {
+    "color": "#666666",
+    "selectedColor": "#0066CC",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/match/match",
+        "text": "赛事",
+        "iconPath": "assets/icons/SS.png",
+        "selectedIconPath": "assets/icons/SS.png"
+      },
+      {
+        "pagePath": "pages/guess/guess",
+        "text": "猜一猜",
+        "iconPath": "assets/icons/guess.png",
+        "selectedIconPath": "assets/icons/guess.png"
+      },
+      {
+        "pagePath": "pages/player/list",
+        "text": "资料库",
+        "iconPath": "assets/icons/playerbase.png",
+        "selectedIconPath": "assets/icons/playerbase.png"
+      },
+      {
+        "pagePath": "pages/user/index",
+        "text": "我的",
+        "iconPath": "assets/icons/mine.png",
+        "selectedIconPath": "assets/icons/mine.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

@@ -1,0 +1,78 @@
+<view class="container match-page">
+  <view class="header">
+    <view class="header-row">
+      <view class="h1">赛事中心</view>
+      <!-- WS 连接状态指示 -->
+      <view class="ws-status {{wsConnected ? 'connected' : ''}}">
+        <view class="ws-dot"></view>
+        <text>{{wsConnected ? '实时' : '离线'}}</text>
+      </view>
+    </view>
+    <view class="subtitle-row">
+      <text class="subtitle">实时比分 & 赛程安排</text>
+      <view class="live-badge" wx:if="{{liveCount > 0}}">
+        <view class="live-dot"></view>
+        <text>{{liveCount}} 场直播中</text>
+      </view>
+    </view>
+  </view>
+
+  <scroll-view
+    scroll-y
+    class="match-list"
+    refresher-enabled="{{true}}"
+    refresher-triggered="{{refreshTriggered}}"
+    bindrefresherrefresh="onPullDownRefresh"
+  >
+    <view
+      class="match-card"
+      wx:for="{{matches}}"
+      wx:key="_id"
+      data-id="{{item._id}}"
+      bindtap="onMatchTap"
+      hover-class="match-card-hover"
+    >
+      <!-- Event Header -->
+      <view class="card-header flex-row justify-between">
+        <text class="event-name">{{item.event}}</text>
+        <view class="status-badge {{item.status === 'Live' ? 'live' : ''}}">
+          {{item.status}}
+        </view>
+      </view>
+
+      <!-- Match Content -->
+      <view class="match-content flex-row justify-between">
+        <!-- Team A -->
+        <view class="team flex-col align-center">
+          <image class="team-logo" src="{{item.teamA.logo}}" mode="aspectFit"></image>
+          <text class="team-name">{{item.teamA.name}}</text>
+        </view>
+
+        <!-- Score / VS -->
+        <view class="score-board flex-col align-center">
+          <block wx:if="{{item.status === 'Upcoming'}}">
+            <text class="vs-text">VS</text>
+            <text class="match-time">{{item.time}}</text>
+          </block>
+          <block wx:else>
+            <view class="score-text {{item.status === 'Live' ? 'score-live' : ''}}">
+              <text class="{{item.teamA.score > item.teamB.score ? 'winner' : ''}}">{{item.teamA.score}}</text>
+              <text class="divider"> : </text>
+              <text class="{{item.teamB.score > item.teamA.score ? 'winner' : ''}}">{{item.teamB.score}}</text>
+            </view>
+          </block>
+        </view>
+
+        <!-- Team B -->
+        <view class="team flex-col align-center">
+          <image class="team-logo" src="{{item.teamB.logo}}" mode="aspectFit"></image>
+          <text class="team-name">{{item.teamB.name}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:if="{{!loading && matches.length === 0}}">
+      <text>暂无赛事数据</text>
+    </view>
+  </scroll-view>
+</view>

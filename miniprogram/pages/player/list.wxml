@@ -1,0 +1,47 @@
+<view class="container player-list-page">
+  <view class="header">
+    <view class="h1">选手资料库</view>
+    <view class="subtitle">CS 职业选手数据查询</view>
+  </view>
+
+  <!-- Search Bar -->
+  <view class="search-box">
+    <icon type="search" size="18" color="#aaa" />
+    <input
+      class="search-input"
+      placeholder="搜索选手 ID / 战队..."
+      placeholder-class="placeholder"
+      bindinput="onSearchInput"
+    />
+  </view>
+
+  <!-- Player List -->
+  <view class="list-container">
+    <view class="player-list">
+      <view
+        class="list-item"
+        wx:for="{{displayPlayers}}"
+        wx:key="_id"
+        bindtap="goToDetail"
+        data-id="{{item.playerId}}"
+      >
+        <text class="player-name">{{item.name}}</text>
+      </view>
+    </view>
+
+    <!-- Loading More Indicator -->
+    <view class="loading-more" wx:if="{{loadingMore && hasMore}}">
+      <text>加载中...</text>
+    </view>
+
+    <!-- No More Data Indicator -->
+    <view class="no-more" wx:if="{{!hasMore && displayPlayers.length > 0 && !searchQuery}}">
+      <text>已加载 {{displayPlayers.length}}/{{totalCount}} 名选手</text>
+    </view>
+
+    <!-- Empty State -->
+    <view class="empty-state" wx:if="{{!loading && displayPlayers.length === 0}}">
+      <text>未找到相关选手</text>
+    </view>
+  </view>
+</view>

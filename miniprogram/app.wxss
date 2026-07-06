@@ -1,0 +1,140 @@
+/** app.wxss **/
+
+/*
+  CS Gaming Theme - 支持深色模式
+  浅色模式：白色背景，黑色字体
+  深色模式：黑色背景，白色字体
+*/
+page {
+  /* Color Palette - 浅色模式（默认） */
+  --primary-color: #0066CC;   /* 主色调 - 蓝色 */
+  --secondary-color: #FF9800; /* 警告/接近 - 橙色 */
+  --success-color: #4CAF50;   /* 正确/成功 - 绿色 */
+  --error-color: #F44336;     /* 错误/失败 - 红色 */
+
+  --bg-page: #FFFFFF;         /* 页面背景 - 白色 */
+  --bg-card: #F5F5F5;         /* 卡片背景 - 浅灰 */
+  --bg-input: #EEEEEE;        /* 输入框背景 */
+  --bg-hover: #E0E0E0;        /* 悬停背景 */
+  --border-color: #E0E0E0;    /* 边框颜色 */
+
+  --text-primary: #000000;    /* 主要文字 - 黑色 */
+  --text-secondary: #666666;  /* 次要文字 - 深灰 */
+  --text-muted: #999999;      /* 禁用/提示文字 - 浅灰 */
+  --text-inverse: #FFFFFF;    /* 反色文字 - 白色 */
+
+  /* Spacing */
+  --spacing-xs: 8rpx;
+  --spacing-sm: 16rpx;
+  --spacing-md: 24rpx;
+  --spacing-lg: 32rpx;
+  --spacing-xl: 48rpx;
+
+  /* Global Settings */
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-size: 28rpx;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+/* 深色模式适配 - 当用户手机开启深色模式时自动应用 */
+@media (prefers-color-scheme: dark) {
+  page {
+    /* 深色模式配色 */
+    --primary-color: #00E5FF;   /* 主色调 - 霓虹蓝 */
+    --secondary-color: #FFC107; /* 警告/接近 - 琥珀色 */
+    --success-color: #00C853;   /* 正确/成功 - 绿色 */
+    --error-color: #FF3D00;     /* 错误/失败 - 红色 */
+
+    --bg-page: #0F111A;         /* 页面背景 - 深色 */
+    --bg-card: #1E212B;         /* 卡片背景 - 深灰 */
+    --bg-input: #2C2F3E;        /* 输入框背景 */
+    --bg-hover: #3C3F4E;        /* 悬停背景 */
+    --border-color: #3C3F4E;    /* 边框颜色 */
+
+    --text-primary: #FFFFFF;    /* 主要文字 - 白色 */
+    --text-secondary: #B0BEC5;  /* 次要文字 - 浅灰 */
+    --text-muted: #546E7A;      /* 禁用/提示文字 - 深灰 */
+    --text-inverse: #000000;    /* 反色文字 - 黑色 */
+  }
+}
+
+/* Flex Helper Classes */
+.flex-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.align-center {
+  align-items: center;
+}
+
+/* Common Components */
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: var(--spacing-md);
+}
+
+.card {
+  background-color: var(--bg-card);
+  border-radius: 12rpx;
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.3);
+}
+
+.btn {
+  background-color: var(--primary-color);
+  color: #000;
+  font-weight: bold;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: 8rpx;
+  text-align: center;
+  transition: opacity 0.2s;
+}
+
+.btn:active {
+  opacity: 0.8;
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 2rpx solid var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* Typography */
+.h1 {
+  font-size: 40rpx;
+  font-weight: bold;
+  margin-bottom: var(--spacing-md);
+}
+
+.h2 {
+  font-size: 32rpx;
+  font-weight: bold;
+  margin-bottom: var(--spacing-sm);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}

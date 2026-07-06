@@ -1,0 +1,77 @@
+<!--miniprogram/pages/admin/index.wxml-->
+<view class="container">
+  <view class="h1">管理后台</view>
+
+  <!-- 数据库状态 -->
+  <view class="card">
+    <view class="h2">数据库状态</view>
+    <view class="info">当前数据库玩家数: {{dbCount}}</view>
+    <button type="warn" bindtap="clearPlayers">清空数据库</button>
+  </view>
+
+  <view class="card">
+    <view class="h2">选手管理</view>
+    <button class="btn" type="primary" bindtap="onAddPlayer">添加选手</button>
+    <scroll-view scroll-y class="list-container">
+      <view class="list-item" wx:for="{{players}}" wx:key="_id">
+        <text>{{item.name}} - {{item.team}}</text>
+        <view>
+          <button size="mini" bindtap="onEditPlayer" data-item="{{item}}">编辑</button>
+          <button size="mini" type="warn" bindtap="onDeletePlayer" data-id="{{item._id}}">删除</button>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="card">
+    <view class="h2">赛事管理</view>
+    <button class="btn" type="primary" bindtap="onAddMatch">添加赛事</button>
+    <scroll-view scroll-y class="list-container">
+      <view class="list-item" wx:for="{{matches}}" wx:key="_id">
+        <text>{{item.event}} ({{item.status}})</text>
+        <view>
+          <button size="mini" bindtap="onEditMatch" data-item="{{item}}">编辑</button>
+          <button size="mini" type="warn" bindtap="onDeleteMatch" data-id="{{item._id}}">删除</button>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- Player Modal -->
+  <view class="modal" wx:if="{{showPlayerModal}}">
+    <view class="modal-content">
+      <view class="h2">{{isEditingPlayer ? '编辑' : '添加'}}选手</view>
+      <input class="input" placeholder="姓名" value="{{playerForm.name}}" data-field="name" bindinput="onFormFieldChange"/>
+      <input class="input" placeholder="真名" value="{{playerForm.realName}}" data-field="realName" bindinput="onFormFieldChange"/>
+      <input class="input" placeholder="战队" value="{{playerForm.team}}" data-field="team" bindinput="onFormFieldChange"/>
+      <input class="input" placeholder="国家 (Emoji)" value="{{playerForm.country}}" data-field="country" bindinput="onFormFieldChange"/>
+      <input class="input" type="number" placeholder="年龄" value="{{playerForm.age}}" data-field="age" bindinput="onFormFieldChange"/>
+      <picker bindchange="onPositionChange" value="{{playerForm.position}}" range="{{positions}}">
+        <view class="picker">
+          当前选择：{{playerForm.position}}
+        </view>
+      </picker>
+      <button type="primary" bindtap="onSavePlayer">保存</button>
+      <button bindtap="onCloseModal">取消</button>
+    </view>
+  </view>
+
+  <!-- Match Modal -->
+  <view class="modal" wx:if="{{showMatchModal}}">
+    <view class="modal-content">
+      <view class="h2">{{isEditingMatch ? '编辑' : '添加'}}赛事</view>
+      <input class="input" placeholder="赛事名称" value="{{matchForm.event}}" data-field="event" bindinput="onFormFieldChange"/>
+      <picker bindchange="onStatusChange" value="{{matchForm.status}}" range="{{statuses}}">
+        <view class="picker">
+          当前选择：{{matchForm.status}}
+        </view>
+      </picker>
+      <input class="input" placeholder="队伍A" value="{{matchForm.teamA.name}}" data-field="teamA.name" bindinput="onFormFieldChange"/>
+      <input class="input" type="number" placeholder="队伍A分数" value="{{matchForm.teamA.score}}" data-field="teamA.score" bindinput="onFormFieldChange"/>
+      <input class="input" placeholder="队伍B" value="{{matchForm.teamB.name}}" data-field="teamB.name" bindinput="onFormFieldChange"/>
+      <input class="input" type="number" placeholder="队伍B分数" value="{{matchForm.teamB.score}}" data-field="teamB.score" bindinput="onFormFieldChange"/>
+      <button type="primary" bindtap="onSaveMatch">保存</button>
+      <button bindtap="onCloseModal">取消</button>
+    </view>
+  </view>
+</view>

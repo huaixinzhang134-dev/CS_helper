@@ -1,0 +1,45 @@
+# === Node ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# === 环境变量 & 密钥 ===
+.env
+.env.local
+*.key
+
+# === Python ===
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# === 编辑器 & IDE ===
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# === Claude & AI ===
+.claude/
+tmpclaude-*
+
+# === 构建产物 ===
+dist/
+build/
+*.map
+
+# === 日志 ===
+*.log
+
+# === 大文件 ===
+*.docx
+*.zip
+*.tar.gz

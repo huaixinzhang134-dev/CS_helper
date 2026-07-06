@@ -1,0 +1,27 @@
+{
+  "name": "hltv-players-crawler",
+  "version": "1.0.0",
+  "description": "A web crawler to extract detailed player data from HLTV.org",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "images-only": "node index.js --images-only",
+    "analyze": "node -e \"require('./index.js').analyzeData()\"",
+    "install-deps": "npm install cheerio puppeteer puppeteer-extra puppeteer-extra-plugin-stealth"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "mysql2": "^3.22.5",
+    "puppeteer": "^21.0.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "keywords": [
+    "crawler",
+    "hltv",
+    "cs-go",
+    "players"
+  ],
+  "author": "",
+  "license": "MIT"
+}

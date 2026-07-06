@@ -1,0 +1,173 @@
+/* miniprogram/pages/user/index.wxss */
+
+.user-page {
+  padding: 0;
+  background-color: #F5F5F5;
+  min-height: 100vh;
+}
+
+/* Header Section */
+.header {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F5F5F5 100%);
+  padding: 60rpx 40rpx;
+  border-bottom: 1rpx solid #E0E0E0;
+}
+
+/* Login Area */
+.login-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 0;
+}
+
+.avatar-placeholder {
+  width: 140rpx;
+  height: 140rpx;
+  background-color: #EEEEEE;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 30rpx;
+  border: 2rpx dashed #CCCCCC;
+}
+
+.icon-user {
+  width: 60rpx;
+  height: 60rpx;
+  opacity: 0.5;
+}
+
+.btn-login {
+  background-color: #0066CC;
+  color: #FFFFFF;
+  font-weight: bold;
+  padding: 20rpx 60rpx;
+  border-radius: 40rpx;
+  font-size: 30rpx;
+  width: 300rpx;
+  margin-bottom: 20rpx;
+}
+
+.login-tips {
+  color: #999999;
+  font-size: 24rpx;
+}
+
+/* User Info Display */
+.user-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 50rpx;
+}
+
+.avatar {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 50%;
+  border: 4rpx solid #0066CC;
+  margin-right: 30rpx;
+  background-color: #EEEEEE;
+}
+
+.user-detail {
+  flex: 1;
+}
+
+.nickname {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #000000;
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.level-badge {
+  display: inline-block;
+  background: linear-gradient(90deg, #FFC107, #FF9800);
+  color: #000;
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  font-weight: bold;
+}
+
+/* Stats Row */
+.stats-row {
+  display: flex;
+  justify-content: space-around;
+  background-color: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 30rpx 0;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-num {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 8rpx;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: #666666;
+}
+
+/* Menu List */
+.menu-list {
+  padding: 40rpx;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #FFFFFF;
+  padding: 30rpx;
+  border-radius: 12rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+}
+
+.menu-item:active {
+  background-color: #F0F0F0;
+}
+
+.menu-text {
+  font-size: 28rpx;
+  color: #000000;
+}
+
+.arrow {
+  color: #999999;
+  font-size: 28rpx;
+}
+
+/* Menu Spacer */
+.menu-spacer {
+  height: 20rpx;
+}
+
+/* Footer */
+.footer {
+  padding: 40rpx;
+  text-align: center;
+}
+
+.btn-logout {
+  background-color: transparent;
+  border: 1rpx solid #F44336;
+  color: #F44336;
+  font-size: 28rpx;
+  padding: 16rpx 0;
+  width: 100%;
+  border-radius: 12rpx;
+}

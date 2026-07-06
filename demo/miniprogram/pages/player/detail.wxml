@@ -1,0 +1,82 @@
+<view class="container detail-page" wx:if="{{player}}">
+  <view class="profile-header">
+    <image class="avatar-lg" src="{{player.avatarUrl}}" mode="aspectFill"></image>
+    <view class="info">
+      <view class="name-row">
+        <text class="nickname">{{player.name}}</text>
+        <view class="country-badge">{{player.country}}</view>
+      </view>
+      <text class="real-name">{{player.realName}}</text>
+      <view class="team-info">
+        <text class="team-label">现役队伍：</text>
+        <text class="team-val">{{player.team || '无'}}</text>
+      </view>
+      <view class="former-teams" wx:if="{{player.formerTeams && player.formerTeams.length > 0}}">
+        <text class="team-label">曾属队伍：</text>
+        <view class="former-teams-tags">
+          <text class="former-team-tag" wx:for="{{player.formerTeams}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="stats-card">
+    <view class="h2">选手信息</view>
+    <view class="stats-grid">
+      <view class="stat-item">
+        <text class="stat-label">年龄</text>
+        <text class="stat-value">{{player.age}}</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-label">位置</text>
+        <text class="stat-value">{{player.position}}</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-label">进入Major次数</text>
+        <text class="stat-value">{{player.majorAppearances}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="stats-detail-card">
+    <view class="stats-detail-title">选手数据\n</view>
+      <view class="stats-detail-title"></view>（KAST为Kill/Assist/Survive/Trade的缩写，是衡量选手回合参与度的核心指标）</view>
+       <view class="stats-detail-list">
+        <view class="stats-detail-item">
+          <text class="stats-detail-label">Rating</text>
+          <text class="stats-detail-value">{{player.rating}}</text>
+        </view>
+        <view class="stats-detail-item">
+         <text class="stats-detail-label">Round Swing</text>
+         <text class="stats-detail-value">{{player.roundSwing}}</text>
+        </view>
+       <view class="stats-detail-item">
+         <text class="stats-detail-label">DPR（回合死亡）</text>
+         <text class="stats-detail-value">{{player.dpr}}</text>
+       </view>
+      <view class="stats-detail-item">
+        <text class="stats-detail-label">KAST</text>
+        <text class="stats-detail-value">{{player.kast}}%</text>
+      </view>
+      <view class="stats-detail-item">
+        <text class="stats-detail-label">Multi-kill（多杀率）</text>
+        <text class="stats-detail-value">{{player.multiKill}}%</text>
+      </view>
+      <view class="stats-detail-item">
+        <text class="stats-detail-label">ADR（回合平均伤害）</text>
+        <text class="stats-detail-value">{{player.adr}}</text>
+      </view>
+      <view class="stats-detail-item">
+        <text class="stats-detail-label">KPR（回合平均击杀）</text>
+        <text class="stats-detail-value">{{player.kpr}}</text>
+      </view>
+      <view class="stats-detail-item">
+        <text class="stats-detail-label">Firepower（火力值）</text>
+        <text class="stats-detail-value">{{player.firepower}}</text>
+    </view>
+  </view>
+</view>
+
+<view class="loading" wx:if="{{loading}}">
+  <text>加载中...</text>
+</view>

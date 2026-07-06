@@ -1,0 +1,55 @@
+<view class="container user-page">
+  <view class="header">
+    <block wx:if="{{userInfo}}">
+      <view class="user-info">
+        <image class="avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill"></image>
+        <view class="user-detail">
+          <text class="nickname">{{userInfo.nickname}}</text>
+          <view class="level-badge">Lv.{{userInfo.level}}</view>
+        </view>
+      </view>
+      <view class="stats-row">
+        <view class="stat-item">
+          <text class="stat-num">{{userInfo.points}}</text>
+          <text class="stat-label">积分</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num">12</text>
+          <text class="stat-label">胜场</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num">56%</text>
+          <text class="stat-label">胜率</text>
+        </view>
+      </view>
+    </block>
+
+    <block wx:else>
+      <view class="login-area">
+        <view class="avatar-placeholder">
+          <image class="icon-user" src="/assets/icons/game.png" mode="aspectFit"></image>
+        </view>
+        <button class="btn-login" bindtap="handleLogin" loading="{{loading}}">
+          一键登录
+        </button>
+        <text class="login-tips">登录后同步游戏数据</text>
+      </view>
+    </block>
+  </view>
+
+  <view class="menu-list">
+    <view class="menu-item">
+      <text class="menu-text">我的竞猜记录</text>
+      <text class="arrow">></text>
+    </view>
+    <view class="menu-spacer"></view>
+    <view class="menu-item">
+      <text class="menu-text">关于我们</text>
+      <text class="arrow">></text>
+    </view>
+  </view>
+
+  <view class="footer" wx:if="{{userInfo}}">
+    <button class="btn-logout" bindtap="handleLogout">退出登录</button>
+  </view>
+</view>

@@ -1,0 +1,14 @@
+{
+  "name": "cloudbase-scripts",
+  "version": "1.0.0",
+  "description": "CloudBase 数据导入脚本",
+  "main": "import-players.js",
+  "scripts": {
+    "import": "node import-players.js import",
+    "count": "node import-players.js count",
+    "clear": "node import-players.js clear"
+  },
+  "dependencies": {
+    "@cloudbase/node-sdk": "^3.7.0"
+  }
+}

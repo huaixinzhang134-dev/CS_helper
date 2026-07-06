@@ -1,0 +1,169 @@
+<view class="container match-detail-page">
+  <!-- 比赛信息卡片 -->
+  <view class="match-card" wx:if="{{match}}">
+    <view class="card-header flex-row justify-between">
+      <view class="header-left">
+        <text class="event-name">{{match.event}}</text>
+      </view>
+      <view class="header-right">
+        <view class="ws-badge {{wsConnected ? 'online' : ''}}" wx:if="{{match.status === 'Live'}}">
+          <view class="ws-dot-sm"></view>
+        </view>
+        <view class="status-badge {{match.status === 'Live' ? 'live' : ''}}">
+          {{match.status}}
+        </view>
+      </view>
+    </view>
+    <view class="match-content flex-row justify-between">
+      <view class="team flex-col align-center">
+        <image class="team-logo" src="{{match.teamA.logo}}" mode="aspectFit"></image>
+        <text class="team-name">{{match.teamA.name}}</text>
+      </view>
+      <view class="score-board flex-col align-center">
+        <block wx:if="{{match.status === 'Upcoming'}}">
+          <text class="vs-text">VS</text>
+          <text class="match-time">{{match.time}}</text>
+        </block>
+        <block wx:else>
+          <view class="score-text {{scoreAnimated ? 'score-flash' : ''}} {{match.status === 'Live' ? 'score-live' : ''}}">
+            <text class="{{match.teamA.score > match.teamB.score ? 'winner' : ''}}">{{match.teamA.score}}</text>
+            <text class="divider"> : </text>
+            <text class="{{match.teamB.score > match.teamA.score ? 'winner' : ''}}">{{match.teamB.score}}</text>
+          </view>
+        </block>
+      </view>
+      <view class="team flex-col align-center">
+        <image class="team-logo" src="{{match.teamB.logo}}" mode="aspectFit"></image>
+        <text class="team-name">{{match.teamB.name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 选手筛选 tab -->
+  <scroll-view scroll-x class="player-tabs" wx:if="{{playerTabs.length > 1}}">
+    <view
+      class="player-tab {{activePlayerId === item.id ? 'active' : ''}}"
+      wx:for="{{playerTabs}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="onTabTap"
+    >
+      <text>{{item.label}}</text>
+    </view>
+  </scroll-view>
+
+  <!-- 评论列表 -->
+  <view class="comment-list">
+    <view
+      class="comment-item"
+      wx:for="{{comments}}"
+      wx:key="_id"
+      data-id="{{item._id}}"
+      data-openid="{{item.userOpenid}}"
+      bindlongpress="onCommentLongPress"
+    >
+      <image
+        class="avatar"
+        src="{{item.userAvatarUrl || '/assets/icons/user.png'}}"
+        mode="aspectFill"
+      ></image>
+      <view class="comment-body">
+        <view class="comment-meta">
+          <text class="nickname">{{item.userNickName}}</text>
+          <view class="player-tag">
+            <text class="player-name">{{item.playerName}}</text>
+            <text class="player-team" wx:if="{{item.playerTeam}}"> · {{item.playerTeam}}</text>
+          </view>
+        </view>
+        <text class="comment-content">{{item.content}}</text>
+        <text class="comment-time">{{item.formatTime}}</text>
+      </view>
+    </view>
+    <view class="empty-state" wx:if="{{!loading && comments.length === 0}}">
+      <text>暂无评论，来发第一条吧</text>
+    </view>
+  </view>
+
+  <!-- 底部固定输入栏 -->
+  <view class="comment-bar">
+    <block wx:if="{{selectedPlayer}}">
+      <view class="selected-player">
+        <text class="sp-label">评论对象：</text>
+        <text class="sp-name">{{selectedPlayer.name}}</text>
+        <text class="sp-clear" bindtap="onClearSelected">×</text>
+      </view>
+    </block>
+    <view class="bar-row">
+      <input
+        class="comment-input"
+        placeholder="{{selectedPlayer ? '说点什么...' : '请先选择一位参赛选手'}}"
+        placeholder-class="ph"
+        value="{{draftContent}}"
+        bindinput="onInputChange"
+        disabled="{{!selectedPlayer}}"
+        maxlength="500"
+        confirm-type="send"
+        bindconfirm="onSend"
+      />
+      <button
+        class="send-btn {{!selectedPlayer || !draftContent ? 'disabled' : ''}}"
+        bindtap="onOpenPlayerModal"
+        disabled="{{!selectedPlayer}}"
+      >{{selectedPlayer ? '已选' : '选选手'}}</button>
+      <button
+        class="send-btn primary {{sending ? 'disabled' : ''}}"
+        bindtap="onSend"
+        disabled="{{sending || !selectedPlayer || !draftContent}}"
+      >{{sending ? '发送中' : '发送'}}</button>
+    </view>
+  </view>
+
+  <!-- 选手选择 modal -->
+  <view class="modal-mask" wx:if="{{showPlayerModal}}" bindtap="onClosePlayerModal">
+    <view class="modal-content" catchtap="">
+      <view class="modal-title">选择评论对象</view>
+
+      <view class="team-group" wx:if="{{team1.name}}">
+        <view class="group-title">{{team1.name}}</view>
+        <view
+          class="player-row"
+          wx:for="{{team1.players}}"
+          wx:key="playerId"
+          wx:for-item="player"
+          data-id="{{player.playerId}}"
+          data-team="team1"
+          bindtap="onSelectPlayer"
+        >
+          <text class="pr-name">{{player.name}}</text>
+          <text class="pr-position" wx:if="{{player.position}}">{{player.position}}</text>
+        </view>
+        <view class="empty-team" wx:if="{{team1.players.length === 0}}">
+          <text>该战队暂无选手数据</text>
+        </view>
+      </view>
+
+      <view class="team-group" wx:if="{{team2.name}}">
+        <view class="group-title">{{team2.name}}</view>
+        <view
+          class="player-row"
+          wx:for="{{team2.players}}"
+          wx:key="playerId"
+          wx:for-item="player"
+          data-id="{{player.playerId}}"
+          data-team="team2"
+          bindtap="onSelectPlayer"
+        >
+          <text class="pr-name">{{player.name}}</text>
+          <text class="pr-position" wx:if="{{player.position}}">{{player.position}}</text>
+        </view>
+        <view class="empty-team" wx:if="{{team2.players.length === 0}}">
+          <text>该战队暂无选手数据</text>
+        </view>
+      </view>
+
+      <view class="modal-footer">
+        <button class="btn-cancel" bindtap="onClosePlayerModal">取消</button>
+      </view>
+    </view>
+  </view>
+</view>
