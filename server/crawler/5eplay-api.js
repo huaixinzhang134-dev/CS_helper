@@ -312,28 +312,96 @@ function normalizeMatch(raw) {
 
 /**
  * 爬取 5eplay 赛事详情页，获取局分和选手数据
+ * 依次尝试多个 API 端点和页面抓取
  * @param {string} matchId - 5eplay 比赛 ID（如 csgo_mc_2395485）
  * @returns {Promise<{ roundScores: Array, playerStats: object } | null>}
  */
 async function fetchMatchDetail(matchId) {
-  const url = `https://event.5eplay.com/csgo/matches/${matchId}`;
-  console.log(`[5eplay] 爬取详情页: ${url}`);
+  if (!matchId) return null;
 
+  // 备选 API 端点（按优先级尝试）
+  const endpoints = [
+    `https://ya-api-app.5eplay.com/v1/match/detail?id=${matchId}`,
+    `https://ya-api-app.5eplay.com/v1/csgo/match/${matchId}`,
+    `https://www.5eplay.com/api/restrict/matchscore?matchId=${matchId}`,
+    `https://esports-data.5eplaycdn.com/v1/api/csgo/matches/${matchId}/data`,
+    `https://event.5eplay.com/api/csgo/match/detail?id=${matchId}`,
+  ];
+
+  for (const url of endpoints) {
+    try {
+      console.log(`[5eplay] 详情 API: ${url}`);
+      const resp = await axios.get(url, {
+        headers: {
+          'User-Agent': UA,
+          'Referer': 'https://event.5eplay.com/',
+          'Origin': 'https://event.5eplay.com',
+          'Accept': 'application/json, text/plain, */*'
+        },
+        timeout: TIMEOUT,
+        httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
+      });
+
+      const detailData = parseDetailApiResponse(resp.data);
+      if (detailData && (detailData.roundScores.length > 0 || detailData.playerStats.length > 0)) {
+        console.log(`[5eplay] 详情 API 成功: ${url}`);
+        return detailData;
+      }
+    } catch (err) {
+      console.log(`[5eplay] 详情 API ${matchId} 失败: ${err.message}`);
+    }
+  }
+
+  // 最后尝试 HTML 详情页
+  console.log(`[5eplay] 尝试 HTML 详情页: event.5eplay.com/csgo/matches/${matchId}`);
   try {
-    const resp = await axios.get(url, {
-      headers: {
-        'User-Agent': UA,
-        'Referer': 'https://event.5eplay.com/',
-        'Accept': 'text/html,application/xhtml+xml'
-      },
+    const resp = await axios.get(`https://event.5eplay.com/csgo/matches/${matchId}`, {
+      headers: { 'User-Agent': UA, 'Referer': 'https://event.5eplay.com/', 'Accept': 'text/html,application/xhtml+xml' },
       timeout: TIMEOUT
     });
-
     return parseDetailPage(resp.data);
   } catch (err) {
-    console.log(`[5eplay] 详情页 ${matchId} 失败: ${err.message}`);
-    return null;
+    console.log(`[5eplay] HTML 详情页失败: ${err.message}`);
   }
+
+  return null;
+}
+
+/**
+ * 解析详情 API 的 JSON 响应
+ */
+function parseDetailApiResponse(data) {
+  if (!data) return null;
+  let detail = data;
+  if (data.data) detail = data.data;
+  if (data.result) detail = data.result;
+
+  const result = { roundScores: [], playerStats: [] };
+
+  if (detail.maps && Array.isArray(detail.maps)) {
+    for (const m of detail.maps) {
+      result.roundScores.push({
+        map: m.map || m.name || '',
+        team1Score: m.team1Score ?? m.team1_score ?? m.score1 ?? 0,
+        team2Score: m.team2Score ?? m.team2_score ?? m.score2 ?? 0
+      });
+    }
+  }
+  const scores = detail.roundScores || detail.round_scores || [];
+  if (Array.isArray(scores)) {
+    for (const s of scores) {
+      result.roundScores.push({
+        map: s.map || s.name || '',
+        team1Score: s.team1Score ?? s.team1_score ?? s.score1 ?? 0,
+        team2Score: s.team2Score ?? s.team2_score ?? s.score2 ?? 0
+      });
+    }
+  }
+  if (detail.players || detail.playerStats || detail.stats) {
+    result.playerStats = detail.players || detail.playerStats || detail.stats || [];
+  }
+
+  return result;
 }
 
 /**
