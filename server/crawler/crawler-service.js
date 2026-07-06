@@ -126,10 +126,24 @@ async function main() {
 // ======================== 启动入口 ========================
 
 if (require.main === module) {
-  main().catch(err => {
-    console.error('[crawler] 启动失败:', err);
-    process.exit(1);
-  });
+  // 支持 --once 参数：执行一次后退出（用于 GitHub Actions）
+  const isOnceRun = process.argv.includes('--once');
+
+  if (isOnceRun) {
+    console.log('[crawler] 单次执行模式 (--once)\n');
+    syncCycle().then(() => {
+      console.log('\n[crawler] 单次执行完成');
+      process.exit(0);
+    }).catch(err => {
+      console.error('[crawler] 执行失败:', err);
+      process.exit(1);
+    });
+  } else {
+    main().catch(err => {
+      console.error('[crawler] 启动失败:', err);
+      process.exit(1);
+    });
+  }
 }
 
 module.exports = { syncCycle, main };

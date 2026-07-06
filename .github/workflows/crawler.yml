@@ -1,0 +1,38 @@
+name: 赛事爬虫定时同步
+
+on:
+  schedule:
+    # 每小时运行一次（分钟随机偏移避免整点拥堵）
+    - cron: '27 * * * *'
+  workflow_dispatch:
+    # 支持手动触发
+
+jobs:
+  crawl:
+    name: 爬取赛事数据
+    runs-on: ubuntu-latest
+
+    env:
+      API_BASE: https://cshelper-production.up.railway.app
+      SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: 安装依赖
+        run: npm ci
+        working-directory: server
+
+      - name: 运行爬虫
+        run: node crawler/crawler-service.js --once
+        working-directory: server
+        env:
+          CRAWLER_DRY_RUN: false
