@@ -5,6 +5,17 @@ const router = express.Router();
 const { query } = require('../db/pool');
 
 /**
+ * 将 SVG 队标 URL 转为 PNG（微信小程序不支持 SVG）
+ * HLTV 的 imgix CDN 支持通过 fm 参数转格式
+ */
+function logoToPng(url) {
+  if (!url || !url.includes('.svg')) return url || '';
+  // 追加 fm=png 让 imgix 转换成 PNG
+  const separator = url.includes('?') ? '&' : '?';
+  return url + separator + 'fm=png';
+}
+
+/**
  * 比赛行 → 前端 Match DTO
  * 形状与原 NoSQL matches 集合保持一致：
  *   { event, status, teamA:{name,logo,score}, teamB:{name,logo,score}, time }
@@ -19,12 +30,12 @@ function toMatchDTO(row) {
     status: row.status || 'Upcoming',
     teamA: {
       name: teamAName,
-      logo: row.teamA_logo || '',
+      logo: logoToPng(row.teamA_logo),
       score: row.team1_score || 0
     },
     teamB: {
       name: teamBName,
-      logo: row.teamB_logo || '',
+      logo: logoToPng(row.teamB_logo),
       score: row.team2_score || 0
     },
     time: row.match_time
