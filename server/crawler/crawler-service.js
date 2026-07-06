@@ -21,7 +21,7 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 
 const axios = require('axios');
 
-const { fetchFrom5eplay } = require('./5eplay-api');
+const { fetchFrom5eplay, fetchMatchDetail } = require('./5eplay-api');
 
 // ======================== 配置 ========================
 
@@ -48,21 +48,36 @@ async function syncCycle() {
     }
 
     // 2. 按 date + time 分组，只保留"今天及未来"的比赛 + 今天已结束的比赛
-    //    避免把历史比赛反复同步
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().slice(0, 10);
 
     const filtered = matches.filter(m => {
-      // 保留所有 upcoming/live 的比赛
       if (m.status !== 'Finished') return true;
-      // 已结束的比赛只保留今天的（比分可能还在更新）
       return m.date >= todayStr;
     });
 
     if (filtered.length === 0) {
       console.log(`[crawler] 过滤后无有效比赛 (${source})`);
       return;
+    }
+
+    // 2b. 对已结束的比赛，爬取详情页获取局分和选手数据
+    let detailCount = 0;
+    for (const m of filtered) {
+      if (m.status === 'Finished' && m.eplayId && !m.roundScores) {
+        const detail = await fetchMatchDetail(m.eplayId);
+        if (detail) {
+          if (detail.roundScores) m.roundScores = detail.roundScores;
+          if (detail.playerStats) m.playerStats = detail.playerStats;
+          detailCount++;
+        }
+        // 避免请求过快，加个小延迟
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
+    if (detailCount > 0) {
+      console.log(`[crawler] 已补充 ${detailCount} 场比赛的详情数据`);
     }
 
     // 3. 推送到 API 服务

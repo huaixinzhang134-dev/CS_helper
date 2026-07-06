@@ -225,6 +225,9 @@ function extractFromObject(obj) {
  */
 function normalizeMatch(raw) {
   try {
+    // 5eplay 比赛 ID（用于爬取详情页）
+    const eplayId = raw.id || raw.match_id || raw._id || raw.matchId || raw.gameId || '';
+
     const date = raw.date || raw.match_date || raw.matchDate || raw.Date || '';
     const time = raw.time || raw.match_time || raw.matchTime || raw.Time || '';
     const matchType = raw.matchType || raw.match_type || raw.type || raw.bo || 'BO1';
@@ -295,6 +298,8 @@ function normalizeMatch(raw) {
       tab
     };
 
+    // 保留 5eplay ID 以便后续爬取详情
+    if (eplayId) result.eplayId = eplayId;
     if (roundScores.length > 0) result.roundScores = roundScores;
     if (playerStats) result.playerStats = playerStats;
 
@@ -302,6 +307,147 @@ function normalizeMatch(raw) {
   } catch (e) {
     console.error('[5eplay] 归一化失败:', e.message, JSON.stringify(raw).slice(0, 200));
     return null;
+  }
+}
+
+/**
+ * 爬取 5eplay 赛事详情页，获取局分和选手数据
+ * @param {string} matchId - 5eplay 比赛 ID（如 csgo_mc_2395485）
+ * @returns {Promise<{ roundScores: Array, playerStats: object } | null>}
+ */
+async function fetchMatchDetail(matchId) {
+  const url = `https://event.5eplay.com/csgo/matches/${matchId}`;
+  console.log(`[5eplay] 爬取详情页: ${url}`);
+
+  try {
+    const resp = await axios.get(url, {
+      headers: {
+        'User-Agent': UA,
+        'Referer': 'https://event.5eplay.com/',
+        'Accept': 'text/html,application/xhtml+xml'
+      },
+      timeout: TIMEOUT
+    });
+
+    return parseDetailPage(resp.data);
+  } catch (err) {
+    console.log(`[5eplay] 详情页 ${matchId} 失败: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * 解析 5eplay 赛事详情页 HTML，提取局分和选手数据
+ */
+function parseDetailPage(html) {
+  if (!html) return null;
+
+  const result = { roundScores: [], playerStats: [] };
+
+  // 1. 尝试从 __NUXT__ / __INITIAL_STATE__ 中提取完整数据
+  let pageData = null;
+
+  const nuxtMatch = html.match(/window\.__NUXT__\s*=\s*(\{[\s\S]*?\});/);
+  if (nuxtMatch) {
+    try { pageData = JSON.parse(nuxtMatch[1]); } catch {}
+  }
+
+  if (!pageData) {
+    const stateMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*(\{[\s\S]*?\});/);
+    if (stateMatch) {
+      try { pageData = JSON.parse(stateMatch[1]); } catch {}
+    }
+  }
+
+  if (pageData) {
+    // 从页面数据中提取
+    extractDetailData(pageData, result);
+  }
+
+  // 2. 尝试从嵌入式 JSON 中提取
+  if (result.roundScores.length === 0) {
+    const jsonBlocks = html.matchAll(
+      /<script[^>]*type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/g
+    );
+    for (const block of jsonBlocks) {
+      try {
+        const jsonData = JSON.parse(block[1]);
+        extractDetailData(jsonData, result);
+        if (result.roundScores.length > 0) break;
+      } catch {}
+    }
+  }
+
+  // 3. 兜底：从 HTML 表格中提取局分
+  if (result.roundScores.length === 0) {
+    // 匹配局分行: <tr>...<td>13</td><td>16</td>...</tr>
+    const mapRows = html.matchAll(
+      /<tr[^>]*>[\s\S]*?<td[^>]*class="[^"]*team1[^"]*"[^>]*>(\d+)<\/td>[\s\S]*?<td[^>]*class="[^"]*team2[^"]*"[^>]*>(\d+)<\/td>[\s\S]*?<\/tr>/gi
+    );
+    for (const row of mapRows) {
+      result.roundScores.push({
+        map: '默认',
+        team1Score: parseInt(row[1], 10),
+        team2Score: parseInt(row[2], 10)
+      });
+    }
+  }
+
+  return result.roundScores.length > 0 ? result : null;
+}
+
+/**
+ * 递归遍历对象，提取比赛详情数据
+ */
+function extractDetailData(obj, result) {
+  if (!obj || typeof obj !== 'object') return;
+
+  if (Array.isArray(obj)) {
+    // 检查是否是地图/局分数数组
+    if (obj.length > 0 && obj[0].team1Score !== undefined) {
+      for (const item of obj) {
+        result.roundScores.push({
+          map: item.map || item.name || '',
+          team1Score: item.team1Score ?? item.team1_score ?? item.score1 ?? 0,
+          team2Score: item.team2Score ?? item.team2_score ?? item.score2 ?? 0
+        });
+      }
+      return;
+    }
+    // 选手数据数组
+    if (obj.length > 0 && obj[0].playerId !== undefined) {
+      result.playerStats = obj;
+      return;
+    }
+    for (const item of obj) {
+      extractDetailData(item, result);
+    }
+    return;
+  }
+
+  // 检查是否有 maps/roundScores 字段
+  if (obj.maps && Array.isArray(obj.maps)) {
+    for (const m of obj.maps) {
+      result.roundScores.push({
+        map: m.map || m.name || '',
+        team1Score: m.team1Score ?? m.team1_score ?? m.score1 ?? 0,
+        team2Score: m.team2Score ?? m.team2_score ?? m.score2 ?? 0
+      });
+    }
+    return;
+  }
+
+  if (obj.roundScores && Array.isArray(obj.roundScores)) {
+    result.roundScores = [...result.roundScores, ...obj.roundScores];
+  }
+  if (obj.round_scores && Array.isArray(obj.round_scores)) {
+    result.roundScores = [...result.roundScores, ...obj.round_scores];
+  }
+
+  // 递归遍历子字段
+  for (const key of Object.keys(obj)) {
+    if (['team1', 'team2', 'teams', 'players'].includes(key)) continue;
+    extractDetailData(obj[key], result);
   }
 }
 
@@ -343,4 +489,4 @@ function normalizeStatus(status, score1, score2) {
   return 'Upcoming';
 }
 
-module.exports = { fetchFrom5eplay, normalizeMatch };
+module.exports = { fetchFrom5eplay, normalizeMatch, fetchMatchDetail, parseDetailPage };
