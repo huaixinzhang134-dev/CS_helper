@@ -8,11 +8,11 @@
  *   - 小程序后台 → 开发管理 → 服务器域名 → request 合法域名添加
  *   - 同时 downloadFile 合法域名也要添加（用于 <image> 加载）
  */
-export const API_BASE = 'http://192.168.2.166:3000/api';
+export const API_BASE = 'https://cshelper-production.up.railway.app/api';
 
 /**
  * 静态资源 base（图片、文件等）
  * 与 API_BASE 同源，便于本地开发与小程序的 request / downloadFile 复用域名白名单
  * 后端通过 express.static 暴露 /static/ 目录
  */
-export const STATIC_BASE = 'http://192.168.2.166:3000';
+export const STATIC_BASE = 'https://cshelper-production.up.railway.app';
