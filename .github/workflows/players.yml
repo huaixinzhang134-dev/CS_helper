@@ -1,0 +1,38 @@
+name: 选手信息爬虫
+
+on:
+  schedule:
+    - cron: '0 5 1 * *'   # 每月 1 日凌晨 5 点
+  workflow_dispatch:
+
+jobs:
+  players:
+    name: 爬取选手信息
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: crawler/package-lock.json
+
+      - name: 安装系统依赖（Puppeteer 需要）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates fonts-liberation \
+            libasound2 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
+            libdrm2 libgbm1 libnss3 libxcomposite1 libxdamage1 \
+            libxrandr2 xdg-utils libu2f-udev
+
+      - name: 安装依赖
+        run: npm install
+        working-directory: crawler
+
+      - name: 快速增量更新选手信息
+        run: node player_data.js --images-only
+        working-directory: crawler
+        env:
+          NODE_ENV: production
+          PUPPETEER_SKIP_DOWNLOAD: false

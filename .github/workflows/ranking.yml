@@ -1,0 +1,40 @@
+name: 排名爬虫
+
+on:
+  schedule:
+    - cron: '0 3 */7 * *'   # 每 7 天凌晨 3 点
+  workflow_dispatch:
+
+jobs:
+  ranking:
+    name: 爬取战队排名
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: crawler/package-lock.json
+
+      - name: 安装系统依赖（Puppeteer 需要）
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates fonts-liberation \
+            libasound2 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
+            libdrm2 libgbm1 libnss3 libxcomposite1 libxdamage1 \
+            libxrandr2 xdg-utils libu2f-udev
+
+      - name: 安装依赖
+        run: npm install
+        working-directory: crawler
+
+      - name: 爬取排名
+        run: node crawl_ranking.js --top=60
+        working-directory: crawler
+        env:
+          NODE_ENV: production
+
+      - name: 导入到 Railway MySQL
+        run: node scripts/import_ranking.js
