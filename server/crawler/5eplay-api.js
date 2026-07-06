@@ -27,11 +27,8 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
 
 /** 备选 API 端点（按优先级尝试） */
 const API_ENDPOINTS = [
-  // 5eplay 公开赛事列表 API（需验证）
-  // 格式1: 带 grade 筛选
-  'https://event.5eplay.com/api/csgo/match/list?grade=1,7,2,3,8,9',
-  // 格式2: REST 风格
-  'https://api.5eplay.com/v1/csgo/matches?grade=1,7,2,3,8,9',
+  // 5eplay CDN 赛事列表 API（已验证）
+  'https://esports-data.5eplaycdn.com/v1/api/csgo/matches?page=1&limit=50',
 ];
 
 /** 请求超时时间 */
@@ -114,9 +111,13 @@ async function fetchFrom5eplay() {
 function parseApiResponse(data) {
   if (!data) return [];
 
-  // 可能嵌套在 data / result / list 等字段中
   let list = data;
-  if (data.data) list = data.data;
+  if (data.data) {
+    // 新版 CDN API: data.matches 是比赛数组
+    if (Array.isArray(data.data.matches)) list = data.data.matches;
+    else if (Array.isArray(data.data.live_matches)) list = data.data.live_matches;
+    else list = data.data;
+  }
   if (data.result) list = data.result;
   if (data.list) list = data.list;
   if (data.matches) list = data.matches;
@@ -225,37 +226,75 @@ function extractFromObject(obj) {
  */
 function normalizeMatch(raw) {
   try {
-    // 5eplay 比赛 ID（用于爬取详情页）
-    const eplayId = raw.id || raw.match_id || raw._id || raw.matchId || raw.gameId || '';
+    // 新版 CDN API: 数据在 mc_info 里面
+    const info = raw.mc_info || raw;
+    const score = raw.match_score || {};
 
-    const date = raw.date || raw.match_date || raw.matchDate || raw.Date || '';
-    const time = raw.time || raw.match_time || raw.matchTime || raw.Time || '';
-    const matchType = raw.matchType || raw.match_type || raw.type || raw.bo || 'BO1';
-    const team1 = raw.team1 || raw.home_team || raw.homeTeam || raw.teamA ||
-                  (raw.teams ? raw.teams[0] : '') || '';
-    const team2 = raw.team2 || raw.away_team || raw.awayTeam || raw.teamB ||
-                  (raw.teams ? raw.teams[1] : '') || '';
-    const eventName = raw.eventName || raw.event_name || raw.tournament ||
-                      raw.series || raw.event || '';
-    const status = raw.status || 'upcoming';
-    const tab = raw.tab || (raw.status === 'finished' ? 'results' : 'schedule');
+    // 5eplay 比赛 ID
+    const eplayId = info.id || raw.id || raw.match_id || raw._id || raw.matchId || raw.gameId || '';
+
+    // 日期时间（从时间戳或字符串）
+    let date = info.date || raw.date || raw.match_date || '';
+    let time = info.time || raw.time || raw.match_time || '';
+    if (info.plan_ts && !date) {
+      const d = new Date(parseInt(info.plan_ts) * 1000);
+      date = d.toISOString().slice(0, 10);
+      time = d.toTimeString().slice(0, 5);
+    }
+
+    const matchType = info.format
+      ? 'BO' + info.format
+      : (raw.matchType || raw.match_type || raw.type || raw.bo || 'BO1');
+
+    // 队伍信息（兼容新旧格式）
+    const t1 = info.t1_info || {};
+    const t2 = info.t2_info || {};
+    const team1 = t1.disp_name || raw.team1 || raw.home_team || raw.homeTeam || raw.teamA || '';
+    const team2 = t2.disp_name || raw.team2 || raw.away_team || raw.awayTeam || raw.teamB || '';
+    const team1Logo = t1.logo || '';
+    const team2Logo = t2.logo || '';
+
+    // 赛事名称
+    let eventName = raw.eventName || raw.event_name || raw.tournament || raw.series || raw.event || '';
+    if (info.round_name && !eventName) eventName = info.round_name;
+    if (info.grade) eventName = (eventName ? eventName + ' ' : '') + 'G' + info.grade;
+
+    // 状态推断
+    const display = info.display || raw.display || '0';
+    let status = raw.status || 'upcoming';
+    if (display === '2' || display === '3') status = 'Live';
+    if (display === '4') status = 'Finished';
+    const tab = (status === 'Finished' || status === 'finished') ? 'results' : 'schedule';
 
     let team1Score = null;
     let team2Score = null;
 
-    if (raw.team1Score != null) team1Score = raw.team1Score;
-    else if (raw.team1_score != null) team1Score = raw.team1_score;
-    else if (raw.home_score != null) team1Score = raw.home_score;
-    else if (raw.homeScore != null) team1Score = raw.homeScore;
-    else if (raw.score1 != null) team1Score = raw.score1;
-    else if (raw.teamA && raw.teamA.score != null) team1Score = raw.teamA.score;
-
-    if (raw.team2Score != null) team2Score = raw.team2Score;
-    else if (raw.team2_score != null) team2Score = raw.team2_score;
-    else if (raw.away_score != null) team2Score = raw.away_score;
-    else if (raw.awayScore != null) team2Score = raw.awayScore;
-    else if (raw.score2 != null) team2Score = raw.score2;
-    else if (raw.teamB && raw.teamB.score != null) team2Score = raw.teamB.score;
+    // 新版 CDN API: match_score 里面有比分
+    if (score) {
+      if (score.t1_score != null) team1Score = parseInt(score.t1_score);
+      else if (score.team1_score != null) team1Score = parseInt(score.team1_score);
+      else if (score.t1 != null) team1Score = parseInt(score.t1);
+      if (score.t2_score != null) team2Score = parseInt(score.t2_score);
+      else if (score.team2_score != null) team2Score = parseInt(score.team2_score);
+      else if (score.t2 != null) team2Score = parseInt(score.t2);
+    }
+    // 旧版格式兜底
+    if (team1Score == null) {
+      if (raw.team1Score != null) team1Score = raw.team1Score;
+      else if (raw.team1_score != null) team1Score = raw.team1_score;
+      else if (raw.home_score != null) team1Score = raw.home_score;
+      else if (raw.homeScore != null) team1Score = raw.homeScore;
+      else if (raw.score1 != null) team1Score = raw.score1;
+      else if (raw.teamA && raw.teamA.score != null) team1Score = raw.teamA.score;
+    }
+    if (team2Score == null) {
+      if (raw.team2Score != null) team2Score = raw.team2Score;
+      else if (raw.team2_score != null) team2Score = raw.team2_score;
+      else if (raw.away_score != null) team2Score = raw.away_score;
+      else if (raw.awayScore != null) team2Score = raw.awayScore;
+      else if (raw.score2 != null) team2Score = raw.score2;
+      else if (raw.teamB && raw.teamB.score != null) team2Score = raw.teamB.score;
+    }
 
     if (!team1 || !team2) return null;
     if (!date || !time) return null;
@@ -291,6 +330,8 @@ function normalizeMatch(raw) {
       matchType: matchType.replace(/^bo/i, 'BO'),
       team1: String(team1).trim(),
       team2: String(team2).trim(),
+      team1Logo: team1Logo || '',
+      team2Logo: team2Logo || '',
       team1Score: team1Score != null ? Number(team1Score) : null,
       team2Score: team2Score != null ? Number(team2Score) : null,
       eventName: String(eventName).trim(),
@@ -298,7 +339,6 @@ function normalizeMatch(raw) {
       tab
     };
 
-    // 保留 5eplay ID 以便后续爬取详情
     if (eplayId) result.eplayId = eplayId;
     if (roundScores.length > 0) result.roundScores = roundScores;
     if (playerStats) result.playerStats = playerStats;

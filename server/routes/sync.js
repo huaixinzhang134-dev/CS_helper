@@ -27,19 +27,22 @@ const { query } = require('../db/pool');
  * @param {string} teamName
  * @returns {Promise<number>}
  */
-async function resolveTeamId(teamName) {
+async function resolveTeamId(teamName, logoUrl) {
   if (!teamName || !teamName.trim()) return null;
 
   const name = teamName.trim();
 
-  // 尝试查找
-  const [rows] = await query('SELECT id FROM team WHERE name = ? LIMIT 1', [name]);
-  if (rows.length > 0) return rows[0].id;
+  const [rows] = await query('SELECT id, logo_url FROM team WHERE name = ? LIMIT 1', [name]);
+  if (rows.length > 0) {
+    if (logoUrl && !rows[0].logo_url) {
+      await query('UPDATE team SET logo_url = ? WHERE id = ?', [logoUrl, rows[0].id]);
+    }
+    return rows[0].id;
+  }
 
-  // 不存在，自动创建（用 "Other" 赛区占位，后续可手动修正）
   const [result] = await query(
-    'INSERT INTO team (name, region, member_count) VALUES (?, ?, 0)',
-    [name, 'Other']
+    'INSERT INTO team (name, region, member_count, logo_url) VALUES (?, ?, 0, ?)',
+    [name, 'Other', logoUrl || '']
   );
   console.log(`[sync] 自动创建新战队: ${name} (id=${result.insertId})`);
   return result.insertId;
@@ -96,8 +99,8 @@ router.post('/', async (req, res, next) => {
 
     for (const m of matches) {
       // ----- 1. 解析队伍 ID -----
-      const team1Id = await resolveTeamId(m.team1);
-      const team2Id = await resolveTeamId(m.team2);
+      const team1Id = await resolveTeamId(m.team1, m.team1Logo);
+      const team2Id = await resolveTeamId(m.team2, m.team2Logo);
       if (!team1Id || !team2Id) continue;
 
       // ----- 2. 查找已有比赛 -----
