@@ -168,8 +168,12 @@ router.post('/', async (req, res, next) => {
           (newScore1 !== null && newScore1 !== oldScore1) ||
           (newScore2 !== null && newScore2 !== oldScore2);
         const statusChanged = newStatus !== oldStatus;
+        // 局分更新：爬虫带局分但数据库里没有
+        const roundScoresNew = m.roundScores && m.roundScores.length > 0;
+        const roundScoresOld = row.round_scores && row.round_scores !== '[]';
+        const roundScoresChanged = roundScoresNew && !roundScoresOld;
 
-        if (scoreChanged || statusChanged) {
+        if (scoreChanged || statusChanged || roundScoresChanged) {
           // ----- 4. UPDATE -----
           const updateFields = [];
           const updateValues = [];
