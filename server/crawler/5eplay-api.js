@@ -271,6 +271,9 @@ function normalizeMatch(raw) {
     if (info.round_name && !eventName) eventName = info.round_name;
     if (info.grade) eventName = (eventName ? eventName + ' ' : '') + 'G' + info.grade;
 
+    // state（结果 API 返回的比赛状态）
+    const st = raw.state || {};
+
     // 状态推断
     const display = info.display || raw.display || '0';
     let status = raw.status || 'upcoming';
@@ -316,9 +319,6 @@ function normalizeMatch(raw) {
 
     if (!team1 || !team2) return null;
     if (!date || !time) return null;
-
-    // state（结果 API 返回的比赛状态）
-    const st = raw.state || {};
 
     // === 提取局分（小分）===
     let roundScores = [];
