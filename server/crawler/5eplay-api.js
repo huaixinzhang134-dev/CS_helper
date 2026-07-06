@@ -294,8 +294,6 @@ function normalizeMatch(raw) {
       else if (score.team2_score != null) team2Score = parseInt(score.team2_score);
       else if (score.t2 != null) team2Score = parseInt(score.t2);
     }
-    // 结果 API: state 里面有比分
-    const st = raw.state || {};
     if (st.t1_score != null && team1Score == null) team1Score = parseInt(st.t1_score);
     if (st.t2_score != null && team2Score == null) team2Score = parseInt(st.t2_score);
     // 旧版格式兜底
@@ -318,6 +316,9 @@ function normalizeMatch(raw) {
 
     if (!team1 || !team2) return null;
     if (!date || !time) return null;
+
+    // state（结果 API 返回的比赛状态）
+    const st = raw.state || {};
 
     // === 提取局分（小分）===
     let roundScores = [];
