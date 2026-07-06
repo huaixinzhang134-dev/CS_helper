@@ -48,16 +48,15 @@ const TIMEOUT = 15000;
 
 /**
  * 从 5eplay 获取赛事数据
- * 依次尝试各 API 端点，第一个成功的返回
+ * 合并即将开始 + 已结束的比赛
  *
  * @returns {Promise<{ source: string, matches: Array }>}
  */
 async function fetchFrom5eplay() {
-  let lastError = null;
+  const allMatches = [];
 
-  // ----- 方式1: 尝试 JSON API -----
+  // ----- 抓取所有 JSON API（合并结果）-----
   for (const ep of API_ENDPOINTS) {
-    // 支持动态 URL（函数）和静态 URL（字符串）
     const endpoint = typeof ep === 'function' ? ep() : ep;
     try {
       console.log(`[5eplay] 尝试 API: ${endpoint}`);
@@ -71,47 +70,40 @@ async function fetchFrom5eplay() {
         timeout: TIMEOUT
       });
 
-      const data = resp.data;
-      const matches = parseApiResponse(data);
+      const matches = parseApiResponse(resp.data);
       if (matches && matches.length > 0) {
-        console.log(`[5eplay] API ${endpoint} 成功，获取 ${matches.length} 场比赛`);
-        return { source: endpoint, matches };
+        console.log(`[5eplay] API 成功，获取 ${matches.length} 场比赛`);
+        allMatches.push(...matches);
       }
     } catch (err) {
-      lastError = err;
-      console.log(`[5eplay] API ${endpoint} 失败: ${err.message}`);
+      console.log(`[5eplay] API 失败: ${err.message}`);
     }
   }
 
-  // ----- 方式2: 尝试 SSR 页面抓取（如果 API 不可用，5eplay 可能有服务端渲染的页面）-----
+  // ----- 合并结果后返回 -----
+  if (allMatches.length > 0) {
+    console.log(`[5eplay] 总共获取 ${allMatches.length} 场比赛（合并）`);
+    return { source: 'merged', matches: allMatches };
+  }
+
+  // ----- 兜底: SSR 页面抓取 -----
   try {
     console.log('[5eplay] 尝试 SSR 页面抓取');
     const resp = await axios.get('https://event.5eplay.com/csgo/matches', {
-      headers: {
-        'User-Agent': UA,
-        'Accept': 'text/html,application/xhtml+xml'
-      },
+      headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml' },
       timeout: TIMEOUT,
-      // 不验证 SSL
       httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
     });
-
-    const html = resp.data;
-    // 尝试从页面中提取 JSON 数据（Vue/Nuxt SSR 通常把数据嵌入到 <script> 或 __NUXT__ 中）
-    const matches = extractFromSSR(html);
+    const matches = extractFromSSR(resp.data);
     if (matches && matches.length > 0) {
       console.log(`[5eplay] SSR 抓取成功，获取 ${matches.length} 场比赛`);
       return { source: 'ssr', matches };
     }
   } catch (err) {
-    lastError = err;
     console.log('[5eplay] SSR 抓取失败:', err.message);
   }
 
-  // ----- 全部失败 -----
-  throw new Error(
-    `所有 5eplay 数据源均不可用: ${lastError?.message || 'unknown'}`
-  );
+  throw new Error('所有 5eplay 数据源均不可用');
 }
 
 // ======================== 解析器 ========================

@@ -47,14 +47,15 @@ async function syncCycle() {
       return;
     }
 
-    // 2. 按 date + time 分组，只保留"今天及未来"的比赛 + 今天已结束的比赛
+    // 2. 筛选有效比赛：未开始/直播中的全部保留，已结束的保留近期
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().slice(0, 10);
-
+    // 结果 API 的已结束比赛自带 roundScores，全部保留
     const filtered = matches.filter(m => {
-      if (m.status !== 'Finished') return true;
-      return m.date >= todayStr;
+      if (m.roundScores && m.roundScores.length > 0) return true;  // 有局分数据 → 保留
+      if (m.status !== 'Finished') return true;  // 未结束 → 保留
+      return m.date >= todayStr;  // 旧版已结束 → 仅保留今天
     });
 
     if (filtered.length === 0) {
@@ -62,10 +63,10 @@ async function syncCycle() {
       return;
     }
 
-    // 2b. 对已结束的比赛，爬取详情页获取局分和选手数据
+    // 2b. 对已结束但无局分的比赛，爬取详情页补充数据
     let detailCount = 0;
     for (const m of filtered) {
-      if (m.status === 'Finished' && m.eplayId && !m.roundScores) {
+      if (m.status === 'Finished' && m.eplayId && (!m.roundScores || m.roundScores.length === 0)) {
         const detail = await fetchMatchDetail(m.eplayId);
         if (detail) {
           if (detail.roundScores) m.roundScores = detail.roundScores;
