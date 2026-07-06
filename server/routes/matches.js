@@ -17,10 +17,9 @@ function logoToPng(url, baseUrl) {
  * 比赛行 → 前端 Match DTO
  */
 function toMatchDTO(row, baseUrl) {
-  // 优先用联表的 team.name，回退到原字段
   const teamAName = row.teamA_name || row.team_a_name || '';
   const teamBName = row.teamB_name || row.team_b_name || '';
-  return {
+  const dto: any = {
     _id: String(row.id),
     event: row.event_name || '',
     status: row.status || 'Upcoming',
@@ -38,6 +37,15 @@ function toMatchDTO(row, baseUrl) {
       ? `${row.match_date.toISOString ? row.match_date.toISOString().slice(0, 10) : row.match_date}T${row.match_time}`
       : ''
   };
+  // 附加局分数据（用于详情页展示小分）
+  if (row.round_scores) {
+    try {
+      dto.roundScores = typeof row.round_scores === 'string'
+        ? JSON.parse(row.round_scores)
+        : row.round_scores;
+    } catch { dto.roundScores = []; }
+  }
+  return dto;
 }
 
 /**

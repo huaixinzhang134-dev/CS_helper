@@ -1,169 +1,169 @@
 <view class="container match-detail-page">
-  <!-- 比赛信息卡片 -->
-  <view class="match-card" wx:if="{{match}}">
-    <view class="card-header flex-row justify-between">
-      <view class="header-left">
-        <text class="event-name">{{match.event}}</text>
+
+  <!-- ====== 比赛头部卡片 ====== -->
+  <view class="match-hero" wx:if="{{match}}">
+    <view class="hero-event">{{match.event}}</view>
+    <view class="hero-matchup">
+      <view class="hero-team">
+        <image class="hero-logo" src="{{match.teamA.logo}}" mode="aspectFit"></image>
+        <text class="hero-team-name">{{match.teamA.name || 'TBD'}}</text>
       </view>
-      <view class="header-right">
-        <view class="ws-badge {{wsConnected ? 'online' : ''}}" wx:if="{{match.status === 'Live'}}">
-          <view class="ws-dot-sm"></view>
-        </view>
-        <view class="status-badge {{match.status === 'Live' ? 'live' : ''}}">
-          {{match.status}}
-        </view>
-      </view>
-    </view>
-    <view class="match-content flex-row justify-between">
-      <view class="team flex-col align-center">
-        <image class="team-logo" src="{{match.teamA.logo}}" mode="aspectFit"></image>
-        <text class="team-name">{{match.teamA.name}}</text>
-      </view>
-      <view class="score-board flex-col align-center">
+      <view class="hero-score-area">
         <block wx:if="{{match.status === 'Upcoming'}}">
-          <text class="vs-text">VS</text>
-          <text class="match-time">{{match.time}}</text>
+          <text class="hero-vs">VS</text>
+          <text class="hero-time">{{match.time}}</text>
         </block>
         <block wx:else>
-          <view class="score-text {{scoreAnimated ? 'score-flash' : ''}} {{match.status === 'Live' ? 'score-live' : ''}}">
-            <text class="{{match.teamA.score > match.teamB.score ? 'winner' : ''}}">{{match.teamA.score}}</text>
-            <text class="divider"> : </text>
-            <text class="{{match.teamB.score > match.teamA.score ? 'winner' : ''}}">{{match.teamB.score}}</text>
+          <view class="hero-score {{scoreAnimated ? 'flash' : ''}}">
+            <text class="hero-score-num {{match.teamA.score > match.teamB.score ? 'win' : ''}}">{{match.teamA.score}}</text>
+            <text class="hero-score-colon">:</text>
+            <text class="hero-score-num {{match.teamB.score > match.teamA.score ? 'win' : ''}}">{{match.teamB.score}}</text>
           </view>
         </block>
+        <view class="hero-status {{match.status === 'Live' ? 'live' : ''}}">
+          <view class="live-dot" wx:if="{{match.status === 'Live'}}"></view>
+          <text>{{match.status === 'Live' ? '直播中' : match.status === 'Finished' ? '已结束' : '未开始'}}</text>
+        </view>
       </view>
-      <view class="team flex-col align-center">
-        <image class="team-logo" src="{{match.teamB.logo}}" mode="aspectFit"></image>
-        <text class="team-name">{{match.teamB.name}}</text>
+      <view class="hero-team">
+        <image class="hero-logo" src="{{match.teamB.logo}}" mode="aspectFit"></image>
+        <text class="hero-team-name">{{match.teamB.name || 'TBD'}}</text>
       </view>
     </view>
   </view>
 
-  <!-- 选手筛选 tab -->
-  <scroll-view scroll-x class="player-tabs" wx:if="{{playerTabs.length > 1}}">
-    <view
-      class="player-tab {{activePlayerId === item.id ? 'active' : ''}}"
-      wx:for="{{playerTabs}}"
-      wx:key="id"
-      data-id="{{item.id}}"
-      bindtap="onTabTap"
-    >
-      <text>{{item.label}}</text>
+  <!-- ====== 局分展示（已完成比赛） ====== -->
+  <view class="section" wx:if="{{match && match.roundScores && match.roundScores.length > 0}}">
+    <view class="section-title">局分详情</view>
+    <view class="round-scores">
+      <view class="round-header">
+        <text class="round-cell map">地图</text>
+        <text class="round-cell score">{{match.teamA.name || 'A队'}}</text>
+        <text class="round-cell score">{{match.teamB.name || 'B队'}}</text>
+      </view>
+      <view class="round-row" wx:for="{{match.roundScores}}" wx:key="index">
+        <text class="round-cell map">{{item.map || '默认'}}</text>
+        <text class="round-cell score win {{item.team1Score > item.team2Score ? 'win-color' : ''}}">{{item.team1Score}}</text>
+        <text class="round-cell score win {{item.team2Score > item.team1Score ? 'win-color' : ''}}">{{item.team2Score}}</text>
+      </view>
     </view>
-  </scroll-view>
+  </view>
 
-  <!-- 评论列表 -->
+  <!-- ====== 选手统计（已完成比赛） ====== -->
+  <view class="section" wx:if="{{match && match.status === 'Finished' && team1.players.length > 0}}">
+    <view class="section-title">选手数据</view>
+    <!-- Team 1 -->
+    <view class="team-stats-block">
+      <view class="ts-team-name">{{team1.name}}</view>
+      <view class="ts-header">
+        <text class="ts-cell name">选手</text>
+        <text class="ts-cell num">K</text>
+        <text class="ts-cell num">D</text>
+        <text class="ts-cell num">A</text>
+        <text class="ts-cell num rating">Rating</text>
+      </view>
+      <view class="ts-row" wx:for="{{team1.players}}" wx:key="playerId">
+        <text class="ts-cell name">{{item.name}}</text>
+        <text class="ts-cell num">-</text>
+        <text class="ts-cell num">-</text>
+        <text class="ts-cell num">-</text>
+        <text class="ts-cell num rating">-</text>
+      </view>
+    </view>
+    <!-- Team 2 -->
+    <view class="team-stats-block">
+      <view class="ts-team-name">{{team2.name}}</view>
+      <view class="ts-header">
+        <text class="ts-cell name">选手</text>
+        <text class="ts-cell num">K</text>
+        <text class="ts-cell num">D</text>
+        <text class="ts-cell num">A</text>
+        <text class="ts-cell num rating">Rating</text>
+      </view>
+      <view class="ts-row" wx:for="{{team2.players}}" wx:key="playerId">
+        <text class="ts-cell name">{{item.name}}</text>
+        <text class="ts-cell num">-</text>
+        <text class="ts-cell num">-</text>
+        <text class="ts-cell num">-</text>
+        <text class="ts-cell num rating">-</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- ====== 评论标签筛选 ====== -->
+  <view class="section">
+    <view class="section-title">选手评价</view>
+    <scroll-view scroll-x class="player-tabs" wx:if="{{playerTabs.length > 1}}">
+      <view
+        class="player-tab {{activePlayerGameId === item.id ? 'active' : ''}}"
+        wx:for="{{playerTabs}}" wx:key="id"
+        data-id="{{item.id}}" bindtap="onTabTap"
+      >
+        <text>{{item.label}}</text>
+        <text class="tab-team" wx:if="{{item.team}}"> · {{item.team}}</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- ====== 评论列表 ====== -->
   <view class="comment-list">
-    <view
-      class="comment-item"
-      wx:for="{{comments}}"
-      wx:key="_id"
-      data-id="{{item._id}}"
-      data-openid="{{item.userOpenid}}"
+    <view class="comment-item" wx:for="{{comments}}" wx:key="_id"
+      data-id="{{item._id}}" data-userid="{{item.userId}}"
       bindlongpress="onCommentLongPress"
     >
-      <image
-        class="avatar"
-        src="{{item.userAvatarUrl || '/assets/icons/user.png'}}"
-        mode="aspectFill"
-      ></image>
-      <view class="comment-body">
-        <view class="comment-meta">
-          <text class="nickname">{{item.userNickName}}</text>
-          <view class="player-tag">
-            <text class="player-name">{{item.playerName}}</text>
-            <text class="player-team" wx:if="{{item.playerTeam}}"> · {{item.playerTeam}}</text>
-          </view>
-        </view>
-        <text class="comment-content">{{item.content}}</text>
-        <text class="comment-time">{{item.formatTime}}</text>
+      <view class="comment-header">
+        <text class="comment-user">{{item.userId}}</text>
+        <text class="comment-player">→ {{item.playerName}}</text>
+        <text class="comment-team" wx:if="{{item.playerTeam}}"> · {{item.playerTeam}}</text>
       </view>
+      <text class="comment-content">{{item.content}}</text>
+      <text class="comment-time">{{item.formatTime}}</text>
     </view>
     <view class="empty-state" wx:if="{{!loading && comments.length === 0}}">
-      <text>暂无评论，来发第一条吧</text>
+      <text>暂无评价</text>
     </view>
   </view>
 
-  <!-- 底部固定输入栏 -->
+  <!-- ====== 底部输入栏 ====== -->
   <view class="comment-bar">
-    <block wx:if="{{selectedPlayer}}">
-      <view class="selected-player">
-        <text class="sp-label">评论对象：</text>
-        <text class="sp-name">{{selectedPlayer.name}}</text>
-        <text class="sp-clear" bindtap="onClearSelected">×</text>
-      </view>
-    </block>
     <view class="bar-row">
-      <input
-        class="comment-input"
-        placeholder="{{selectedPlayer ? '说点什么...' : '请先选择一位参赛选手'}}"
+      <button class="pick-player-btn" bindtap="onOpenPlayerModal">
+        {{selectedPlayer ? selectedPlayer.name : '+ 选选手'}}
+      </button>
+      <input class="comment-input"
+        placeholder="{{selectedPlayer ? '说点什么...' : '请先选一位选手'}}"
         placeholder-class="ph"
-        value="{{draftContent}}"
-        bindinput="onInputChange"
-        disabled="{{!selectedPlayer}}"
-        maxlength="500"
-        confirm-type="send"
-        bindconfirm="onSend"
+        value="{{draftContent}}" bindinput="onInputChange"
+        disabled="{{!selectedPlayer}}" maxlength="500"
       />
-      <button
-        class="send-btn {{!selectedPlayer || !draftContent ? 'disabled' : ''}}"
-        bindtap="onOpenPlayerModal"
-        disabled="{{!selectedPlayer}}"
-      >{{selectedPlayer ? '已选' : '选选手'}}</button>
-      <button
-        class="send-btn primary {{sending ? 'disabled' : ''}}"
-        bindtap="onSend"
-        disabled="{{sending || !selectedPlayer || !draftContent}}"
-      >{{sending ? '发送中' : '发送'}}</button>
+      <button class="send-btn {{sending || !selectedPlayer || !draftContent ? 'disabled' : ''}}"
+        bindtap="onSend" disabled="{{sending || !selectedPlayer || !draftContent}}"
+      >{{sending ? '...' : '发送'}}</button>
     </view>
   </view>
 
-  <!-- 选手选择 modal -->
+  <!-- ====== 选手选择弹窗 ====== -->
   <view class="modal-mask" wx:if="{{showPlayerModal}}" bindtap="onClosePlayerModal">
     <view class="modal-content" catchtap="">
-      <view class="modal-title">选择评论对象</view>
-
+      <view class="modal-title">选择评价选手</view>
       <view class="team-group" wx:if="{{team1.name}}">
         <view class="group-title">{{team1.name}}</view>
-        <view
-          class="player-row"
-          wx:for="{{team1.players}}"
-          wx:key="playerId"
-          wx:for-item="player"
-          data-id="{{player.playerId}}"
-          data-team="team1"
-          bindtap="onSelectPlayer"
-        >
-          <text class="pr-name">{{player.name}}</text>
-          <text class="pr-position" wx:if="{{player.position}}">{{player.position}}</text>
-        </view>
-        <view class="empty-team" wx:if="{{team1.players.length === 0}}">
-          <text>该战队暂无选手数据</text>
+        <view class="player-row" wx:for="{{team1.players}}" wx:key="playerId"
+          data-id="{{item.playerId}}" data-team="team1" bindtap="onSelectPlayer">
+          <text class="pr-name">{{item.name}}</text>
+          <text class="pr-pos" wx:if="{{item.position}}">{{item.position}}</text>
         </view>
       </view>
-
       <view class="team-group" wx:if="{{team2.name}}">
         <view class="group-title">{{team2.name}}</view>
-        <view
-          class="player-row"
-          wx:for="{{team2.players}}"
-          wx:key="playerId"
-          wx:for-item="player"
-          data-id="{{player.playerId}}"
-          data-team="team2"
-          bindtap="onSelectPlayer"
-        >
-          <text class="pr-name">{{player.name}}</text>
-          <text class="pr-position" wx:if="{{player.position}}">{{player.position}}</text>
-        </view>
-        <view class="empty-team" wx:if="{{team2.players.length === 0}}">
-          <text>该战队暂无选手数据</text>
+        <view class="player-row" wx:for="{{team2.players}}" wx:key="playerId"
+          data-id="{{item.playerId}}" data-team="team2" bindtap="onSelectPlayer">
+          <text class="pr-name">{{item.name}}</text>
+          <text class="pr-pos" wx:if="{{item.position}}">{{item.position}}</text>
         </view>
       </view>
-
-      <view class="modal-footer">
-        <button class="btn-cancel" bindtap="onClosePlayerModal">取消</button>
-      </view>
+      <view class="modal-footer"><button class="btn-cancel" bindtap="onClosePlayerModal">取消</button></view>
     </view>
   </view>
+
 </view>

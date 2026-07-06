@@ -120,11 +120,12 @@ router.post('/', async (req, res, next) => {
 
       if (rows.length === 0) {
         // ----- 3a. 新比赛，INSERT -----
+        const roundScoresJson = m.roundScores ? JSON.stringify(m.roundScores) : '[]';
         const [insertResult] = await query(
           `INSERT INTO matches
            (match_date, match_time, match_type, team1_id, team2_id,
-            team1_score, team2_score, event_name, status, tab)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            team1_score, team2_score, round_scores, event_name, status, tab)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             m.date,
             m.time,
@@ -133,6 +134,7 @@ router.post('/', async (req, res, next) => {
             team2Id,
             newScore1 ?? 0,
             newScore2 ?? 0,
+            roundScoresJson,
             m.eventName || '',
             newStatus,
             m.tab || 'schedule'
@@ -180,6 +182,10 @@ router.post('/', async (req, res, next) => {
           if (statusChanged) {
             updateFields.push('status = ?');
             updateValues.push(newStatus);
+          }
+          if (m.roundScores) {
+            updateFields.push('round_scores = ?');
+            updateValues.push(JSON.stringify(m.roundScores));
           }
 
           if (updateFields.length > 0) {

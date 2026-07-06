@@ -108,22 +108,19 @@ CREATE TABLE matches (
 
 
 -- ============================================================
--- 5. 评论表  match_comments
+-- 5. 选手评论表  player_comments
 -- ============================================================
-CREATE TABLE IF NOT EXISTS match_comments (
-  id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  match_id    BIGINT UNSIGNED NOT NULL,
-  player_id   VARCHAR(64)     NOT NULL,
-  content     VARCHAR(500)    NOT NULL,
-  user_openid VARCHAR(64)     NOT NULL DEFAULT '',
-  status      TINYINT         NOT NULL DEFAULT 1,
-  created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE IF NOT EXISTS player_comments (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id         VARCHAR(64)     NOT NULL DEFAULT '',
+  player_game_id  VARCHAR(64)     NOT NULL,
+  content         VARCHAR(500)    NOT NULL,
+  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_mc_match_created (match_id, created_at),
-  KEY idx_mc_player (player_id),
-  KEY idx_mc_openid (user_openid, created_at)
+  KEY idx_pc_player (player_game_id),
+  KEY idx_pc_user (user_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='赛事评论区';
+  COMMENT='选手评论表';
 
 
 -- ============================================================

@@ -29,9 +29,11 @@
         <view class="avatar-placeholder">
           <image class="icon-user" src="/assets/icons/game.png" mode="aspectFit"></image>
         </view>
-        <button class="btn-login" bindtap="handleLogin" loading="{{loading}}">
-          一键登录
-        </button>
+        <button
+          class="btn-login"
+          bindtap="handleLogin"
+          loading="{{loading}}"
+        >微信一键登录</button>
         <text class="login-tips">登录后同步游戏数据</text>
       </view>
     </block>

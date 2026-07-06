@@ -1,60 +1,54 @@
-// 评论路由
+/**
+ * 选手评论路由（新版 player_comments 表）
+ *
+ * GET    /api/comments?playerGameId=&userId=&page=0&pageSize=20
+ * POST   /api/comments  { userId, playerGameId, content }
+ * DELETE /api/comments/:id?userId=
+ */
+
 const express = require('express');
 const router = express.Router();
-
 const { query } = require('../db/pool');
 
 const CONTENT_MAX_LEN = 500;
 
-/**
- * 数据库行 → 前端 Comment DTO
- */
-function toCommentDTO(row) {
+function toDTO(row) {
   return {
-    _id: String(row.id),  // 兼容旧前端
-    id: String(row.id),
-    matchId: String(row.match_id),
-    playerId: row.player_id,
+    _id: String(row.id),
+    userId: row.user_id,
+    playerGameId: row.player_game_id,
     content: row.content,
-    userOpenid: row.user_openid,
-    createdAt: row.created_at,  // 前端会用 formatTime 格式化
-    status: row.status
+    createdAt: row.created_at
   };
 }
 
 /**
- * GET /api/comments?matchId=&playerId=&page=0&pageSize=20
+ * GET /api/comments
+ * 查询评论，可按选手 game_id 或用户 id 筛选
  */
 router.get('/', async (req, res, next) => {
   try {
-    const matchId = req.query.matchId;
-    const playerId = req.query.playerId;
+    const { playerGameId, userId } = req.query;
     const page = Math.max(parseInt(req.query.page || '0', 10), 0);
     const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
 
-    if (!matchId) {
-      return res.status(400).json({ code: 400, message: 'matchId 必填', data: null });
-    }
+    const where = [];
+    const params = [];
+    if (playerGameId) { where.push('player_game_id = ?'); params.push(playerGameId); }
+    if (userId) { where.push('user_id = ?'); params.push(userId); }
 
-    const where = ['match_id = ?', 'status = 1'];
-    const params = [matchId];
-    if (playerId) {
-      where.push('player_id = ?');
-      params.push(playerId);
-    }
-    const whereSQL = where.join(' AND ');
-
+    const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
     const offset = page * pageSize;
 
-    const [listRows, countRows] = await Promise.all([
+    const [rows, countRows] = await Promise.all([
       query(
-        `SELECT * FROM match_comments WHERE ${whereSQL}
+        `SELECT * FROM player_comments ${whereSQL}
          ORDER BY created_at DESC, id DESC
          LIMIT ${pageSize} OFFSET ${offset}`,
         params
       ),
       query(
-        `SELECT COUNT(*) AS total FROM match_comments WHERE ${whereSQL}`,
+        `SELECT COUNT(*) AS total FROM player_comments ${whereSQL}`,
         params
       )
     ]);
@@ -63,32 +57,30 @@ router.get('/', async (req, res, next) => {
       code: 0,
       message: '',
       data: {
-        list: listRows[0].map(toCommentDTO),
+        list: rows[0].map(toDTO),
         total: countRows[0][0].total,
-        page,
-        pageSize,
+        page, pageSize,
         hasMore: (page + 1) * pageSize < countRows[0][0].total
       }
     });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
 /**
  * POST /api/comments
- * Body: { matchId, playerId, content, userOpenid }
+ * Body: { userId, playerGameId, content }
  */
 router.post('/', async (req, res, next) => {
   try {
-    const { matchId, playerId, content, userOpenid } = req.body || {};
+    const { userId, playerGameId, content } = req.body || {};
 
-    if (!userOpenid) {
+    if (!userId) {
       return res.status(401).json({ code: 401, message: '请先登录', data: null });
     }
-    if (!matchId || !playerId) {
-      return res.status(400).json({ code: 400, message: 'matchId / playerId 必填', data: null });
+    if (!playerGameId) {
+      return res.status(400).json({ code: 400, message: 'playerGameId 必填', data: null });
     }
+
     const trimmed = (content || '').trim();
     if (!trimmed) {
       return res.status(400).json({ code: 400, message: '评论内容不能为空', data: null });
@@ -97,58 +89,39 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ code: 400, message: `评论最多 ${CONTENT_MAX_LEN} 字`, data: null });
     }
 
-    // 校验比赛存在
-    const [matchRows] = await query('SELECT id FROM matches WHERE id = ? LIMIT 1', [matchId]);
-    if (matchRows.length === 0) {
-      return res.status(404).json({ code: 404, message: '比赛不存在', data: null });
-    }
-    // 校验选手存在
-    const [playerRows] = await query('SELECT id FROM player WHERE game_id = ? LIMIT 1', [playerId]);
-    if (playerRows.length === 0) {
-      return res.status(404).json({ code: 404, message: '选手不存在', data: null });
-    }
-
     const [result] = await query(
-      `INSERT INTO match_comments (match_id, player_id, content, user_openid, status)
-       VALUES (?, ?, ?, ?, 1)`,
-      [matchId, playerId, trimmed, userOpenid]
+      `INSERT INTO player_comments (user_id, player_game_id, content) VALUES (?, ?, ?)`,
+      [userId, playerGameId, trimmed]
     );
 
-    // 返回完整记录
-    const [rows] = await query('SELECT * FROM match_comments WHERE id = ?', [result.insertId]);
-    res.json({ code: 0, message: '发送成功', data: toCommentDTO(rows[0]) });
-  } catch (err) {
-    next(err);
-  }
+    const [rows] = await query('SELECT * FROM player_comments WHERE id = ?', [result.insertId]);
+    res.json({ code: 0, message: '发送成功', data: toDTO(rows[0]) });
+  } catch (err) { next(err); }
 });
 
 /**
- * DELETE /api/comments/:id?userOpenid=
- * 仅本人可删（软删除）
+ * DELETE /api/comments/:id?userId=
  */
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const userOpenid = req.query.userOpenid || '';
+    const userId = req.query.userId || '';
 
-    if (!userOpenid) {
+    if (!userId) {
       return res.status(401).json({ code: 401, message: '请先登录', data: null });
     }
 
-    const [rows] = await query('SELECT * FROM match_comments WHERE id = ? LIMIT 1', [id]);
+    const [rows] = await query('SELECT * FROM player_comments WHERE id = ? LIMIT 1', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ code: 404, message: '评论不存在', data: null });
     }
-    const comment = rows[0];
-    if (comment.user_openid !== userOpenid) {
+    if (rows[0].user_id !== userId) {
       return res.status(403).json({ code: 403, message: '只能删除自己的评论', data: null });
     }
 
-    await query('UPDATE match_comments SET status = 0 WHERE id = ?', [id]);
+    await query('DELETE FROM player_comments WHERE id = ?', [id]);
     res.json({ code: 0, message: '删除成功', data: { id: String(id) } });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 });
 
 module.exports = router;

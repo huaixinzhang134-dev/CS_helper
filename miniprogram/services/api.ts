@@ -29,6 +29,7 @@ export interface Match {
   teamA: { name: string; logo: string; score: number };
   teamB: { name: string; logo: string; score: number };
   time: string;
+  roundScores?: { map: string; team1Score: number; team2Score: number }[];
 }
 
 export interface UserProfile {
@@ -212,18 +213,15 @@ export const fetchMatchDetail = async (
 
 
 // ============================================================
-// 评论区 API
+// 评论区 API（新版 player_comments 表）
 // ============================================================
 
 export interface CommentItem {
   _id: string;
-  id: string;
-  matchId: string;
-  playerId: string;
+  userId: string;
+  playerGameId: string;
   content: string;
-  userOpenid: string;
   createdAt: string | Date;
-  status: number;
 }
 
 export interface CommentListResp {
@@ -252,37 +250,35 @@ export interface MatchPlayersResp {
 }
 
 /**
- * 评论列表
+ * 查询选手评论
  */
-export const fetchMatchComments = async (
-  matchId: string,
+export const fetchPlayerComments = async (
+  playerGameId: string,
   page: number = 0,
-  pageSize: number = 20,
-  playerId?: string
+  pageSize: number = 20
 ): Promise<{ success: boolean; data: CommentListResp | null; message?: string; code?: number }> => {
-  return await get<CommentListResp>('/comments', { matchId, page, pageSize, playerId });
+  return await get<CommentListResp>('/comments', { playerGameId, page, pageSize });
 };
 
 /**
- * 发评论（userOpenid 必传：本地用 wx.getStorageSync('userInfo').uid）
+ * 发评论
  */
-export const addMatchComment = async (
-  matchId: string,
-  playerId: string,
+export const addPlayerComment = async (
+  playerGameId: string,
   content: string,
-  userOpenid: string
+  userId: string
 ): Promise<{ success: boolean; data: CommentItem | null; message?: string; code?: number }> => {
-  return await post<CommentItem>('/comments', { matchId, playerId, content, userOpenid });
+  return await post<CommentItem>('/comments', { playerGameId, content, userId });
 };
 
 /**
  * 删除自己评论
  */
-export const deleteMatchComment = async (
+export const deletePlayerComment = async (
   commentId: string,
-  userOpenid: string
+  userId: string
 ): Promise<{ success: boolean; data: any; message?: string; code?: number }> => {
-  return await del<any>(`/comments/${commentId}`, { userOpenid });
+  return await del<any>(`/comments/${commentId}`, { userId });
 };
 
 /**

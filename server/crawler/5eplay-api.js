@@ -221,10 +221,10 @@ function extractFromObject(obj) {
 
 /**
  * 将 5eplay 的不同数据格式归一化为统一格式
+ * 增强版：额外提取局分(roundScores)和选手数据(playerStats)
  */
 function normalizeMatch(raw) {
   try {
-    // 兼容不同字段名
     const date = raw.date || raw.match_date || raw.matchDate || raw.Date || '';
     const time = raw.time || raw.match_time || raw.matchTime || raw.Time || '';
     const matchType = raw.matchType || raw.match_type || raw.type || raw.bo || 'BO1';
@@ -237,7 +237,6 @@ function normalizeMatch(raw) {
     const status = raw.status || 'upcoming';
     const tab = raw.tab || (raw.status === 'finished' ? 'results' : 'schedule');
 
-    // 比分可能在不同字段中
     let team1Score = null;
     let team2Score = null;
 
@@ -258,7 +257,32 @@ function normalizeMatch(raw) {
     if (!team1 || !team2) return null;
     if (!date || !time) return null;
 
-    return {
+    // === 新增：提取局分（小分）===
+    let roundScores = [];
+    if (raw.roundScores && Array.isArray(raw.roundScores)) {
+      roundScores = raw.roundScores;
+    } else if (raw.round_scores && Array.isArray(raw.round_scores)) {
+      roundScores = raw.round_scores;
+    } else if (raw.maps && Array.isArray(raw.maps)) {
+      roundScores = raw.maps.map(m => ({
+        map: m.map || m.name || '',
+        team1Score: m.team1Score || m.team1_score || m.score1 || 0,
+        team2Score: m.team2Score || m.team2_score || m.score2 || 0
+      }));
+    }
+
+    // === 新增：提取选手数据 ===
+    let playerStats = null;
+    if (raw.playerStats) {
+      playerStats = raw.playerStats;
+    } else if (raw.players) {
+      playerStats = raw.players;
+    } else if (raw.stats) {
+      playerStats = raw.stats;
+    }
+
+    // 如果有 maps/roundScores 但没有 playerStats，至少返回 roundScores
+    const result = {
       date: normalizeDate(date),
       time: normalizeTime(time),
       matchType: matchType.replace(/^bo/i, 'BO'),
@@ -270,6 +294,11 @@ function normalizeMatch(raw) {
       status: normalizeStatus(status, team1Score, team2Score),
       tab
     };
+
+    if (roundScores.length > 0) result.roundScores = roundScores;
+    if (playerStats) result.playerStats = playerStats;
+
+    return result;
   } catch (e) {
     console.error('[5eplay] 归一化失败:', e.message, JSON.stringify(raw).slice(0, 200));
     return null;
