@@ -7,18 +7,16 @@ const { query } = require('../db/pool');
 /**
  * 将 SVG 队标 URL 转为本地代理地址（微信小程序不支持 SVG）
  */
-function logoToPng(url) {
+function logoToPng(url, baseUrl) {
   if (!url || !url.includes('.svg')) return url || '';
   // 通过本地代理转换 SVG → PNG，避免微信小程序不兼容
-  return '/api/logo?url=' + encodeURIComponent(url);
+  return baseUrl + '/api/logo?url=' + encodeURIComponent(url);
 }
 
 /**
  * 比赛行 → 前端 Match DTO
- * 形状与原 NoSQL matches 集合保持一致：
- *   { event, status, teamA:{name,logo,score}, teamB:{name,logo,score}, time }
  */
-function toMatchDTO(row) {
+function toMatchDTO(row, baseUrl) {
   // 优先用联表的 team.name，回退到原字段
   const teamAName = row.teamA_name || row.team_a_name || '';
   const teamBName = row.teamB_name || row.team_b_name || '';
@@ -28,12 +26,12 @@ function toMatchDTO(row) {
     status: row.status || 'Upcoming',
     teamA: {
       name: teamAName,
-      logo: logoToPng(row.teamA_logo),
+      logo: logoToPng(row.teamA_logo, baseUrl),
       score: row.team1_score || 0
     },
     teamB: {
       name: teamBName,
-      logo: logoToPng(row.teamB_logo),
+      logo: logoToPng(row.teamB_logo, baseUrl),
       score: row.team2_score || 0
     },
     time: row.match_time
@@ -66,10 +64,11 @@ router.get('/', async (req, res, next) => {
       return sa - sb;
     });
 
+    const baseUrl = req.protocol + '://' + req.get('host');
     res.json({
       code: 0,
       message: '',
-      data: sorted.map(toMatchDTO)
+      data: sorted.map(r => toMatchDTO(r, baseUrl))
     });
   } catch (err) {
     next(err);
@@ -95,7 +94,8 @@ router.get('/:id', async (req, res, next) => {
     if (rows.length === 0) {
       return res.status(404).json({ code: 404, message: '比赛不存在', data: null });
     }
-    res.json({ code: 0, message: '', data: toMatchDTO(rows[0]) });
+    const baseUrl = req.protocol + '://' + req.get('host');
+    res.json({ code: 0, message: '', data: toMatchDTO(rows[0], baseUrl) });
   } catch (err) {
     next(err);
   }
