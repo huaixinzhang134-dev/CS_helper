@@ -19,6 +19,7 @@ const logoRouter = require('./routes/logo');
 const { setupWebSocket } = require('./ws');
 
 const app = express();
+app.enable('trust proxy');  // 信任 Railway 反向代理
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // 中间件
