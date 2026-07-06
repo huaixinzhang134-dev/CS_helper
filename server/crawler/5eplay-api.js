@@ -27,8 +27,10 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
 
 /** 备选 API 端点（按优先级尝试） */
 const API_ENDPOINTS = [
-  // 5eplay CDN 赛事列表 API（已验证）
+  // 5eplay CDN 即将开始的比赛
   'https://esports-data.5eplaycdn.com/v1/api/csgo/matches?page=1&limit=50',
+  // 5eplay APP 已结束的比赛
+  'https://app.5eplay.com/api/tournament/session_result_list?game_type=1&order_by=desc&grades=1,7,2,3,8,9&page_size=50',
 ];
 
 /** 请求超时时间 */
@@ -264,6 +266,10 @@ function normalizeMatch(raw) {
     let status = raw.status || 'upcoming';
     if (display === '2' || display === '3') status = 'Live';
     if (display === '4') status = 'Finished';
+    // 结果 API 的 matches 有 state.bout_states 但 display=1，强制标记为 Finished
+    if (st.bout_states && Array.isArray(st.bout_states) && st.bout_states.length > 0) {
+      status = 'Finished';
+    }
     const tab = (status === 'Finished' || status === 'finished') ? 'results' : 'schedule';
 
     let team1Score = null;
@@ -278,6 +284,10 @@ function normalizeMatch(raw) {
       else if (score.team2_score != null) team2Score = parseInt(score.team2_score);
       else if (score.t2 != null) team2Score = parseInt(score.t2);
     }
+    // 结果 API: state 里面有比分
+    const st = raw.state || {};
+    if (st.t1_score != null && team1Score == null) team1Score = parseInt(st.t1_score);
+    if (st.t2_score != null && team2Score == null) team2Score = parseInt(st.t2_score);
     // 旧版格式兜底
     if (team1Score == null) {
       if (raw.team1Score != null) team1Score = raw.team1Score;
@@ -299,13 +309,21 @@ function normalizeMatch(raw) {
     if (!team1 || !team2) return null;
     if (!date || !time) return null;
 
-    // === 新增：提取局分（小分）===
+    // === 提取局分（小分）===
     let roundScores = [];
-    if (raw.roundScores && Array.isArray(raw.roundScores)) {
+    // 结果 API: state.bout_states 包含每局比分
+    if (st.bout_states && Array.isArray(st.bout_states)) {
+      roundScores = st.bout_states.map(b => ({
+        map: b.map_name || '',
+        team1Score: parseInt(b.t1_score) || 0,
+        team2Score: parseInt(b.t2_score) || 0
+      }));
+    }
+    if (roundScores.length === 0 && raw.roundScores && Array.isArray(raw.roundScores)) {
       roundScores = raw.roundScores;
-    } else if (raw.round_scores && Array.isArray(raw.round_scores)) {
+    } else if (roundScores.length === 0 && raw.round_scores && Array.isArray(raw.round_scores)) {
       roundScores = raw.round_scores;
-    } else if (raw.maps && Array.isArray(raw.maps)) {
+    } else if (roundScores.length === 0 && raw.maps && Array.isArray(raw.maps)) {
       roundScores = raw.maps.map(m => ({
         map: m.map || m.name || '',
         team1Score: m.team1Score || m.team1_score || m.score1 || 0,
