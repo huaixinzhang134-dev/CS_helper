@@ -19,7 +19,7 @@ function logoToPng(url, baseUrl) {
 function toMatchDTO(row, baseUrl) {
   const teamAName = row.teamA_name || row.team_a_name || '';
   const teamBName = row.teamB_name || row.team_b_name || '';
-  const dto: any = {
+  const dto = {
     _id: String(row.id),
     event: row.event_name || '',
     status: row.status || 'Upcoming',
