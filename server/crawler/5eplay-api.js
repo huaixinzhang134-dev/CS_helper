@@ -280,9 +280,12 @@ function normalizeMatch(raw) {
     if (display === '2' || display === '3') status = 'Live';
     if (display === '4') status = 'Finished';
     // 结果 API 的 matches 有 state.bout_states 但 display=1，强制标记为 Finished
+    // 只在 state.status 不为 '0' 且有实际局分时标记为已完成
     if (st.bout_states && Array.isArray(st.bout_states) && st.bout_states.length > 0) {
       status = 'Finished';
     }
+    // CDN API 的 state.t1_score='0' 只是默认值，不应用作已结束判断
+    const stateHasScore = st.status && st.status !== '0' && st.t1_score && st.t2_score;
     const tab = (status === 'Finished' || status === 'finished') ? 'results' : 'schedule';
 
     let team1Score = null;
@@ -297,8 +300,9 @@ function normalizeMatch(raw) {
       else if (score.team2_score != null) team2Score = parseInt(score.team2_score);
       else if (score.t2 != null) team2Score = parseInt(score.t2);
     }
-    if (st.t1_score != null && team1Score == null) team1Score = parseInt(st.t1_score);
-    if (st.t2_score != null && team2Score == null) team2Score = parseInt(st.t2_score);
+    // 只在 state 有真实比分时使用（排除 CDN API 的 state.t1_score='0' 默认值）
+    if (stateHasScore && team1Score == null) team1Score = parseInt(st.t1_score);
+    if (stateHasScore && team2Score == null) team2Score = parseInt(st.t2_score);
     // 旧版格式兜底
     if (team1Score == null) {
       if (raw.team1Score != null) team1Score = raw.team1Score;
@@ -621,8 +625,8 @@ function normalizeStatus(status, score1, score2) {
   const s = String(status).toLowerCase().trim();
   if (s === 'live' || s === 'playing' || s === 'ongoing') return 'Live';
   if (s === 'finished' || s === 'completed' || s === 'ended' || s === 'results') return 'Finished';
-  // 如果有比分，自动推断为 finished
-  if (score1 != null && score2 != null) return 'Finished';
+  // 有非零比分时推断为已结束（避免默认值 '0' 误判）
+  if (score1 != null && score2 != null && (score1 > 0 || score2 > 0)) return 'Finished';
   return 'Upcoming';
 }
 
