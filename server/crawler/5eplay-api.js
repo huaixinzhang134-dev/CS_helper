@@ -29,8 +29,16 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
 const API_ENDPOINTS = [
   // 5eplay CDN 即将开始的比赛
   'https://esports-data.5eplaycdn.com/v1/api/csgo/matches?page=1&limit=50',
-  // 5eplay APP 已结束的比赛
-  'https://app.5eplay.com/api/tournament/session_result_list?game_type=1&order_by=desc&grades=1,7,2,3,8,9&page_size=50',
+  // 5eplay APP 已结束的比赛（page_token 使用当天日期）
+  function() {
+    const today = new Date();
+    const dateStr = today.getFullYear() + '-' +
+      String(today.getMonth() + 1).padStart(2, '0') + '-' +
+      String(today.getDate()).padStart(2, '0');
+    return 'https://app.5eplay.com/api/tournament/session_result_list'
+      + '?game_type=1&order_by=asc&grades=1,7,2,3,8,9&page_size=50'
+      + '&page_token=' + encodeURIComponent(dateStr + ' 23:59:59');
+  },
 ];
 
 /** 请求超时时间 */
@@ -48,7 +56,9 @@ async function fetchFrom5eplay() {
   let lastError = null;
 
   // ----- 方式1: 尝试 JSON API -----
-  for (const endpoint of API_ENDPOINTS) {
+  for (const ep of API_ENDPOINTS) {
+    // 支持动态 URL（函数）和静态 URL（字符串）
+    const endpoint = typeof ep === 'function' ? ep() : ep;
     try {
       console.log(`[5eplay] 尝试 API: ${endpoint}`);
       const resp = await axios.get(endpoint, {
