@@ -14,6 +14,7 @@ const matchesRouter = require('./routes/matches');
 const commentsRouter = require('./routes/comments');
 const teamsRouter = require('./routes/teams');
 const syncRouter = require('./routes/sync');
+const logoRouter = require('./routes/logo');
 
 const { setupWebSocket } = require('./ws');
 
@@ -53,6 +54,9 @@ app.use('/api/teams', teamsRouter);
 
 // 爬虫同步路由（仅内网调用）
 app.use('/api/matches/sync', syncRouter);
+
+// 队标代理（SVG → PNG 转换）
+app.use('/api/logo', logoRouter);
 
 // 404
 app.use((req, res) => {
