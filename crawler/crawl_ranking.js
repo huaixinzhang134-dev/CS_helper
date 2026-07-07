@@ -413,16 +413,25 @@ function parseRanking(html, topN = DEFAULT_TOP) {
       }
 
       // 队伍 ID（从 a[href*="/team/"] 链接中提取）
-      let teamId = '';
-      const link = $header.find('a[href*="/team/"]').first();
-      if (link.length > 0) {
-        const href = link.attr('href') || '';
-        const idMatch = href.match(/\/team\/(\d+)\//);
-        if (idMatch) teamId = idMatch[1];
-      }
+      // 先取整个 ranking 条目容器（header 的父级容器）
+      const $entry = $header.parent().parent();
 
-      // 取整个 ranking 条目（header 的父级容器），用于在条目范围内查找其他元素
-      const $entry = $header.parent().parent();  // 上溯到条目容器
+      let teamId = '';
+      // 在条目范围内搜索队伍链接（可能在 header 外部）
+      const linkSelectors = [
+        'a[href*="/team/"]',
+        '.teamLine a[href*="/team/"]',
+        'span.name a[href*="/team/"]',
+        'a[href*="/team/"] span.name',
+      ];
+      for (const sel of linkSelectors) {
+        const link = $entry.find(sel).first();
+        if (link.length > 0) {
+          const href = link.attr('href') || link.parent().attr('href') || '';
+          const idMatch = href.match(/\/team\/(\d+)\//);
+          if (idMatch) { teamId = idMatch[1]; break; }
+        }
+      }
 
       // 队标 logo
       // 队标 logo
