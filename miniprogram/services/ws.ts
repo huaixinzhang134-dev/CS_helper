@@ -50,6 +50,10 @@ class MatchWebSocket {
   /** 是否主动销毁（true 则不重连） */
   private destroyed = false;
 
+  /** 重连次数（用于指数退避） */
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 10;
+
   /** WebSocket URL，由 API_BASE 推导 */
   private get wsUrl(): string {
     // 把 http:// 换成 ws://，https:// 换成 wss://
@@ -70,19 +74,31 @@ class MatchWebSocket {
 
     console.log('[WS] 正在连接...', this.wsUrl);
 
-    this.socket = wx.connectSocket({
-      url: this.wsUrl,
-      success: () => {
-        console.log('[WS] 连接请求已发送');
-      },
-      fail: (err) => {
-        console.error('[WS] 连接请求失败', err);
-      }
-    });
+    let task: WechatMiniprogram.SocketTask;
+    try {
+      task = wx.connectSocket({
+        url: this.wsUrl,
+        timeout: 5000,
+        success: () => {
+          console.log('[WS] 连接请求已发送');
+        },
+        fail: (err) => {
+          console.error('[WS] 连接请求失败', err);
+          this.scheduleReconnect();
+        }
+      });
+    } catch (err) {
+      console.error('[WS] connectSocket 异常', err);
+      this.scheduleReconnect();
+      return;
+    }
+
+    this.socket = task;
 
     // ---- 事件绑定 ----
-    this.socket.onOpen(() => {
+    task.onOpen(() => {
       console.log('[WS] 已连接');
+      this.reconnectAttempts = 0;
       // 发送队列中积压的消息（连接建立前调用的 send 会排队到这里）
       this.flushQueue();
       // 订阅全局更新（赛事列表页用）
@@ -91,7 +107,7 @@ class MatchWebSocket {
       this.startHeartbeat();
     });
 
-    this.socket.onMessage((res) => {
+    task.onMessage((res) => {
       try {
         const msg = JSON.parse(res.data as string) as WsMessage;
         this.dispatch(msg);
@@ -100,23 +116,36 @@ class MatchWebSocket {
       }
     });
 
-    this.socket.onClose(() => {
+    task.onClose(() => {
       console.log('[WS] 连接已关闭');
       this.cleanup();
       // 自动重连
       if (!this.destroyed) {
-        this.reconnectTimer = setTimeout(() => {
-          console.log('[WS] 尝试重连...');
-          this.connect();
-        }, 3000) as any;
+        this.scheduleReconnect();
       }
     });
 
-    this.socket.onError((err) => {
+    task.onError((err) => {
       console.error('[WS] 错误', err);
       // onClose 会自动触发，由它处理重连
-      this.socket?.close();
+      task?.close();
     });
+  }
+
+  /** 安排重连（指数退避） */
+  private scheduleReconnect(): void {
+    if (this.destroyed) return;
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.log(`[WS] 已达最大重连次数 ${this.maxReconnectAttempts}，停止重连`);
+      return;
+    }
+    this.reconnectAttempts++;
+    // 指数退避：3s, 6s, 12s, 24s, ... 最大 60s
+    const delay = Math.min(3000 * Math.pow(2, this.reconnectAttempts - 1), 60000);
+    console.log(`[WS] ${delay / 1000}s 后尝试第 ${this.reconnectAttempts} 次重连...`);
+    this.reconnectTimer = setTimeout(() => {
+      this.connect();
+    }, delay) as any;
   }
 
   /**
