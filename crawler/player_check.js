@@ -291,11 +291,6 @@ function loadPlayers() {
   return fs.readFileSync(DATA_FILE, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
 }
 
-function savePlayers(players) {
-  const data = players.map(p => { const { _positionChanged, ...rest } = p; return JSON.stringify(rest); }).join('\n');
-  fs.writeFileSync(DATA_FILE, data, 'utf8');
-}
-
 async function closeBrowser() {
   await pool.close();
   console.log('\n轮换池已关闭');
@@ -368,6 +363,17 @@ async function checkAllPositions() {
     if (useDb || quickMode) dbConn = await getDbConnection();
     const pendingDbSync = [];
 
+    /** 将待同步队列写入 MySQL */
+    const flushDb = async () => {
+      if (pendingDbSync.length > 0 && dbConn) {
+        console.log(`  ── 写入 MySQL ${pendingDbSync.length} 条位置变更...`);
+        for (const item of pendingDbSync) {
+          await syncPositionToDb(dbConn, item.id, item.name, item.position);
+        }
+        pendingDbSync.length = 0;
+      }
+    };
+
     for (let i = startIndex; i < players.length; i++) {
       const player = players[i];
       if (player.position === '教练') {
@@ -386,40 +392,18 @@ async function checkAllPositions() {
 
       await delay(DELAY_BETWEEN_REQUESTS);
 
-      // 每 BATCH_SIZE 个选手重启一次浏览器（清缓存防 Cloudflare）
+      // 每 BATCH_SIZE 个选手：写入 MySQL + 重启浏览器
       if ((i + 1) % BATCH_SIZE === 0 && i < players.length - 1) {
-        // 先保存当前进度
+        await flushDb();
         saveProgress(i + 1, players.length);
-        savePlayers(players);
-        if (pendingDbSync.length > 0 && dbConn) {
-          for (const item of pendingDbSync) await syncPositionToDb(dbConn, item.id, item.name, item.position);
-          pendingDbSync.length = 0;
-        }
         console.log(`\n--- 已检查 ${i + 1}/${players.length}，重启浏览器 ---\n`);
         await pool.close();
         // pool 在下次 fetch 时自动调用 launch()
       }
-
-      // 每 20 个保存一次本地文件
-      if ((i + 1) % 20 === 0) {
-        savePlayers(players);
-        saveProgress(i + 1, players.length);
-        console.log(`--- 已保存进度: ${i + 1}/${players.length} ---\n`);
-      }
-
-      // 每 300 个批量同步到数据库
-      if (pendingDbSync.length > 0 && dbConn && ((i + 1) % 300 === 0 || i === players.length - 1)) {
-        console.log(`  ── 批量同步 ${pendingDbSync.length} 条到数据库...`);
-        for (const item of pendingDbSync) await syncPositionToDb(dbConn, item.id, item.name, item.position);
-        pendingDbSync.length = 0;
-      }
     }
 
-    // 最后清理
-    if (pendingDbSync.length > 0 && dbConn) {
-      for (const item of pendingDbSync) await syncPositionToDb(dbConn, item.id, item.name, item.position);
-    }
-    savePlayers(players);
+    // 最终写入 MySQL + 清理进度文件
+    await flushDb();
     clearProgress();
 
     console.log('\n========================================');
@@ -429,9 +413,15 @@ async function checkAllPositions() {
     console.log('========================================');
   } catch (error) {
     console.error('\n检查过程中出错:', error.message);
-    savePlayers(players);
+    // 把已检查的变更写入 MySQL 再退出
+    if (dbConn && pendingDbSync.length > 0) {
+      console.log('  ── 尝试写入已检查的位置变更...');
+      for (const item of pendingDbSync) {
+        try { await syncPositionToDb(dbConn, item.id, item.name, item.position); } catch (_) {}
+      }
+    }
     saveProgress(startIndex > 0 ? startIndex : 0, players.length);
-    console.log('已保存当前进度（可断点续检）');
+    console.log('进度已保存，下次运行会自动续检');
   } finally {
     await pool.close();
     if (dbPool) { try { await dbPool.end(); } catch {} }
