@@ -36,7 +36,8 @@ const LOGO_DELAY_MS = 2000;
 const POOL_RESTART_INTERVAL = 50;    // 每 50 次请求重启浏览器
 const POOL_PAGE_COUNT = 3;            // 页面池大小
 const POOL_MAX_RETRIES = 3;           // 超时重试次数
-const POOL_RETRY_BASE_DELAY = 10000;  // 重试基础等待（ms）
+const POOL_RETRY_BASE_DELAY = 30000;  // 重试基础等待（ms）
+const POOL_NAV_TIMEOUT = 120000;      // 导航超时（ms）
 
 // ======================== 轮换池 ========================
 
@@ -46,6 +47,7 @@ class CrawlerPool {
     this.pages = [];
     this.currentPageIdx = 0;
     this.useCount = 0;
+    this.consecutiveFails = 0;
     this.proxies = [];
     this.currentProxyIdx = 0;
     this._loadProxies();
@@ -121,7 +123,7 @@ class CrawlerPool {
   }
 
   async fetch(url, options = {}) {
-    const timeout = options.timeout || 60000;
+    const timeout = options.timeout || POOL_NAV_TIMEOUT;
     const waitFor = options.waitFor;
     const waitMs = options.waitMs || 2000;
     let lastError;
@@ -132,17 +134,28 @@ class CrawlerPool {
         console.log(`  ⏳ 重试 ${retry}/${POOL_MAX_RETRIES}，等待 ${(backoff / 1000).toFixed(0)}s...`);
         await delay(backoff);
         await this.launch();
+        this.consecutiveFails = 0;
       }
       if (retry === 0) await this._checkRestart();
+
+      if (this.consecutiveFails >= 5) {
+        console.log(`  ⚠ 连续 ${this.consecutiveFails} 次失败，强制重启浏览器`);
+        await this.launch();
+        this.consecutiveFails = 0;
+      }
+
       if (!this.browser || this.pages.length === 0) await this.launch();
 
       const page = this._nextPage();
       try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
         this.useCount++;
+        this.consecutiveFails = 0;
       } catch (e) {
         lastError = e;
-        console.error(`  ✗ 导航失败: ${(e.message || '').slice(0, 100)}`);
+        this.useCount++;
+        this.consecutiveFails++;
+        console.error(`  ✗ 导航失败 (重试 ${retry}/${POOL_MAX_RETRIES}): ${(e.message || '').slice(0, 100)}`);
         continue;
       }
 
@@ -154,8 +167,10 @@ class CrawlerPool {
       try {
         const html = await page.content();
         if (isCloudflareBlock(html)) {
-          console.log(`  ⚠ Cloudflare 拦截`);
+          console.log(`  ⚠ Cloudflare 拦截 (重试 ${retry}/${POOL_MAX_RETRIES})`);
           lastError = new Error('Cloudflare 拦截');
+          this.useCount++;
+          this.consecutiveFails++;
           continue;
         }
         return html;

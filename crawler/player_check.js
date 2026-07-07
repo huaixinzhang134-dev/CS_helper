@@ -12,14 +12,16 @@ const DELAY_BETWEEN_REQUESTS = 2000;
 
 // ======================== 轮换池配置 ========================
 
-/** 浏览器重启间隔（每个实例处理 N 次请求后重启） */
-const POOL_RESTART_INTERVAL = 100;
+/** 浏览器重启间隔（每个实例处理 N 次请求后重启，失败也计入） */
+const POOL_RESTART_INTERVAL = 50;
 /** 页面池大小（每个浏览器实例内建 N 个页面，轮转使用） */
 const POOL_PAGE_COUNT = 4;
 /** 超时重试最大次数 */
 const POOL_MAX_RETRIES = 3;
 /** 超时重试基础等待（ms），每次翻倍 */
-const POOL_RETRY_BASE_DELAY = 15000;
+const POOL_RETRY_BASE_DELAY = 30000;
+/** 导航超时（ms） */
+const POOL_NAV_TIMEOUT = 120000;
 
 // ======================== 轮换池（Page Pool + 定时重启 + 代理轮换） ========================
 
@@ -28,7 +30,8 @@ class CrawlerPool {
     this.browser = null;
     this.pages = [];          // 当前 browser 的页面池
     this.currentPageIdx = 0;  // 轮转索引
-    this.useCount = 0;        // 当前 browser 已处理的请求数
+    this.useCount = 0;        // 当前 browser 已处理的请求数（成功+失败）
+    this.consecutiveFails = 0; // 连续失败次数
     this.proxies = [];        // 代理列表
     this.currentProxyIdx = 0;
     this._loadProxies();
@@ -151,12 +154,12 @@ class CrawlerPool {
    * 发送请求（自动轮换页面 + 重启 + 重试）
    * @param {string} url
    * @param {object} options
-   * @param {number} options.timeout - 导航超时（ms），默认 60000
+   * @param {number} options.timeout - 导航超时（ms），默认 POOL_NAV_TIMEOUT
    * @param {number} options.waitFor - 等待选择器出现
    * @param {number} options.waitMs - 等待后固定延迟（ms）
    */
   async fetch(url, options = {}) {
-    const timeout = options.timeout || 60000;
+    const timeout = options.timeout || POOL_NAV_TIMEOUT;
     const waitFor = options.waitFor;
     const waitMs = options.waitMs || 2000;
 
@@ -166,14 +169,22 @@ class CrawlerPool {
       // 每次重试（除第一次外）重启浏览器换 IP
       if (retry > 0) {
         const backoff = POOL_RETRY_BASE_DELAY * Math.pow(2, retry - 1);
-        console.log(`  ⏳ 第 ${retry} 次重试，等待 ${(backoff / 1000).toFixed(0)}s 后重启浏览器...`);
+        console.log(`  ⏳ 第 ${retry}/${POOL_MAX_RETRIES} 次重试，等待 ${(backoff / 1000).toFixed(0)}s 后重启浏览器...`);
         await delay(backoff);
-        await this.launch();  // 重启浏览器（自动换代理）
+        await this.launch();
+        this.consecutiveFails = 0;
       }
 
       // 检查是否需要定时重启
       if (retry === 0) {
         await this._checkRestart();
+      }
+
+      // 连续失败过多时强制重启（触发在 _checkRestart 之后，记入下个周期）
+      if (this.consecutiveFails >= 5) {
+        console.log(`  ⚠ 连续 ${this.consecutiveFails} 次失败，强制重启浏览器`);
+        await this.launch();
+        this.consecutiveFails = 0;
       }
 
       // 确保浏览器已启动
@@ -187,8 +198,11 @@ class CrawlerPool {
       try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
         this.useCount++;
+        this.consecutiveFails = 0;
       } catch (navErr) {
         lastError = navErr;
+        this.useCount++;  // 失败也计入，确保最终触发重启
+        this.consecutiveFails++;
         const msg = navErr.message || '';
         console.error(`  ✗ 导航失败 (重试 ${retry}/${POOL_MAX_RETRIES}): ${msg.slice(0, 120)}`);
         continue;
@@ -211,7 +225,8 @@ class CrawlerPool {
         if (isCloudflareBlock(html)) {
           console.log(`  ⚠ Cloudflare 拦截 (重试 ${retry}/${POOL_MAX_RETRIES})`);
           lastError = new Error('Cloudflare 拦截');
-          // 被 Cloudflare 挡了立即换浏览器
+          this.useCount++;
+          this.consecutiveFails++;
           continue;
         }
 
@@ -283,11 +298,9 @@ function isCloudflareBlock(html) {
  * 通过轮换池请求页面（向后兼容的封装）
  */
 async function fetchPageByUrl(url, retryCount = 0) {
-  // 使用 pool.fetch 替代旧的单页面逻辑
   return pool.fetch(url, {
     waitFor: '.playerRealname, .playerNickname',
     waitMs: 2000,
-    timeout: 60000,
   });
 }
 
