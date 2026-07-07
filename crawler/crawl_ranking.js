@@ -620,22 +620,36 @@ const ROSTER_DELAY_MS = 1500;
 
 /**
  * 从 HLTV 队伍页面爬取选手阵容
+ * 搜索所有形如 /player/{id}/ 的链接，提取选手名
  */
 function parseRoster(html) {
   const $ = cheerio.load(html);
   const roster = [];
-  // HLTV 阵容列表: .bodyshot-team 或 .team-roster 或 .roster-item
-  $('.bodyshot-team a[href*="/player/"], .team-roster a[href*="/player/"], a[href*="/player/"][class*="name"]').each((_, el) => {
+  const seen = new Set();
+
+  // HLTV 队伍页面中选手链接格式: /player/{id}/{name}
+  // 可能出现在: .bodyshot-team, .team-roster, .col-custom等容器中
+  $('a[href*="/player/"]').each((_, el) => {
     const href = $(el).attr('href') || '';
     const idMatch = href.match(/\/player\/(\d+)\//);
-    const name = $(el).text().trim();
-    if (idMatch && name) {
-      roster.push({ playerId: idMatch[1], name });
-    } else if (name && !idMatch) {
-      // 可能只获取到名字无 ID
-      roster.push({ playerId: '', name });
+    if (!idMatch) return;
+
+    const playerId = idMatch[1];
+    if (seen.has(playerId)) return;  // 去重
+
+    // 选手名可能有多种来源
+    let name = $(el).text().trim()
+      || $(el).attr('title')
+      || $(el).attr('data-name')
+      || $(el).find('span').text().trim()
+      || $(el).find('img').attr('alt') || '';
+    name = name.replace(/[^\w\s\-\.]/g, '').trim(); // 清理特殊字符
+    if (name && name.length >= 2 && idMatch) {
+      seen.add(playerId);
+      roster.push({ playerId, name });
     }
   });
+
   return roster;
 }
 
