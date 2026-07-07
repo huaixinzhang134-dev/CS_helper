@@ -61,14 +61,15 @@ Page({
   /**
    * 标记队标 URL 是否来自 HLTV（需要裁剪左半部分底标）
    */
-  markLogoHltv(matches: Match[]): void {
+  markLogoHltv(matches: any[]) {
     for (const m of matches) {
-      (m as any).teamALogoHltv = m.teamA.logo && m.teamA.logo.indexOf('hltv.org') > -1;
-      (m as any).teamBLogoHltv = m.teamB.logo && m.teamB.logo.indexOf('hltv.org') > -1;
+      m.teamALogoHltv = m.teamA.logo && m.teamA.logo.indexOf('hltv.org') > -1;
+      m.teamBLogoHltv = m.teamB.logo && m.teamB.logo.indexOf('hltv.org') > -1;
     }
   }
 
-  sortMatches(matches: Match[]): { list: Match[]; anchorId: string } {
+  sortMatches(matches: any[]) {
+    if (matches.length === 0) return { list: [], anchorId: '' };
     if (matches.length === 0) return { list: [], anchorId: '' };
 
     const now = new Date().getTime();
