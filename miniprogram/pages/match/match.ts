@@ -5,6 +5,7 @@ Page({
   data: {
     loading: true,
     matches: [] as Match[],
+    anchorId: '',          // 距当前时间最近的比赛 ID（用于 scroll-into-view）
     refreshTriggered: false,
 
     // WS 状态
@@ -29,10 +30,11 @@ Page({
 
     // 注册全量列表更新回调
     this._unsubUpdates = matchWS.on('matches_update', (msg: { data: Match[] }) => {
-      const matches = this.sortMatches(msg.data || []);
-      const liveCount = matches.filter(m => m.status === 'Live').length;
+      const { list, anchorId } = this.sortMatches(msg.data || []);
+      const liveCount = list.filter(m => m.status === 'Live').length;
       this.setData({
-        matches,
+        matches: list,
+        anchorId,
         liveCount,
         wsConnected: true
       });
@@ -50,15 +52,46 @@ Page({
   },
 
   /**
-   * 按 Live > Upcoming > Finished 排序
+   * 按时间排序：已完成（倒序，最新的最靠近中间）→ 未开始（正序，最早的靠近中间）
+   * Live 比赛始终排在最顶部
+   * 选距当前时间最近的比赛作为锚点（scroll-into-view 跳转用）
    */
-  sortMatches(matches: Match[]): Match[] {
-    const statusOrder = { 'Live': 0, 'Upcoming': 1, 'Finished': 2 };
-    return matches.sort((a, b) => {
-      const sa = statusOrder[a.status] ?? 9;
-      const sb = statusOrder[b.status] ?? 9;
-      return sa - sb;
-    });
+  sortMatches(matches: Match[]): { list: Match[]; anchorId: string } {
+    if (matches.length === 0) return { list: [], anchorId: '' };
+
+    const now = new Date().getTime();
+
+    // 分离 Live / 已完成 / 未开始
+    const live = matches.filter(m => m.status === 'Live');
+    const finished = matches.filter(m => m.status === 'Finished');
+    const upcoming = matches.filter(m => m.status !== 'Live' && m.status !== 'Finished');
+
+    // 已完成：按时间倒序（最新的排前面）
+    finished.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+    // 未开始：按时间正序（最早的排前面）
+    upcoming.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+    // 找距当前时间最近的比赛作为锚点（优先从 Live 中选，其次未开始，最后已完成）
+    let anchorMatch: Match | null = null;
+    let minDiff = Infinity;
+    for (const m of [...live, ...upcoming, ...finished]) {
+      if (!m.time) continue;
+      const diff = Math.abs(new Date(m.time).getTime() - now);
+      if (diff < minDiff) {
+        minDiff = diff;
+        anchorMatch = m;
+      }
+    }
+
+    // 最终顺序：Live → 已完成(倒序) → 未开始(正序)
+    // 这样 Live 始终在顶部，已完成的最新比赛紧接着，然后才是未开始
+    const list = [...live, ...finished, ...upcoming];
+
+    return {
+      list,
+      anchorId: anchorMatch ? anchorMatch._id : ''
+    };
   },
 
   async loadMatches() {
@@ -66,9 +99,9 @@ Page({
     try {
       const res = await fetchLiveMatches();
       if (res.success) {
-        const sorted = this.sortMatches(res.data);
-        const liveCount = sorted.filter(m => m.status === 'Live').length;
-        this.setData({ matches: sorted, liveCount });
+        const { list, anchorId } = this.sortMatches(res.data);
+        const liveCount = list.filter(m => m.status === 'Live').length;
+        this.setData({ matches: list, anchorId, liveCount });
       }
     } catch (err) {
       console.error('Fetch matches failed', err);

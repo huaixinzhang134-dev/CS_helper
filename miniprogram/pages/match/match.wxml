@@ -20,12 +20,15 @@
   <scroll-view
     scroll-y
     class="match-list"
+    scroll-into-view="{{anchorId}}"
+    scroll-with-animation="{{true}}"
     refresher-enabled="{{true}}"
     refresher-triggered="{{refreshTriggered}}"
     bindrefresherrefresh="onPullDownRefresh"
   >
     <view
       class="match-card"
+      id="{{item._id}}"
       wx:for="{{matches}}"
       wx:key="_id"
       data-id="{{item._id}}"
