@@ -64,10 +64,10 @@
       </view>
       <view class="ts-row" wx:for="{{team1.players}}" wx:key="playerId">
         <text class="ts-cell name">{{item.name}}</text>
-        <text class="ts-cell num">-</text>
-        <text class="ts-cell num">-</text>
-        <text class="ts-cell num">-</text>
-        <text class="ts-cell num rating">-</text>
+        <text class="ts-cell num">{{item.kills != null ? item.kills : '-'}}</text>
+        <text class="ts-cell num">{{item.deaths != null ? item.deaths : '-'}}</text>
+        <text class="ts-cell num">{{item.assists != null ? item.assists : '-'}}</text>
+        <text class="ts-cell num rating">{{item.rating != null ? item.rating : '-'}}</text>
       </view>
     </view>
     <!-- Team 2 -->
@@ -82,10 +82,10 @@
       </view>
       <view class="ts-row" wx:for="{{team2.players}}" wx:key="playerId">
         <text class="ts-cell name">{{item.name}}</text>
-        <text class="ts-cell num">-</text>
-        <text class="ts-cell num">-</text>
-        <text class="ts-cell num">-</text>
-        <text class="ts-cell num rating">-</text>
+        <text class="ts-cell num">{{item.kills != null ? item.kills : '-'}}</text>
+        <text class="ts-cell num">{{item.deaths != null ? item.deaths : '-'}}</text>
+        <text class="ts-cell num">{{item.assists != null ? item.assists : '-'}}</text>
+        <text class="ts-cell num rating">{{item.rating != null ? item.rating : '-'}}</text>
       </view>
     </view>
   </view>

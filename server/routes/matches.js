@@ -134,9 +134,14 @@ router.get('/:id/players', async (req, res, next) => {
     const team2Name = m.teamB_name || '';
 
     // 兼容旧前端：直接按战队名查选手（player.current_team = 战队名）
+    // LEFT JOIN match_players 获取本场 K/D/A/Rating
     const [players] = await query(
-      'SELECT * FROM player WHERE current_team IN (?, ?) ORDER BY current_team, name',
-      [team1Name, team2Name]
+      `SELECT p.*, mp.kills, mp.deaths, mp.assists, mp.rating AS match_rating
+       FROM player p
+       LEFT JOIN match_players mp ON mp.match_id = ? AND mp.player_game_id = p.game_id
+       WHERE p.current_team IN (?, ?)
+       ORDER BY p.current_team, p.name`,
+      [id, team1Name, team2Name]
     );
 
     const team1 = [];
@@ -150,7 +155,12 @@ router.get('/:id/players', async (req, res, next) => {
         avatar: p.avatar || '',
         country: p.country || '',
         countryCode: p.country_code || '',
-        position: p.position || ''
+        position: p.position || '',
+        // Per-match stats (null when no match_players row)
+        kills: p.kills != null ? p.kills : null,
+        deaths: p.deaths != null ? p.deaths : null,
+        assists: p.assists != null ? p.assists : null,
+        rating: p.match_rating != null ? parseFloat(p.match_rating) : null
       };
       if (p.current_team === team1Name) team1.push(dto);
       else if (p.current_team === team2Name) team2.push(dto);

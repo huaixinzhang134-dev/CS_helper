@@ -275,6 +275,14 @@ export interface MatchPlayerItem {
   country?: string;
   countryCode?: string;
   position?: string;
+  /** 本场击杀 */
+  kills?: number | null;
+  /** 本场死亡 */
+  deaths?: number | null;
+  /** 本场助攻 */
+  assists?: number | null;
+  /** 本场 Rating */
+  rating?: number | null;
 }
 
 export interface MatchPlayersResp {

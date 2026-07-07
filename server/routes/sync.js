@@ -83,6 +83,113 @@ function mapStatus(status) {
   return 'Upcoming';
 }
 
+// ======================== PlayerStats 归一化 ========================
+
+/**
+ * 归一化单条 5eplay 选手数据，处理多种可能的字段命名
+ */
+function normalizePlayerStat(raw) {
+  const getStr = (...keys) => {
+    for (const k of keys) {
+      if (raw[k] && typeof raw[k] === 'string' && raw[k].trim()) return raw[k].trim();
+    }
+    return '';
+  };
+  const getNum = (...keys) => {
+    for (const k of keys) {
+      const v = raw[k];
+      if (v !== undefined && v !== null && !isNaN(Number(v))) return Number(v);
+    }
+    return 0;
+  };
+
+  return {
+    player_name: getStr('name', 'nickName', 'playerName', 'nickname'),
+    team_name: getStr('teamName', 'team', 'clan', 'team_name'),
+    kills: Math.round(getNum('kills', 'kill', 'k', 'Kill', 'frags')),
+    deaths: Math.round(getNum('deaths', 'death', 'd', 'Death')),
+    assists: Math.round(getNum('assists', 'assist', 'a', 'Assist')),
+    rating: getNum('rating', 'rating2', 'Rating', 'rtg', 'playerRating'),
+    adr: getNum('adr', 'ADR', 'damage_per_round', 'dpr'),
+    plus_minus: Math.round(getNum('plusMinus', 'plus_minus', 'kdDiff', 'kd_diff', 'kd')),
+  };
+}
+
+/**
+ * 尝试将选手名 + 战队名解析到 player 表的 game_id
+ */
+async function resolvePlayerGameId(playerName, teamName) {
+  if (!playerName) return '';
+  try {
+    // 精确匹配：选手名 + 当前战队
+    const [rows] = await query(
+      'SELECT game_id FROM player WHERE name = ? AND current_team = ? LIMIT 1',
+      [playerName, teamName]
+    );
+    if (rows.length > 0) return rows[0].game_id;
+    // 模糊匹配：选手名 + 战队名包含
+    const [rows2] = await query(
+      'SELECT game_id FROM player WHERE name = ? AND current_team LIKE ? LIMIT 1',
+      [playerName, `%${teamName}%`]
+    );
+    if (rows2.length > 0) return rows2[0].game_id;
+    // 兜底：仅按选手名匹配
+    const [rows3] = await query(
+      'SELECT game_id FROM player WHERE name = ? LIMIT 1',
+      [playerName]
+    );
+    if (rows3.length > 0) return rows3[0].game_id;
+  } catch (err) {
+    console.error(`[sync] resolvePlayerGameId 出错: ${err.message}`);
+  }
+  return '';
+}
+
+/**
+ * 保存选手数据到 match_players 表（先清后插，支持重跑）
+ */
+async function saveMatchPlayers(matchId, playerStats) {
+  if (!Array.isArray(playerStats) || playerStats.length === 0) return;
+
+  // 先清除旧数据（支持爬虫重跑）
+  await query('DELETE FROM match_players WHERE match_id = ?', [matchId]);
+
+  let count = 0;
+  for (const raw of playerStats) {
+    const stat = normalizePlayerStat(raw);
+    if (!stat.player_name) continue;
+
+    const gameId = await resolvePlayerGameId(stat.player_name, stat.team_name);
+
+    try {
+      await query(
+        `INSERT INTO match_players
+         (match_id, player_game_id, player_name, team_name,
+          kills, deaths, assists, rating, adr, plus_minus, raw_data)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+          kills = VALUES(kills), deaths = VALUES(deaths),
+          assists = VALUES(assists), rating = VALUES(rating),
+          adr = VALUES(adr), plus_minus = VALUES(plus_minus),
+          raw_data = VALUES(raw_data)`,
+        [
+          matchId, gameId, stat.player_name, stat.team_name,
+          stat.kills, stat.deaths, stat.assists, stat.rating, stat.adr,
+          stat.plus_minus, JSON.stringify(raw)
+        ]
+      );
+      count++;
+    } catch (err) {
+      console.error(`[sync] 保存选手数据失败: ${err.message} (${stat.player_name})`);
+    }
+  }
+
+  if (count > 0) {
+    console.log(`[sync] 保存 ${count} 条选手数据 → match #${matchId}`);
+  }
+}
+
+
 // ======================== UPSERT 核心 ========================
 
 /**
@@ -147,6 +254,9 @@ async function upsertMatch(m, req) {
   }
 
   // ----- 4. 执行 UPSERT -----
+  let matchId = existingId;
+  let action = 'update';
+
   if (existingId) {
     // ---- UPDATE：全字段覆盖 ----
     await query(
@@ -163,23 +273,32 @@ async function upsertMatch(m, req) {
       ]
     );
 
-    return { action: 'update', id: existingId, log: `更新 #${existingId}: ${m.team1} vs ${m.team2} [${fields.status}]` };
+    console.log(`[sync] 更新 #${existingId}: ${m.team1} vs ${m.team2} [${fields.status}]`);
+  } else {
+    // ---- INSERT ----
+    const [insertResult] = await query(
+      `INSERT INTO matches
+       (eplay_id, match_date, match_time, match_type, team1_id, team2_id,
+        team1_score, team2_score, round_scores, event_name, status, tab)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        fields.eplay_id, fields.match_date, fields.match_time, fields.match_type,
+        fields.team1_id, fields.team2_id, fields.team1_score, fields.team2_score,
+        fields.round_scores, fields.event_name, fields.status, fields.tab
+      ]
+    );
+    matchId = insertResult.insertId;
+    action = 'insert';
+
+    console.log(`[sync] 新增 #${matchId}: ${m.team1} vs ${m.team2}`);
   }
 
-  // ---- INSERT ----
-  const [insertResult] = await query(
-    `INSERT INTO matches
-     (eplay_id, match_date, match_time, match_type, team1_id, team2_id,
-      team1_score, team2_score, round_scores, event_name, status, tab)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      fields.eplay_id, fields.match_date, fields.match_time, fields.match_type,
-      fields.team1_id, fields.team2_id, fields.team1_score, fields.team2_score,
-      fields.round_scores, fields.event_name, fields.status, fields.tab
-    ]
-  );
+  // ----- 5. 保存选手数据（如果爬虫提供了） -----
+  if (matchId && m.playerStats) {
+    await saveMatchPlayers(matchId, m.playerStats);
+  }
 
-  return { action: 'insert', id: insertResult.insertId, log: `新增 #${insertResult.insertId}: ${m.team1} vs ${m.team2}` };
+  return { action, id: matchId, log: '' };
 }
 
 // ======================== 主路由 ========================
