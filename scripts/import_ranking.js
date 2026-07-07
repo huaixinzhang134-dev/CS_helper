@@ -33,7 +33,7 @@ async function main() {
         `INSERT INTO team_ranking (\`rank\`, team_name, team_id, hltv_team_id, points, logo_url)
          VALUES (?, ?, NULL, ?, ?, ?)
          ON DUPLICATE KEY UPDATE \`rank\` = VALUES(\`rank\`), points = VALUES(points)`,
-        [item.rank, item.team, item.hltvId || '', item.points || '', item.logo || '']
+        [item.rank, item.name, item.teamId || '', item.points || '', item.logo || '']
       );
       inserted++;
     } catch {}
