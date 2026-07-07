@@ -444,37 +444,89 @@ async function fetchMatchDetail(matchId) {
 
 /**
  * 解析详情 API 的 JSON 响应
- * 增强版：深度搜索多种可能的字段路径
+ *
+ * 主要处理两种格式：
+ *   A) CDN API: { success, data: { match: { global_state, mc_info, bouts_state } } }
+ *      - playerStats: global_state.t1_player_stats + t2_player_stats
+ *      - roundScores: bouts_state[].map_name + t1/t2_stats.quick_score
+ *      - team names:  mc_info.t1_info.disp_name + t2_info.disp_name
+ *   B) 通用:        递归搜索常见字段名
  */
 function parseDetailApiResponse(data) {
   if (!data) return null;
 
-  // 解包装常见嵌套层
+  const result = { roundScores: [], playerStats: [] };
+
+  // --------------------------------------------------
+  // A) CDN API 结构: { data: { match: { ... } } }
+  // --------------------------------------------------
+  const matchData = data?.data?.match || data?.match;
+  if (matchData) {
+    const gs = matchData.global_state;
+    const mcInfo = matchData.mc_info || matchData;
+    const bouts = matchData.bouts_state || [];
+
+    // --- 提取队名 ---
+    const t1Name = mcInfo?.t1_info?.disp_name || '';
+    const t2Name = mcInfo?.t2_info?.disp_name || '';
+
+    // --- 选手数据：分别提取 t1/t2 并标记 teamName ---
+    if (gs) {
+      for (const src of [gs.t1_player_stats, gs.t2_player_stats]) {
+        if (Array.isArray(src) && src.length > 0) {
+          // 根据所属数组判断是哪一队
+          const isT1 = src === gs.t1_player_stats;
+          const teamName = isT1 ? t1Name : t2Name;
+          for (const p of src) {
+            if (p.name) {
+              result.playerStats.push({ ...p, teamName });
+            }
+          }
+        }
+      }
+    }
+
+    // --- 局分：从 bouts_state 中提取 ---
+    for (const bout of bouts) {
+      if (bout.map_name || bout.disp_name) {
+        result.roundScores.push({
+          map: bout.map_name || '',
+          team1Score: bout.t1_stats?.quick_score ?? bout.t1_stats?.all_score ?? 0,
+          team2Score: bout.t2_stats?.quick_score ?? bout.t2_stats?.all_score ?? 0,
+        });
+      }
+    }
+
+    // 有效的数据
+    if (result.playerStats.length > 0 || result.roundScores.length > 0) {
+      return result;
+    }
+  }
+
+  // --------------------------------------------------
+  // B) 通用兜底：解嵌套 + 深度搜索
+  // --------------------------------------------------
   let detail = data;
   if (data.data) detail = data.data;
   if (data.result) detail = data.result;
   if (detail?.data) detail = detail.data;
   if (detail?.result) detail = detail.result;
 
-  const result = { roundScores: [], playerStats: [] };
-
   // ---- 提取局分 ----
   const extractRoundScores = (src) => {
     if (!src || typeof src !== 'object') return;
-    // 直接是数组
     if (Array.isArray(src)) {
       for (const m of src) {
         if (m.map !== undefined || m.team1Score !== undefined || m.team1_score !== undefined) {
           result.roundScores.push({
             map: m.map || m.name || '',
             team1Score: m.team1Score ?? m.team1_score ?? m.score1 ?? 0,
-            team2Score: m.team2Score ?? m.team2_score ?? m.score2 ?? 0
+            team2Score: m.team2Score ?? m.team2_score ?? m.score2 ?? 0,
           });
         }
       }
       return;
     }
-    // 常见字段名
     for (const key of ['maps', 'roundScores', 'round_scores', 'matchScores', 'scores']) {
       const val = src[key];
       if (Array.isArray(val) && val.length > 0) {
@@ -483,14 +535,12 @@ function parseDetailApiResponse(data) {
       }
     }
   };
-
   extractRoundScores(detail);
 
   // ---- 提取选手数据 ----
   const isPlayerArray = (arr) => {
     if (!Array.isArray(arr) || arr.length === 0) return false;
     const first = arr[0];
-    // 选手数据通常有 kills / deaths / name 等字段
     return first.kills !== undefined || first.kill !== undefined
         || first.playerName !== undefined || first.nickName !== undefined
         || (first.name && first.team && first.kills !== undefined);
@@ -503,27 +553,23 @@ function parseDetailApiResponse(data) {
         result.playerStats = src;
         return;
       }
-      // 递归检查每个元素
       for (const item of src) {
         extractPlayerStats(item, depth + 1);
         if (result.playerStats.length > 0) return;
       }
       return;
     }
-    // 常见字段名
     for (const key of ['players', 'playerStats', 'player_stats', 'stats', 'playerList', 'player_list', 'members', 'lineup']) {
       const val = src[key];
       if (Array.isArray(val) && isPlayerArray(val)) {
         result.playerStats = val;
         return;
       }
-      // 也可能是包装对象 { team1: [...], team2: [...] }
       if (val && typeof val === 'object') {
         extractPlayerStats(val, depth + 1);
         if (result.playerStats.length > 0) return;
       }
     }
-    // 递归检查所有子字段
     for (const key of Object.keys(src)) {
       if (['team1', 'team2', 'teams'].includes(key)) {
         extractPlayerStats(src[key], depth + 1);
@@ -531,7 +577,6 @@ function parseDetailApiResponse(data) {
       }
     }
   };
-
   extractPlayerStats(detail);
 
   return result;
