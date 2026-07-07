@@ -14,7 +14,7 @@
         <!-- 昵称输入 -->
         <view class="edit-input-row">
           <text class="edit-label">昵称</text>
-          <input class="edit-input" value="{{editNickname}}" bindinput="onNicknameInput" placeholder="请输入昵称" maxlength="20" />
+          <input class="edit-input" type="nickname" value="{{editNickname}}" bindinput="onNicknameInput" placeholder="点击使用微信昵称" maxlength="20" />
         </view>
       </view>
       <view class="modal-footer">
