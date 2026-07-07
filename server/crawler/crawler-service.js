@@ -63,14 +63,19 @@ async function syncCycle() {
       return;
     }
 
-    // 2b. 对已结束但无局分的比赛，爬取详情页补充数据
+    // 2b. 对已结束的比赛，爬取详情页补充局分和选手数据
+    //     条件：缺局分 或 缺选手数据（结果 API 已给局分但不含选手数据）
     let detailCount = 0;
     for (const m of filtered) {
-      if (m.status === 'Finished' && m.eplayId && (!m.roundScores || m.roundScores.length === 0)) {
+      if (m.status === 'Finished' && m.eplayId) {
+        const needRoundScores = !m.roundScores || m.roundScores.length === 0;
+        const needPlayerStats = !m.playerStats;
+        if (!needRoundScores && !needPlayerStats) continue;
+
         const detail = await fetchMatchDetail(m.eplayId);
         if (detail) {
-          if (detail.roundScores) m.roundScores = detail.roundScores;
-          if (detail.playerStats) m.playerStats = detail.playerStats;
+          if (needRoundScores && detail.roundScores) m.roundScores = detail.roundScores;
+          if (needPlayerStats && detail.playerStats) m.playerStats = detail.playerStats;
           detailCount++;
         }
         // 避免请求过快，加个小延迟
