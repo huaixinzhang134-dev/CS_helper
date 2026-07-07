@@ -175,15 +175,12 @@ function isCloudflareBlock(html) {
 // ======================== 队标爬取 ========================
 
 /**
- * 将 HLTV 队标 URL 转为缩略图版本（去掉背景，小尺寸）
+ * 归一化 HLTV 队标 URL（去掉 query 参数，HLTV CDN 不支持无签名的缩放）
  */
 function normalizeLogoUrl(url) {
   if (!url || !url.includes('hltv.org')) return url;
-  // SVG 无需缩放，直接返回
-  if (url.includes('.svg')) return url;
-  // 去掉已有 query params，加上缩略图参数
-  const base = url.split('?')[0];
-  return `${base}?ixlib=java-2.1.0&w=50`;
+  // 去掉所有 query params（?w=50 等缩放参数需要 CDN 签名，否则会 403）
+  return url.split('?')[0];
 }
 
 /**
