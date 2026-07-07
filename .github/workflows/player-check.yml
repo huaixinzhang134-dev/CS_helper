@@ -1,13 +1,13 @@
-name: 排名爬虫
+name: 选手位置检测
 
 on:
   schedule:
-    - cron: '0 3 */7 * *'   # 每 7 天凌晨 3 点
+    - cron: '0 5 */3 * *'   # 每 3 天凌晨 5 点
   workflow_dispatch:
 
 jobs:
-  ranking:
-    name: 爬取战队排名
+  check:
+    name: 检查选手位置（步枪手 → 狙击手/指挥）
     runs-on: ubuntu-latest
 
     steps:
@@ -37,18 +37,11 @@ jobs:
           rm /tmp/chrome.deb
           google-chrome --version
 
-      - name: 全量爬取（排名 + 队伍详情 + 选手阵容）
-        run: node crawl_ranking.js --full
+      - name: 检查选手位置（快速模式：仅步枪手）
+        run: node player_check.js --quick
         working-directory: crawler
         env:
           NODE_ENV: production
-
-      - name: 导入到 Railway MySQL
-        run: |
-          npm install
-          node import_ranking.js
-        working-directory: scripts
-        env:
           DB_HOST: ${{ secrets.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
           DB_USER: ${{ secrets.DB_USER }}
