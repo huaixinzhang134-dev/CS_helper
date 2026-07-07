@@ -619,36 +619,45 @@ const TEAM_DETAILS_FILE = path.join(__dirname, 'team_details.json');
 const ROSTER_DELAY_MS = 1500;
 
 /**
- * 从 HLTV 队伍页面爬取选手阵容
- * 搜索所有形如 /player/{id}/ 的链接，提取选手名
+ * 从 HLTV 队伍页面爬取现役选手阵容
+ * 仅提取现役阵容区域内的选手（最多 7 人：5 主力 + 替补）
  */
 function parseRoster(html) {
   const $ = cheerio.load(html);
   const roster = [];
   const seen = new Set();
 
-  // HLTV 队伍页面中选手链接格式: /player/{id}/{name}
-  // 可能出现在: .bodyshot-team, .team-roster, .col-custom等容器中
-  $('a[href*="/player/"]').each((_, el) => {
+  // 先定位现役阵容容器
+  // HLTV 常见容器：.bodyshot-team, .team-roster, [class*="roster"]
+  const rosterContainer = $('.bodyshot-team, .team-roster, [class*="roster"]').first();
+
+  // 在阵容容器内搜索选手链接
+  const container = rosterContainer.length > 0 ? rosterContainer : $('body');
+  container.find('a[href*="/player/"]').each((_, el) => {
     const href = $(el).attr('href') || '';
     const idMatch = href.match(/\/player\/(\d+)\//);
     if (!idMatch) return;
 
     const playerId = idMatch[1];
-    if (seen.has(playerId)) return;  // 去重
+    if (seen.has(playerId)) return;
 
-    // 选手名可能有多种来源
     let name = $(el).text().trim()
       || $(el).attr('title')
       || $(el).attr('data-name')
       || $(el).find('span').text().trim()
       || $(el).find('img').attr('alt') || '';
-    name = name.replace(/[^\w\s\-\.]/g, '').trim(); // 清理特殊字符
-    if (name && name.length >= 2 && idMatch) {
+    name = name.replace(/[^\w\s\-\.]/g, '').trim();
+    if (name && name.length >= 2) {
       seen.add(playerId);
       roster.push({ playerId, name });
     }
   });
+
+  // 最多 7 人（5 主力 + 替补），超了说明匹配到了非现役区域
+  if (roster.length > 7) {
+    // 只保留前 7 个（按页面顺序就是现役优先）
+    return roster.slice(0, 7);
+  }
 
   return roster;
 }
@@ -673,7 +682,9 @@ async function crawlTeamDetails(rankedTeams) {
       continue;
     }
 
-    const url = `${BASE_URL}/team/${t.teamId}/`;
+    // HLTV 队伍 URL 需要带队伍名 slug，否则 404
+    const slug = t.name.toLowerCase().replace(/ /g, '-').replace(/[^a-z0-9-]/g, '');
+    const url = `${BASE_URL}/team/${t.teamId}/${slug}`;
     try {
       const html = await fetchPage(url);
       const roster = parseRoster(html);
