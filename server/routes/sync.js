@@ -159,12 +159,13 @@ async function saveMatchPlayers(matchId, playerStats) {
     const stat = normalizePlayerStat(raw);
     if (!stat.player_name) continue;
 
-    // 优先使用 CDN API 自带的选手 ID（csgo_pl_xxxxx → 提取数字部分）
-    // player 表的 game_id 是纯数字格式（来自 HLTV），需去掉 csgo_pl_ 前缀
-    const matchIdPrefix = raw.id && raw.id.match(/^(?:csgo_pl_|hltv_|pl_)?(\d+)$/);
-    const gameId = matchIdPrefix
-      ? matchIdPrefix[1]
-      : await resolvePlayerGameId(stat.player_name, stat.team_name);
+    // 选手 ID：先用名称匹配 player 表（兼容），CDN API 数字 ID 兜底
+    let gameId = await resolvePlayerGameId(stat.player_name, stat.team_name);
+    if (!gameId) {
+      // 名称匹配失败时，用 CDN API 的 id（如 csgo_pl_22613 → 22613）
+      const idMatch = raw.id && raw.id.match(/(\d+)$/);
+      if (idMatch) gameId = idMatch[1];
+    }
 
     try {
       await query(

@@ -138,7 +138,8 @@ router.get('/:id/players', async (req, res, next) => {
     const [players] = await query(
       `SELECT p.*, mp.kills, mp.deaths, mp.assists, mp.rating AS match_rating
        FROM player p
-       LEFT JOIN match_players mp ON mp.match_id = ? AND mp.player_game_id = p.game_id
+       LEFT JOIN match_players mp ON mp.match_id = ?
+         AND (mp.player_game_id = p.game_id OR mp.player_name = p.name)
        WHERE p.current_team IN (?, ?)
        ORDER BY p.current_team, p.name`,
       [id, team1Name, team2Name]
