@@ -102,11 +102,12 @@ class CrawlerPool {
     });
   }
 
-  /** 验证代理是否可用（HTTP GET 测试） */
+  /** 验证代理是否可用（HTTP GET + HTTPS CONNECT 双重测试） */
   _validateProxies(proxyList) {
-    const TEST_URL = 'http://www.gstatic.com/generate_204';
-    const CONCURRENCY = 15;
-    const MAX_VALID = 20;
+    const HTTP_TEST = 'http://www.gstatic.com/generate_204';
+    const HTTPS_HOST = 'www.hltv.org';
+    const CONCURRENCY = 10;
+    const MAX_VALID = 15;
     const valid = [];
 
     return new Promise((resolve) => {
@@ -117,10 +118,21 @@ class CrawlerPool {
           const parts = proxyUrl.replace('http://', '').split(':');
           const host = parts[0], port = parseInt(parts[1] || '80');
           if (!host) { done++; if (done === total) resolve(valid); continue; }
-          const req = http.request({ host, port, path: TEST_URL, method: 'GET', timeout: 5000, headers: { 'Host': 'www.gstatic.com' } },
-            (res) => { if (res.statusCode >= 200 && res.statusCode < 400) valid.push(proxyUrl); done++; if (done === total) resolve(valid); else setImmediate(check); req.destroy(); });
-          req.on('error', () => { done++; if (done === total) resolve(valid); else setImmediate(check); });
-          req.on('timeout', () => { req.destroy(); done++; if (done === total) resolve(valid); else setImmediate(check); });
+
+          let settled = false;
+
+          const tryHttps = () => {
+            const req2 = http.request({ host, port, method: 'CONNECT', path: `${HTTPS_HOST}:443`, timeout: 5000 });
+            req2.on('connect', () => { valid.push(proxyUrl); req2.destroy(); settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); });
+            req2.on('error', () => { if (!settled) { settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); } });
+            req2.on('timeout', () => { req2.destroy(); if (!settled) { settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); } });
+            req2.end();
+          };
+
+          const req = http.request({ host, port, path: HTTP_TEST, method: 'GET', timeout: 5000, headers: { 'Host': 'www.gstatic.com' } },
+            (res) => { if (!settled && res.statusCode >= 200 && res.statusCode < 400) tryHttps(); else if (!settled) { settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); } req.destroy(); });
+          req.on('error', () => { if (!settled) { settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); } });
+          req.on('timeout', () => { req.destroy(); if (!settled) { settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); } });
           req.end();
         }
       };
