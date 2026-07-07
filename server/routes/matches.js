@@ -5,17 +5,11 @@ const router = express.Router();
 const { query } = require('../db/pool');
 
 /**
- * 将队标 URL 转为本地代理地址
- * 微信小程序 <image> 无法直接加载 HLTV CDN（403），且不支持 SVG
- * 通过后端 /api/logo 代理：自动添加 User-Agent + SVG→PNG 转换 + 24h 缓存
+ * 队标 URL 处理（数据库已存储正确 CDN URL，直接使用）
  */
 function logoToPng(url, baseUrl) {
   if (!url) return '';
-  // 已经是代理地址或非 HLTV 源，直接返回
-  if (url.startsWith('/api/logo') || url.includes('/api/logo?')) return url;
-  if (!url.includes('hltv.org')) return url;
-  // HLTV 的 CDN 屏蔽外部请求，通过后端代理转发
-  return baseUrl + '/api/logo?url=' + encodeURIComponent(url);
+  return url;
 }
 
 /**

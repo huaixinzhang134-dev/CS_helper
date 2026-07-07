@@ -48,11 +48,7 @@ async function resolveTeamId(teamName, logoUrl) {
  */
 function proxyLogo(url) {
   if (!url) return '';
-  // 已代理或非 HLTV 源，直接返回
-  if (url.startsWith('/api/logo') || url.includes('/api/logo?')) return url;
-  if (!url.includes('hltv.org')) return url;
-  // HLTV CDN 屏蔽外部请求，通过后端代理转发
-  return '/api/logo?url=' + encodeURIComponent(url);
+  return url;
 }
 
 function toMatchDTO(row) {
