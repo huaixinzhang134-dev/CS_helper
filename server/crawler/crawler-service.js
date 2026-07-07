@@ -75,7 +75,12 @@ async function syncCycle() {
         const detail = await fetchMatchDetail(m.eplayId);
         if (detail) {
           if (needRoundScores && detail.roundScores) m.roundScores = detail.roundScores;
-          if (needPlayerStats && detail.playerStats) m.playerStats = detail.playerStats;
+          if (needPlayerStats && detail.playerStats) {
+            m.playerStats = detail.playerStats;
+            console.log(`[crawler] ${m.team1} vs ${m.team2}: 获取 ${detail.playerStats.length} 名选手数据`);
+          } else if (needPlayerStats) {
+            console.log(`[crawler] ${m.team1} vs ${m.team2}: 详情 API 无选手数据`);
+          }
           detailCount++;
         }
         // 避免请求过快，加个小延迟

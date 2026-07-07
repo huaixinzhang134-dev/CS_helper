@@ -270,16 +270,20 @@
   gap: 12rpx;
 }
 .pick-player-btn {
+  width: 25%;
   flex-shrink: 0;
   height: 64rpx;
   line-height: 64rpx;
-  padding: 0 20rpx;
+  padding: 0;
   border-radius: 32rpx;
   font-size: 22rpx;
   background: rgba(255,255,255,0.08);
   color: var(--text-primary);
   border: none;
   white-space: nowrap;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .comment-input {
   flex: 1;
@@ -289,17 +293,20 @@
   padding: 0 24rpx;
   font-size: 24rpx;
   color: var(--text-primary);
+  min-width: 0;
 }
 .send-btn {
+  width: 25%;
   flex-shrink: 0;
   height: 64rpx;
   line-height: 64rpx;
-  padding: 0 28rpx;
+  padding: 0;
   border-radius: 32rpx;
   font-size: 24rpx;
   background: var(--accent-color);
   color: #fff;
   border: none;
+  text-align: center;
 }
 .send-btn.disabled {
   opacity: 0.4;
