@@ -370,6 +370,47 @@ router.post('/', async (req, res, next) => {
       console.error('[sync] WS 广播失败:', err.message);
     }
 
+    // ----- 清理重复比赛：同一 eplay_id 只保留 id 最小的那条 -----
+    try {
+      const [delResult] = await query(
+        `DELETE m1 FROM matches m1
+         INNER JOIN matches m2
+         ON m1.eplay_id IS NOT NULL AND m1.eplay_id = m2.eplay_id AND m1.id > m2.id`
+      );
+      if (delResult.affectedRows > 0) {
+        console.log(`[sync] 清理 ${delResult.affectedRows} 条重复比赛（eplay_id 重复）`);
+        // 再清理通过 (date, team1, team2) 重复的
+        const [delResult2] = await query(
+          `DELETE m1 FROM matches m1
+           INNER JOIN matches m2
+           ON m1.id > m2.id
+           AND m1.match_date = m2.match_date
+           AND m1.team1_id = m2.team1_id
+           AND m1.team2_id = m2.team2_id
+           AND (m1.eplay_id IS NULL OR m1.eplay_id = '')`
+        );
+        if (delResult2.affectedRows > 0) {
+          console.log(`[sync] 清理 ${delResult2.affectedRows} 条重复比赛（日期+队伍重复）`);
+        }
+      }
+      // 第三个清理：eplay_id 为空但通过 (date, team1, team2) 与已有记录重复的旧行
+      const [delResult3] = await query(
+        `DELETE m1 FROM matches m1
+         INNER JOIN matches m2
+         ON m1.id > m2.id
+         AND m1.match_date = m2.match_date
+         AND m1.team1_id = m2.team1_id
+         AND m1.team2_id = m2.team2_id
+         WHERE (m1.eplay_id IS NULL OR m1.eplay_id = '')
+           AND (m2.eplay_id IS NOT NULL AND m2.eplay_id != '')`
+      );
+      if (delResult3.affectedRows > 0) {
+        console.log(`[sync] 清理 ${delResult3.affectedRows} 条重复比赛（无 eplay_id 旧行）`);
+      }
+    } catch (err) {
+      console.error('[sync] 清理重复比赛失败:', err.message);
+    }
+
     console.log(`[sync] ✅ 完成: 新增=${inserted}, 更新=${updated}`);
     res.json({
       code: 0,
