@@ -54,11 +54,6 @@ Page({
   },
 
   /**
-   * 按时间排序：已完成（倒序，最新的最靠近中间）→ 未开始（正序，最早的靠近中间）
-   * Live 比赛始终排在最顶部
-   * 选距当前时间最近的比赛作为锚点（scroll-into-view 跳转用）
-   */
-  /**
    * 标记队标 URL 是否来自 HLTV（需要裁剪左半部分底标）
    */
   markLogoHltv(matches: any[]) {
@@ -66,7 +61,7 @@ Page({
       m.teamALogoHltv = m.teamA.logo && m.teamA.logo.indexOf('hltv.org') > -1;
       m.teamBLogoHltv = m.teamB.logo && m.teamB.logo.indexOf('hltv.org') > -1;
     }
-  }
+  },
 
   sortMatches(matches: any[]) {
     if (matches.length === 0) return { list: [], anchorId: '' };
