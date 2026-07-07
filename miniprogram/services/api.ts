@@ -422,7 +422,7 @@ export const getCurrentUserInfo = async (): Promise<{ success: boolean; data: Us
  */
 export const getCurrentUserOpenid = (): string => {
   const cached = wx.getStorageSync('userInfo');
-  return cached?.openid || 'guest';
+  return (cached && cached.openid) || 'guest';
 };
 
 /**
