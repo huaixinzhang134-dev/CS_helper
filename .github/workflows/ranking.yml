@@ -37,8 +37,8 @@ jobs:
           rm /tmp/chrome.deb
           google-chrome --version
 
-      - name: 爬取排名
-        run: node crawl_ranking.js --top=60
+      - name: 全量爬取（排名 + 队伍详情 + 选手阵容）
+        run: node crawl_ranking.js --full
         working-directory: crawler
         env:
           NODE_ENV: production

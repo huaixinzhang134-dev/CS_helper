@@ -604,6 +604,81 @@ async function crawlRanking(topN = DEFAULT_TOP, outputPath = OUTPUT_FILE) {
   }
 }
 
+// ======================== 队伍详情爬取 ========================
+
+const TEAM_DETAILS_FILE = path.join(__dirname, 'team_details.json');
+const ROSTER_DELAY_MS = 1500;
+
+/**
+ * 从 HLTV 队伍页面爬取选手阵容
+ */
+function parseRoster(html) {
+  const $ = cheerio.load(html);
+  const roster = [];
+  // HLTV 阵容列表: .bodyshot-team 或 .team-roster 或 .roster-item
+  $('.bodyshot-team a[href*="/player/"], .team-roster a[href*="/player/"], a[href*="/player/"][class*="name"]').each((_, el) => {
+    const href = $(el).attr('href') || '';
+    const idMatch = href.match(/\/player\/(\d+)\//);
+    const name = $(el).text().trim();
+    if (idMatch && name) {
+      roster.push({ playerId: idMatch[1], name });
+    } else if (name && !idMatch) {
+      // 可能只获取到名字无 ID
+      roster.push({ playerId: '', name });
+    }
+  });
+  return roster;
+}
+
+/**
+ * 爬取排名中所有队伍的详情（队标、阵容等）
+ * @param {Array} rankedTeams - crawlRanking 输出的队伍列表
+ */
+async function crawlTeamDetails(rankedTeams) {
+  console.log('\n========================================');
+  console.log('爬取队伍详情（队标 + 选手阵容）');
+  console.log(`共 ${rankedTeams.length} 支队伍\n`);
+
+  const results = [];
+  for (let i = 0; i < rankedTeams.length; i++) {
+    const t = rankedTeams[i];
+    console.log(`[${i + 1}/${rankedTeams.length}] #${t.rank} ${t.name} (HLTV ID: ${t.teamId})`);
+
+    if (!t.teamId) {
+      console.log(`  跳过: 无 teamId`);
+      results.push({ ...t, roster: [] });
+      continue;
+    }
+
+    const url = `${BASE_URL}/team/${t.teamId}/`;
+    try {
+      const html = await fetchPage(url);
+      const roster = parseRoster(html);
+      // 重新提取 logo（用 normalizeLogoUrl 转缩略图）
+      const logo = extractLogoUrl(html);
+
+      results.push({
+        ...t,
+        logo: logo || t.logo,
+        roster,
+      });
+      console.log(`  ✓ ${roster.length} 名选手${logo ? '，有队标' : ''}`);
+    } catch (err) {
+      console.error(`  ✗ ${err.message}`);
+      results.push({ ...t, roster: [] });
+    }
+
+    if (i < rankedTeams.length - 1) {
+      await delay(ROSTER_DELAY_MS);
+    }
+  }
+
+  // 保存到文件
+  fs.writeFileSync(TEAM_DETAILS_FILE, JSON.stringify(results, null, 2), 'utf8');
+  console.log(`\n已保存队伍详情到 ${TEAM_DETAILS_FILE}`);
+  return results;
+}
+
 // ======================== 启动入口 ========================
 
 if (require.main === module) {
@@ -626,6 +701,22 @@ if (require.main === module) {
     importLogosToDb().then(() => {
       console.log('\n队标导入完成');
     });
+    return;
+  }
+
+  // --full: 全量模式（排名 + 队伍详情 + 选手阵容）
+  if (args.includes('--full')) {
+    console.log('模式: 全量爬取（排名 + 队伍详情 + 选手阵容）\n');
+
+    (async () => {
+      const teams = await crawlRanking(DEFAULT_TOP, OUTPUT_FILE);
+      if (teams.length > 0) {
+        await crawlTeamDetails(teams);
+        console.log('\n全量爬取完成');
+      } else {
+        console.log('\n排名爬取失败，跳过队伍详情');
+      }
+    })();
     return;
   }
 
