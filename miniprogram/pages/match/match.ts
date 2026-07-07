@@ -30,7 +30,9 @@ Page({
 
     // 注册全量列表更新回调
     this._unsubUpdates = matchWS.on('matches_update', (msg: { data: Match[] }) => {
-      const { list, anchorId } = this.sortMatches(msg.data || []);
+      const data = msg.data || [];
+      this.markLogoHltv(data);
+      const { list, anchorId } = this.sortMatches(data);
       const liveCount = list.filter(m => m.status === 'Live').length;
       this.setData({
         matches: list,
@@ -56,6 +58,16 @@ Page({
    * Live 比赛始终排在最顶部
    * 选距当前时间最近的比赛作为锚点（scroll-into-view 跳转用）
    */
+  /**
+   * 标记队标 URL 是否来自 HLTV（需要裁剪左半部分底标）
+   */
+  markLogoHltv(matches: Match[]): void {
+    for (const m of matches) {
+      (m as any).teamALogoHltv = m.teamA.logo && m.teamA.logo.indexOf('hltv.org') > -1;
+      (m as any).teamBLogoHltv = m.teamB.logo && m.teamB.logo.indexOf('hltv.org') > -1;
+    }
+  }
+
   sortMatches(matches: Match[]): { list: Match[]; anchorId: string } {
     if (matches.length === 0) return { list: [], anchorId: '' };
 
@@ -99,7 +111,9 @@ Page({
     try {
       const res = await fetchLiveMatches();
       if (res.success) {
-        const { list, anchorId } = this.sortMatches(res.data);
+        const data = res.data || [];
+        this.markLogoHltv(data);
+        const { list, anchorId } = this.sortMatches(data);
         const liveCount = list.filter(m => m.status === 'Live').length;
         this.setData({ matches: list, anchorId, liveCount });
       }

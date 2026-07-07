@@ -47,7 +47,7 @@
       <view class="match-content flex-row justify-between">
         <!-- Team A -->
         <view class="team flex-col align-center">
-          <view class="team-logo-wrap">
+          <view class="team-logo-wrap {{item.teamALogoHltv ? 'hltv-crop' : ''}}">
             <image class="team-logo" src="{{item.teamA.logo}}" mode="aspectFill"></image>
           </view>
           <text class="team-name">{{item.teamA.name}}</text>
@@ -78,7 +78,7 @@
 
         <!-- Team B -->
         <view class="team flex-col align-center">
-          <view class="team-logo-wrap">
+          <view class="team-logo-wrap {{item.teamBLogoHltv ? 'hltv-crop' : ''}}">
             <image class="team-logo" src="{{item.teamB.logo}}" mode="aspectFill"></image>
           </view>
           <text class="team-name">{{item.teamB.name}}</text>
