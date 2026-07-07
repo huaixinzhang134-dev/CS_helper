@@ -54,14 +54,14 @@
   <!-- PK Status Bar（游戏进行中） -->
   <view class="pk-status" wx:if="{{gameMode === 'friend' && gameStatus === 'playing'}}">
     <view class="pk-player {{isRoomOwner ? 'pk-me' : ''}}">
-      <image class="pk-avatar" src="{{userInfo?.avatarUrl || '/assets/icons/user.png'}}" mode="aspectFill"></image>
-      <text class="pk-name">{{userInfo?.nickName || '我'}}</text>
+      <image class="pk-avatar" src="{{myAvatar}}" mode="aspectFill"></image>
+      <text class="pk-name">{{myName}}</text>
       <text class="pk-attempts">{{myAttempts}}/8</text>
     </view>
     <view class="pk-vs">VS</view>
     <view class="pk-player {{!isRoomOwner ? 'pk-me' : ''}}">
-      <image class="pk-avatar" src="{{opponentInfo?.avatar || '/assets/icons/user.png'}}" mode="aspectFill"></image>
-      <text class="pk-name">{{opponentInfo?.nickname || '对手'}}</text>
+      <image class="pk-avatar" src="{{opponentAvatar}}" mode="aspectFill"></image>
+      <text class="pk-name">{{opponentName}}</text>
       <text class="pk-attempts">- /8</text>
     </view>
   </view>

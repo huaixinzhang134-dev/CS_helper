@@ -79,6 +79,10 @@ Page({
     pkResult: null as { type: string; message: string } | null, // PK结果
     myAttempts: 0, // 我在PK模式中的尝试次数
     opponentAttempts: 0, // 对手在PK模式中的尝试次数
+    myAvatar: '/assets/icons/user.png', // 当前用户头像（安全取值，避免WXML中?.语法不支持）
+    myName: '我',
+    opponentAvatar: '/assets/icons/user.png',
+    opponentName: '对手',
   },
 
   onLoad(options: any) {
@@ -124,13 +128,17 @@ Page({
     const token = wx.getStorageSync('token');
     const cachedUser = wx.getStorageSync('userInfo');
     if (token && cachedUser && cachedUser.openid) {
+      const nickName = cachedUser.nickname || cachedUser.nickName || '微信用户';
+      const avatarUrl = cachedUser.avatarUrl || '/assets/icons/user.png';
       this.setData({
         userInfo: {
           openid: cachedUser.openid,
-          nickName: cachedUser.nickname || cachedUser.nickName || '微信用户',
-          avatarUrl: cachedUser.avatarUrl || '',
+          nickName,
+          avatarUrl,
           winCount: cachedUser.winCount || 0
-        }
+        },
+        myName: nickName,
+        myAvatar: avatarUrl,
       });
     } else {
       this.setData({ userInfo: null });
@@ -229,8 +237,7 @@ Page({
   async createPkRoomOnServer(difficulty: string) {
     wx.showLoading({ title: '创建房间...' });
     try {
-      const user = this.data.userInfo;
-      const res = await createPkRoom(difficulty, user?.nickname || '玩家', user?.avatarUrl || '');
+      const res = await createPkRoom(difficulty, this.data.myName, this.data.myAvatar);
       wx.hideLoading();
 
       if (res.success && res.data) {
@@ -294,6 +301,8 @@ Page({
           pkRoomId: roomId,
           isRoomOwner: false,
           opponentInfo: room.creator,
+          opponentName: room.creator?.nickname || '对手',
+          opponentAvatar: room.creator?.avatar || '/assets/icons/user.png',
           targetPlayer: target,
           targetAvatarUrl: normalizeAvatarUrl(target.avatar),
           guesses: [],
