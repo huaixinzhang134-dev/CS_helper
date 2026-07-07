@@ -16,21 +16,22 @@ jobs:
         with:
           node-version: 22
 
-      - name: 安装系统依赖（Puppeteer 需要）
+      - name: 安装系统依赖（Puppeteer + Chromium）
         run: |
           sudo apt-get update
           sudo apt-get install -y ca-certificates fonts-liberation \
             libasound2t64 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
             libdrm2 libgbm1 libnss3 libxcomposite1 libxdamage1 \
-            libxrandr2 xdg-utils libu2f-udev
+            libxrandr2 xdg-utils chromium-browser
 
-      - name: 安装依赖
+      - name: 安装依赖（跳过 Chromium 下载，用系统已安装的）
         run: npm install
         working-directory: crawler
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: true
 
       - name: 快速增量更新选手信息
         run: node player_data.js --images-only
         working-directory: crawler
         env:
           NODE_ENV: production
-          PUPPETEER_SKIP_DOWNLOAD: false
