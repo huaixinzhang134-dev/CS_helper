@@ -1,18 +1,38 @@
 const fs = require('fs');
 const cheerio = require('cheerio');
+const path = require('path');
+const mysql = require('mysql2/promise');
 
 let puppeteer;
 let stealthPlugin;
 
 const BASE_URL = 'https://www.hltv.org';
 const DATA_FILE = __dirname + '/playerbase.json';
-const DELAY_BETWEEN_REQUESTS = 3000;
+const DELAY_BETWEEN_REQUESTS = 2000;
 
 let browser;
 let page;
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function detectChromePath() {
+  const candidates = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium'
+  ];
+  for (const p of candidates) {
+    try { if (fs.existsSync(p)) return p; } catch (_) {}
+  }
+  return undefined;
 }
 
 async function initBrowser() {
@@ -22,10 +42,11 @@ async function initBrowser() {
   stealthPlugin = require('puppeteer-extra-plugin-stealth');
   puppeteer.use(stealthPlugin());
 
-  console.log('正在启动浏览器...');
+  const chromePath = detectChromePath();
+  console.log(`浏览器路径: ${chromePath || '系统默认'}`);
   browser = await puppeteer.launch({
     headless: 'new',
-    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    executablePath: chromePath,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -190,6 +211,32 @@ async function closeBrowser() {
 }
 
 /**
+ * 将位置更新写入 MySQL
+ */
+async function syncPositionToDb(playerId, name, position) {
+  const conn = await mysql.createConnection({
+    host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '3306', 10),
+    user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
+    password: process.env.DB_PASS || process.env.MYSQLPASSWORD || '',
+    database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'cs_match_pro',
+    ssl: process.env.MYSQL_SSL ? { rejectUnauthorized: false } : undefined,
+    connectTimeout: 5000,
+  });
+  try {
+    const [result] = await conn.execute(
+      'UPDATE player SET position = ? WHERE game_id = ? OR name = ?',
+      [position, playerId, name]
+    );
+    if (result.affectedRows > 0) {
+      console.log(`  DB ✓ ${name} → "${position}" (${result.affectedRows} 行)`);
+    }
+  } finally {
+    await conn.end();
+  }
+}
+
+/**
  * 主检查流程
  */
 async function checkAllPositions() {
@@ -197,15 +244,17 @@ async function checkAllPositions() {
   console.log('选手位置检查工具');
   console.log('========================================\n');
 
-  // 支持参数：指定检查某几个选手（按 _id 或 name）
   const args = process.argv.slice(2);
+  const useDb = args.includes('--db');
   const filterIds = args.filter(a => /^\d+$/.test(a));
   const filterNames = args.filter(a => !a.startsWith('-') && !/^\d+$/.test(a));
 
   let players = loadPlayers();
-  console.log(`共加载 ${players.length} 个选手数据\n`);
+  console.log(`共加载 ${players.length} 个选手数据`);
 
-  // 按参数筛选
+  if (useDb) console.log('模式: 检查 + 同步到数据库\n');
+  else console.log('模式: 仅检查（加 --db 同步到数据库）\n');
+
   if (filterIds.length > 0 || filterNames.length > 0) {
     players = players.filter(p =>
       filterIds.includes(p._id) || filterNames.includes(p.name)
@@ -230,23 +279,26 @@ async function checkAllPositions() {
 
       if (result._positionChanged) {
         correctedCount++;
-        // 更新原数据
         const idx = players.findIndex(p => p._id === result._id);
-        if (idx !== -1) {
-          players[idx] = result;
+        if (idx !== -1) players[idx] = result;
+
+        if (useDb) {
+          try {
+            await syncPositionToDb(result._id, result.name, result.position);
+          } catch (err) {
+            console.error(`  DB ✗ ${result.name}: ${err.message}`);
+          }
         }
       }
 
       await delay(DELAY_BETWEEN_REQUESTS);
 
-      // 每20个保存一次
       if ((i + 1) % 20 === 0) {
         savePlayers(players);
         console.log(`--- 已保存进度: ${i + 1}/${players.length} ---\n`);
       }
     }
 
-    // 最终保存
     savePlayers(players);
 
     console.log('\n========================================');
@@ -255,13 +307,13 @@ async function checkAllPositions() {
     console.log(`位置修正: ${correctedCount} 个`);
     console.log(`失败: ${failedCount} 个`);
     console.log('========================================');
-
   } catch (error) {
     console.error('\n检查过程中出错:', error.message);
     savePlayers(players);
-    console.log(`已保存当前进度`);
+    console.log('已保存当前进度');
   } finally {
     await closeBrowser();
+    process.exit(0);
   }
 }
 
