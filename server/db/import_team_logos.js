@@ -26,6 +26,7 @@ async function main() {
   console.log(`从 SQL 中提取 ${teams.length} 个队伍`);
 
   // 连接数据库
+  console.log(`正在连接 ${process.env.DB_HOST || 'hayabusa.proxy.rlwy.net'}:${process.env.DB_PORT || '16612'} ...`);
   const conn = await mysql.createConnection({
     host: process.env.DB_HOST || process.env.MYSQLHOST || 'hayabusa.proxy.rlwy.net',
     port: parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '16612', 10),
@@ -33,6 +34,7 @@ async function main() {
     password: process.env.DB_PASS || process.env.MYSQLPASSWORD || '',
     database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'railway',
     ssl: { rejectUnauthorized: false },
+    connectTimeout: 15000,
   });
 
   let updated = 0, notFound = 0;
