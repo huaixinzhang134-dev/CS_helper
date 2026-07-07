@@ -87,8 +87,16 @@ Page({
       }
 
       // 3. 登录成功，更新页面
-      this.setData({ userInfo: result.data.user });
+      const user = result.data.user;
+      this.setData({ userInfo: user });
       wx.showToast({ title: '登录成功', icon: 'success' });
+
+      // 4. 首次登录无昵称时引导编辑资料
+      if (!user.nickname || user.nickname === '微信用户') {
+        setTimeout(() => {
+          this.onEditProfile();
+        }, 500);
+      }
 
     } catch (err) {
       console.error('Login failed', err);
