@@ -1,6 +1,6 @@
 <view class="container user-page">
   <!-- ====== 编辑资料弹窗 ====== -->
-  <view class="modal-mask" wx:if="{{isEditing}}" catchtap="onMaskTap">
+  <view class="modal-mask" wx:if="{{isEditing}}">
     <view class="modal-content edit-modal" catchtap="">
       <view class="modal-title">编辑资料</view>
       <view class="edit-body">
