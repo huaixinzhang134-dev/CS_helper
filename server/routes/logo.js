@@ -24,14 +24,19 @@ const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 小时
 async function toPngBuffer(url) {
   const cached = cache.get(url);
   if (cached && Date.now() - cached.time < CACHE_TTL) {
-    return cached.buffer;
+    return { buffer: cached.buffer, contentType: cached.contentType || 'image/png' };
   }
 
   const resp = await axios.get(url, {
     responseType: 'arraybuffer',
     timeout: 5000,
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'Referer': 'https://www.hltv.org/',
+      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Sec-Fetch-Site': 'cross-site',
+      'Sec-Fetch-Mode': 'no-cors',
     }
   });
 
@@ -40,19 +45,24 @@ async function toPngBuffer(url) {
 
   let pngBuffer;
   if (contentType.includes('svg') || url.includes('.svg')) {
-    // SVG → PNG 转换
-    pngBuffer = await sharp(rawBuffer).png().toBuffer();
-  } else {
-    // 已经是图片格式 → 直接转为 PNG（统一格式）
     try {
       pngBuffer = await sharp(rawBuffer).png().toBuffer();
     } catch {
-      pngBuffer = rawBuffer; // 转换失败则返回原始数据
+      // sharp 不可用时返回原始 SVG（微信不支持，但总比没有好）
+      pngBuffer = rawBuffer;
     }
+  } else {
+    // 非 SVG 直接返回原始数据（不做 sharp 转换，避免依赖问题）
+    pngBuffer = rawBuffer;
   }
 
-  cache.set(url, { buffer: pngBuffer, time: Date.now() });
-  return pngBuffer;
+  // 缓存时标记 content-type
+  cache.set(url, {
+    buffer: pngBuffer,
+    time: Date.now(),
+    contentType: contentType.includes('svg') ? 'image/png' : contentType || 'image/png'
+  });
+  return { buffer: pngBuffer, contentType: contentType.includes('svg') ? 'image/png' : contentType || 'image/png' };
 }
 
 /**
@@ -64,10 +74,10 @@ router.get('/:teamId', async (req, res, next) => {
     if (!rows.length || !rows[0].logo_url) {
       return res.status(404).end();
     }
-    const png = await toPngBuffer(rows[0].logo_url);
-    res.set('Content-Type', 'image/png');
+    const result = await toPngBuffer(rows[0].logo_url);
+    res.set('Content-Type', result.contentType || 'image/png');
     res.set('Cache-Control', 'public, max-age=86400');
-    res.send(png);
+    res.send(result.buffer);
   } catch (err) {
     next(err);
   }
@@ -81,10 +91,10 @@ router.get('/', async (req, res, next) => {
     const url = req.query.url;
     if (!url) return res.status(400).json({ code: 400, message: '缺少 url 参数' });
 
-    const png = await toPngBuffer(url);
-    res.set('Content-Type', 'image/png');
+    const result = await toPngBuffer(url);
+    res.set('Content-Type', result.contentType || 'image/png');
     res.set('Cache-Control', 'public, max-age=86400');
-    res.send(png);
+    res.send(result.buffer);
   } catch (err) {
     next(err);
   }
