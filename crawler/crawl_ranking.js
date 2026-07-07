@@ -11,8 +11,6 @@
  *   node crawl_ranking.js --output=my_ranking.json  自定义输出文件
  */
 
-const https = require('https');
-const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const cheerio = require('cheerio');
@@ -48,9 +46,6 @@ class CrawlerPool {
     this.currentPageIdx = 0;
     this.useCount = 0;
     this.consecutiveFails = 0;
-    this.proxies = [];
-    this.currentProxyIdx = 0;
-    this._needFreeProxies = false;
     this._loadProxies();
   }
 
@@ -58,90 +53,13 @@ class CrawlerPool {
     const envProxies = process.env.PROXY_LIST || '';
     if (envProxies) {
       this.proxies = envProxies.split(',').map(s => s.trim()).filter(Boolean);
-      if (this.proxies.length > 0) { console.log(`  代理池: ${this.proxies.length} 个`); return; }
+      if (this.proxies.length > 0) console.log(`  代理池: ${this.proxies.length} 个`);
     }
-    this._needFreeProxies = true;
-  }
-
-  /** 异步抓取 + 验证免费代理列表 */
-  _fetchFreeProxies() {
-    return new Promise((resolve) => {
-      const urls = [
-        'https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/http/data.json',
-        'https://proxylist.geonode.com/api/proxy-list?limit=50&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps',
-      ];
-      let tried = 0;
-      const rawProxies = [];
-
-      const tryNext = () => {
-        if (tried >= urls.length) {
-          if (rawProxies.length === 0) { console.log('  ⚠ 免费代理源均不可用'); resolve(); return; }
-          this._validateProxies(rawProxies).then((valid) => {
-            if (valid.length > 0) { this.proxies = valid; console.log(`  免费代理池: ${rawProxies.length}→${valid.length} 个`); }
-            else console.log('  ⚠ 所有免费代理均不可用');
-            resolve();
-          });
-          return;
-        }
-        const url = urls[tried++];
-        const client = url.startsWith('https') ? https : http;
-        client.get(url, { timeout: 8000, headers: { 'User-Agent': 'curl/8.0' } }, (res) => {
-          let data = '';
-          res.on('data', (chunk) => (data += chunk));
-          res.on('end', () => {
-            try {
-              const parsed = JSON.parse(data);
-              if (Array.isArray(parsed)) parsed.filter(p => p.ip && p.port).forEach(p => rawProxies.push(`http://${p.ip}:${p.port}`));
-              if (parsed.data && Array.isArray(parsed.data)) parsed.data.filter(p => p.ip && p.port).forEach(p => rawProxies.push(`http://${p.ip}:${p.port}`));
-            } catch (_) {}
-            tryNext();
-          });
-        }).on('error', () => tryNext());
-      };
-      tryNext();
-    });
-  }
-
-  /** 验证代理是否可用（HTTP GET + HTTPS CONNECT 双重测试） */
-  _validateProxies(proxyList) {
-    const HTTP_TEST = 'http://www.gstatic.com/generate_204';
-    const HTTPS_HOST = 'www.hltv.org';
-    const CONCURRENCY = 10;
-    const MAX_VALID = 15;
-    const valid = [];
-
-    return new Promise((resolve) => {
-      let idx = 0, done = 0, total = proxyList.length;
-      const check = () => {
-        while (idx < total && valid.length < MAX_VALID) {
-          const proxyUrl = proxyList[idx++];
-          const parts = proxyUrl.replace('http://', '').split(':');
-          const host = parts[0], port = parseInt(parts[1] || '80');
-          if (!host) { done++; if (done === total) resolve(valid); continue; }
-
-          let settled = false;
-
-          const tryHttps = () => {
-            const req2 = http.request({ host, port, method: 'CONNECT', path: `${HTTPS_HOST}:443`, timeout: 5000 });
-            req2.on('connect', () => { valid.push(proxyUrl); req2.destroy(); settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); });
-            req2.on('error', () => { if (!settled) { settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); } });
-            req2.on('timeout', () => { req2.destroy(); if (!settled) { settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); } });
-            req2.end();
-          };
-
-          const req = http.request({ host, port, path: HTTP_TEST, method: 'GET', timeout: 5000, headers: { 'Host': 'www.gstatic.com' } },
-            (res) => { if (!settled && res.statusCode >= 200 && res.statusCode < 400) tryHttps(); else if (!settled) { settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); } req.destroy(); });
-          req.on('error', () => { if (!settled) { settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); } });
-          req.on('timeout', () => { req.destroy(); if (!settled) { settled = true; done++; if (done === total) resolve(valid); else setImmediate(check); } });
-          req.end();
-        }
-      };
-      for (let i = 0; i < CONCURRENCY; i++) check();
-    });
   }
 
   _nextProxy() {
-    if (this.proxies.length === 0) return undefined;
+    if (!this.proxies || this.proxies.length === 0) return undefined;
+    if (!this.currentProxyIdx) this.currentProxyIdx = 0;
     return this.proxies[this.currentProxyIdx++ % this.proxies.length];
   }
 
@@ -158,26 +76,15 @@ class CrawlerPool {
 
   async launch() {
     if (this.browser) await this._closeBrowser();
-
-    // 首次启动时异步抓取免费代理
-    if (this._needFreeProxies) {
-      this._needFreeProxies = false;
-      await this._fetchFreeProxies();
-    }
-
     puppeteer = require('puppeteer-extra');
     const sp = require('puppeteer-extra-plugin-stealth');
     puppeteer.use(sp());
-
     const chromePath = detectChromePath();
-    const proxyUrl = this._nextProxy();
-
     this.browser = await puppeteer.launch({
       headless: 'new',
       executablePath: chromePath,
-      args: this._buildLaunchArgs(proxyUrl),
+      args: this._buildLaunchArgs(this._nextProxy()),
     });
-
     this.pages = [];
     for (let i = 0; i < POOL_PAGE_COUNT; i++) {
       const p = await this.browser.newPage();
@@ -186,26 +93,19 @@ class CrawlerPool {
     }
     this.currentPageIdx = 0;
     this.useCount = 0;
-    console.log(`  浏览器实例 #${Math.floor(this.useCount / POOL_RESTART_INTERVAL) + 1}，页面池: ${POOL_PAGE_COUNT} 个`);
+    this.consecutiveFails = 0;
+    console.log(`  浏览器实例已启动，页面池: ${POOL_PAGE_COUNT} 个`);
   }
 
   _nextPage() {
     return this.pages[this.currentPageIdx++ % this.pages.length];
   }
 
-  async _checkRestart() {
-    if (this.useCount >= POOL_RESTART_INTERVAL) {
-      console.log(`\n--- 达到 ${POOL_RESTART_INTERVAL} 次请求限制，重启浏览器 ---\n`);
-      await this.launch();
-    }
-  }
-
   async _closeBrowser() {
     if (!this.browser) return;
     try { for (const p of this.pages) try { await p.close(); } catch (_) {} } catch (_) {}
     try { await this.browser.close(); } catch (_) {}
-    this.browser = null;
-    this.pages = [];
+    this.browser = null; this.pages = [];
   }
 
   async fetch(url, options = {}) {
@@ -218,59 +118,43 @@ class CrawlerPool {
       if (retry > 0) {
         const backoff = POOL_RETRY_BASE_DELAY * Math.pow(2, retry - 1);
         console.log(`  ⏳ 重试 ${retry}/${POOL_MAX_RETRIES}，等待 ${(backoff / 1000).toFixed(0)}s...`);
-        await delay(backoff);
-        await this.launch();
+        await delay(backoff); await this.launch();
         this.consecutiveFails = 0;
       }
-      if (retry === 0) await this._checkRestart();
-
       if (this.consecutiveFails >= 5) {
-        console.log(`  ⚠ 连续 ${this.consecutiveFails} 次失败，强制重启浏览器`);
+        console.log(`  ⚠ 连续 ${this.consecutiveFails} 次失败，强制重启`);
         await this.launch();
         this.consecutiveFails = 0;
       }
-
       if (!this.browser || this.pages.length === 0) await this.launch();
 
       const page = this._nextPage();
       try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
-        this.useCount++;
-        this.consecutiveFails = 0;
+        this.useCount++; this.consecutiveFails = 0;
       } catch (e) {
-        lastError = e;
-        this.useCount++;
-        this.consecutiveFails++;
+        lastError = e; this.useCount++; this.consecutiveFails++;
         console.error(`  ✗ 导航失败 (重试 ${retry}/${POOL_MAX_RETRIES}): ${(e.message || '').slice(0, 100)}`);
         continue;
       }
 
-      if (waitFor) {
-        try { await page.waitForFunction(waitFor, { timeout: 30000 }); } catch (_) {}
-      }
+      if (waitFor) { try { await page.waitForFunction(waitFor, { timeout: 30000 }); } catch (_) {} }
       await delay(waitMs);
-
       try {
         const html = await page.content();
         if (isCloudflareBlock(html)) {
           console.log(`  ⚠ Cloudflare 拦截 (重试 ${retry}/${POOL_MAX_RETRIES})`);
           lastError = new Error('Cloudflare 拦截');
-          this.useCount++;
-          this.consecutiveFails++;
+          this.useCount++; this.consecutiveFails++;
           continue;
         }
         return html;
-      } catch (e) {
-        lastError = e;
-        continue;
-      }
+      } catch (e) { lastError = e; continue; }
     }
     throw lastError || new Error(`重试耗尽 (${POOL_MAX_RETRIES} 次)`);
   }
 
-  async close() {
-    await this._closeBrowser();
-  }
+  async close() { await this._closeBrowser(); }
 }
 
 const pool = new CrawlerPool();
