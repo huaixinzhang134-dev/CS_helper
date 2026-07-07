@@ -164,6 +164,11 @@
   padding: 4rpx 12rpx;
   border-radius: 20rpx;
 }
+.finished-time {
+  margin-top: 8rpx;
+  font-size: 18rpx;
+  opacity: 0.7;
+}
 
 .empty-state {
   text-align: center;

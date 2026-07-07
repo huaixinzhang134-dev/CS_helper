@@ -57,12 +57,20 @@
             <text class="vs-text">VS</text>
             <text class="match-time">{{item.time}}</text>
           </block>
-          <block wx:else>
-            <view class="score-text {{item.status === 'Live' ? 'score-live' : ''}}">
+          <block wx:elif="{{item.status === 'Live'}}">
+            <view class="score-text score-live">
               <text class="{{item.teamA.score > item.teamB.score ? 'winner' : ''}}">{{item.teamA.score}}</text>
               <text class="divider"> : </text>
               <text class="{{item.teamB.score > item.teamA.score ? 'winner' : ''}}">{{item.teamB.score}}</text>
             </view>
+          </block>
+          <block wx:else>
+            <view class="score-text">
+              <text class="{{item.teamA.score > item.teamB.score ? 'winner' : ''}}">{{item.teamA.score}}</text>
+              <text class="divider"> : </text>
+              <text class="{{item.teamB.score > item.teamA.score ? 'winner' : ''}}">{{item.teamB.score}}</text>
+            </view>
+            <text class="match-time finished-time">{{item.time}}</text>
           </block>
         </view>
 
