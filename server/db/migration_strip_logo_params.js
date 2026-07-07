@@ -1,13 +1,11 @@
 /**
- * 迁移脚本：将所有 HLTV 队标 URL 替换为后端代理地址
- * HLTV CDN 屏蔽外部请求（403），需通过 /api/logo 代理
+ * 迁移脚本：修复数据库队标 URL
+ * 1. 将已有代理地址恢复为原始 HLTV 地址（如有必要）
+ * 2. 保留 CDN 签名参数（?ixlib=...&w=50&s=...）
  *
  * 运行: node server/db/migration_strip_logo_params.js
- *   API_BASE 环境变量可选，默认为 https://cshelper-production.up.railway.app
  */
 const mysql = require('mysql2/promise');
-
-const API_BASE = process.env.API_BASE || 'https://cshelper-production.up.railway.app';
 
 async function main() {
   const conn = await mysql.createConnection({
@@ -19,31 +17,32 @@ async function main() {
     ssl: { rejectUnauthorized: false },
   });
 
-  // 1. 先去 ?w=50 等 query 参数
+  // 1. 把误改为代理地址的恢复为原始 HLTV URL
   const [rows1] = await conn.query(
-    `SELECT id, name, logo_url FROM team WHERE logo_url LIKE '%?%' AND logo_url LIKE '%hltv.org%'`
+    `SELECT id, name, logo_url FROM team WHERE logo_url LIKE '%/api/logo%'`
   );
   for (const row of rows1) {
-    const newUrl = row.logo_url.split('?')[0];
-    await conn.execute('UPDATE team SET logo_url = ? WHERE id = ?', [newUrl, row.id]);
-    console.log(`  ${row.name}: 去掉 query 参数`);
+    // 从代理地址中提取原始 URL
+    const match = row.logo_url.match(/url=([^&]+)/);
+    if (match) {
+      const originalUrl = decodeURIComponent(match[1]);
+      await conn.execute('UPDATE team SET logo_url = ? WHERE id = ?', [originalUrl, row.id]);
+      console.log(`  ${row.name}: 恢复原始 URL`);
+    }
   }
 
-  // 2. 所有 HLTV 源队标改为后端代理地址
+  // 2. 统计目前队标状态
   const [rows2] = await conn.query(
-    `SELECT id, name, logo_url FROM team WHERE logo_url LIKE '%hltv.org%'`
+    `SELECT logo_url FROM team WHERE logo_url LIKE '%hltv.org%'`
   );
-  console.log(`\n需要代理的 HLTV 队标: ${rows2.length} 个`);
-
-  let updated = 0;
-  for (const row of rows2) {
-    const proxyUrl = `${API_BASE}/api/logo?url=${encodeURIComponent(row.logo_url)}`;
-    await conn.execute('UPDATE team SET logo_url = ? WHERE id = ?', [proxyUrl, row.id]);
-    console.log(`  ${row.name}: → 代理地址`);
-    updated++;
+  const withSignature = rows2.filter(r => r.logo_url.includes('&s=')).length;
+  const withoutSignature = rows2.filter(r => r.logo_url.includes('hltv.org') && !r.logo_url.includes('&s=') && !r.logo_url.includes('/api/logo')).length;
+  console.log(`\nHLTV 队标: ${rows2.length} 个（含签名: ${withSignature}，无签名: ${withoutSignature}）`);
+  if (withoutSignature > 0) {
+    console.log('⚠ 无签名的 HLTV URL 可能会 403，建议使用带 CDN 签名的版本');
   }
 
-  console.log(`\n完成: 更新 ${updated} 个队标为代理地址`);
+  console.log('\n完成');
   await conn.end();
 }
 

@@ -175,12 +175,12 @@ function isCloudflareBlock(html) {
 // ======================== 队标爬取 ========================
 
 /**
- * 归一化 HLTV 队标 URL（去掉 query 参数，HLTV CDN 不支持无签名的缩放）
+ * 归一化 HLTV 队标 URL（保留原始 URL 不变）
+ * 带 CDN 签名的 URL（?ixlib=...&w=50&s=...）才能正常加载
  */
 function normalizeLogoUrl(url) {
   if (!url || !url.includes('hltv.org')) return url;
-  // 去掉所有 query params（?w=50 等缩放参数需要 CDN 签名，否则会 403）
-  return url.split('?')[0];
+  return url;  // 保留原始 URL，签名由 HLTV CDN 处理
 }
 
 /**
