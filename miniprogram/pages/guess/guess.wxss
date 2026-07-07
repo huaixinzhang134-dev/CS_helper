@@ -630,3 +630,50 @@
   font-size: 24rpx;
   color: var(--text-secondary);
 }
+
+/* ====== PK 对战状态栏 ====== */
+.pk-status {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  padding: 20rpx 40rpx;
+  margin: 10rpx 20rpx;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(255, 165, 0, 0.08));
+  border-radius: 16rpx;
+  border: 1rpx solid rgba(255, 215, 0, 0.15);
+  position: relative;
+  z-index: 2;
+}
+.pk-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6rpx;
+}
+.pk-avatar {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(255,255,255,0.1);
+}
+.pk-me .pk-avatar {
+  border-color: var(--primary-color);
+}
+.pk-name {
+  font-size: 22rpx;
+  color: var(--text-secondary);
+  max-width: 120rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pk-attempts {
+  font-size: 20rpx;
+  color: var(--text-muted);
+}
+.pk-vs {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: var(--secondary-color);
+}

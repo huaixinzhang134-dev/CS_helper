@@ -1,4 +1,4 @@
-import { fetchPlayerListAll, searchPlayers, fetchRankedTeamNames, submitGuessRecord, Player } from '../../services/api';
+import { fetchPlayerListAll, searchPlayers, fetchRankedTeamNames, submitGuessRecord, createPkRoom, joinPkRoom, getPkRoom, reportPkResult, Player } from '../../services/api';
 import { STATIC_BASE } from '../../config';
 
 // HLTV 占位剪影 URL
@@ -90,7 +90,24 @@ Page({
         pkRoomId: options.pkRoomId,
         isRoomOwner: false
       });
-      this.handleEnterPKRoom(options.pkRoomId, options.opponentId);
+      // 先检查登录状态，再加入房间
+      const token = wx.getStorageSync('token');
+      const cachedUser = wx.getStorageSync('userInfo');
+      if (token && cachedUser && cachedUser.openid) {
+        this.handleEnterPKRoom(options.pkRoomId, options.opponentId);
+      } else {
+        // 未登录，引导去登录后再回来
+        wx.showModal({
+          title: '需要登录',
+          content: '好友PK需要先登录，请前往"我的"页面进行微信登录后，重新点击分享链接加入',
+          success: (res) => {
+            if (res.confirm) {
+              wx.switchTab({ url: '/pages/user/index' });
+            }
+          }
+        });
+      }
+      return;
     }
     this.initGame();
   },
@@ -157,7 +174,7 @@ Page({
       if (!this.data.userInfo) {
         this.loginForFriendPK();
       } else {
-        this.setData({ showFriendInvite: true });
+        await this.createPkRoomOnServer(diff);
       }
     }
   },
@@ -207,60 +224,90 @@ Page({
   },
 
   /**
-   * 分享给好友
+   * 在服务端创建PK房间
+   */
+  async createPkRoomOnServer(difficulty: string) {
+    wx.showLoading({ title: '创建房间...' });
+    try {
+      const user = this.data.userInfo;
+      const res = await createPkRoom(difficulty, user?.nickname || '玩家', user?.avatarUrl || '');
+      wx.hideLoading();
+
+      if (res.success && res.data) {
+        const roomId = res.data.roomId;
+        const target = res.data.targetPlayer;
+        // 用服务端选的选手开始游戏
+        this.setData({
+          pkRoomId: roomId,
+          isRoomOwner: true,
+          showFriendInvite: true,
+          targetPlayer: target,
+          targetAvatarUrl: normalizeAvatarUrl(target.avatar),
+          guesses: [],
+          attemptsLeft: MAX_PK_ATTEMPTS,
+          gameStatus: 'playing',
+          myAttempts: 0,
+        });
+      } else {
+        wx.showToast({ title: res.message || '创建房间失败', icon: 'none' });
+        this.setData({ showModeSelection: true, gameMode: '' });
+      }
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: '创建房间失败', icon: 'none' });
+      this.setData({ showModeSelection: true, gameMode: '' });
+    }
+  },
+
+  /**
+   * 分享给好友（由右上角菜单或 open-type=share 按钮触发）
    */
   onShareAppMessage() {
-    if (this.data.gameMode === 'friend') {
-      const roomId = 'pk_' + Date.now();
-      this.setData({
-        pkRoomId: roomId,
-        isRoomOwner: true,
-        showFriendInvite: false
-      });
-
-      // 创建房间
-      this.createPKRoom(roomId);
-
+    if (this.data.gameMode === 'friend' && this.data.pkRoomId) {
       return {
         title: 'CS Match Pro - 好友PK挑战',
-        path: `/pages/guess/guess?pkRoomId=${roomId}&opponentId=${this.data.userInfo?.openid}`,
-        imageUrl: '' // 可以设置分享图片
+        path: `/pages/guess/guess?pkRoomId=${this.data.pkRoomId}&opponentId=${this.data.userInfo?.openid}`,
+        imageUrl: ''
       };
     }
     return {};
   },
 
   /**
-   * 创建PK房间
+   * 进入PK房间（通过分享链接打开）
    */
-  createPKRoom(roomId: string) {
-    // 实际项目中应该调用后端API创建房间
-    // 这里模拟本地存储
-    const room = {
-      roomId: roomId,
-      owner: this.data.userInfo,
-      opponent: null,
-      targetPlayer: null,
-      createdAt: Date.now()
-    };
-    wx.setStorageSync('pkRoom_' + roomId, room);
-  },
+  async handleEnterPKRoom(roomId: string, opponentId: string) {
+    wx.showLoading({ title: '加入房间...' });
+    try {
+      const userInfo = wx.getStorageSync('userInfo');
+      const nickname = userInfo?.nickname || userInfo?.nickName || '玩家';
+      const avatar = userInfo?.avatarUrl || '';
 
-  /**
-   * 进入PK房间
-   */
-  handleEnterPKRoom(roomId: string, opponentId: string) {
-    const room = wx.getStorageSync('pkRoom_' + roomId);
-    if (room) {
-      // 加入房间
-      room.opponent = this.data.userInfo;
-      wx.setStorageSync('pkRoom_' + roomId, room);
+      const res = await joinPkRoom(roomId, nickname, avatar);
+      wx.hideLoading();
 
-      // 更新对手信息
-      this.setData({ opponentInfo: room.owner });
+      if (res.success && res.data) {
+        const room = res.data;
+        const target = room.targetPlayer;
 
-      // 开始PK游戏
-      this.startNewRound();
+        this.setData({
+          pkRoomId: roomId,
+          isRoomOwner: false,
+          opponentInfo: room.creator,
+          targetPlayer: target,
+          targetAvatarUrl: normalizeAvatarUrl(target.avatar),
+          guesses: [],
+          attemptsLeft: MAX_PK_ATTEMPTS,
+          gameStatus: 'playing',
+          myAttempts: 0,
+          showModeSelection: false,
+        });
+      } else {
+        wx.showToast({ title: res.message || '加入房间失败', icon: 'none' });
+      }
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: '加入房间失败', icon: 'none' });
     }
   },
 

@@ -502,3 +502,61 @@ export const adminMatchUpdate = (id: string, data: any) =>
 
 export const adminMatchDelete = (id: string) =>
   del<{ affected: number }>(`/matches/${id}`);
+
+// ============================================================
+// PK 好友对战 API
+// ============================================================
+
+export interface PkRoom {
+  roomId: string;
+  difficulty: string;
+  creator: { nickname: string; avatar: string };
+  joiner: { nickname: string; avatar: string } | null;
+  targetPlayer: any;
+  creatorResult: { won: boolean; attempts: number } | null;
+  joinerResult: { won: boolean; attempts: number } | null;
+  createdAt: number;
+}
+
+/**
+ * 创建 PK 房间
+ */
+export const createPkRoom = async (
+  difficulty: string,
+  creatorNickname: string,
+  creatorAvatar: string
+): Promise<{ success: boolean; data: { roomId: string; targetPlayer: any } | null; message?: string }> => {
+  return await post<PkRoom>('/pk/rooms', { difficulty, creatorNickname, creatorAvatar });
+};
+
+/**
+ * 加入 PK 房间
+ */
+export const joinPkRoom = async (
+  roomId: string,
+  joinerNickname: string,
+  joinerAvatar: string
+): Promise<{ success: boolean; data: PkRoom | null; message?: string }> => {
+  return await post<PkRoom>(`/pk/rooms/${roomId}/join`, { joinerNickname, joinerAvatar });
+};
+
+/**
+ * 查询房间状态
+ */
+export const getPkRoom = async (
+  roomId: string
+): Promise<{ success: boolean; data: PkRoom | null; message?: string }> => {
+  return await get<PkRoom>(`/pk/rooms/${roomId}`);
+};
+
+/**
+ * 报告游戏结果
+ */
+export const reportPkResult = async (
+  roomId: string,
+  role: 'creator' | 'joiner',
+  won: boolean,
+  attempts: number
+): Promise<{ success: boolean; data: { winner: string | null } | null; message?: string }> => {
+  return await post<PkRoom>(`/pk/rooms/${roomId}/result`, { roomId, role, won, attempts });
+};

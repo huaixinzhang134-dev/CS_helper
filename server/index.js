@@ -63,6 +63,9 @@ app.use('/api/logo', logoRouter);
 // 用户（微信登录、竞猜记录）
 app.use('/api/users', usersRouter);
 
+// PK 好友对战
+app.use('/api/pk', require('./routes/pk'));
+
 // 404
 app.use((req, res) => {
   res.status(404).json({ code: 404, message: '接口不存在', data: null });

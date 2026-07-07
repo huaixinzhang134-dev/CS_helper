@@ -27,6 +27,45 @@
     </view>
   </view>
 
+  <!-- Friend Invite Modal -->
+  <view class="modal-mask" wx:if="{{showFriendInvite}}" style="z-index: 100;">
+    <view class="modal-content">
+      <view class="modal-title">邀请好友 PK</view>
+      <view class="modal-body" style="text-align:center;">
+        <image class="pk-qr-placeholder" src="/assets/icons/pk.png" mode="aspectFit" style="width:120rpx;height:120rpx;margin:20rpx auto;opacity:0.6;" />
+        <text style="display:block;margin:16rpx 0;font-size:26rpx;color:var(--text-secondary);">
+          点击下方按钮，分享给微信好友进行对战
+        </text>
+        <text style="display:block;font-size:22rpx;color:var(--text-muted);">
+          双方各 8 次猜测机会，猜同一选手
+        </text>
+      </view>
+      <view class="modal-footer" style="flex-direction:column;gap:16rpx;">
+        <button class="btn-primary" open-type="share" style="width:100%;">
+          <text>📤 分享给好友</text>
+        </button>
+        <button class="btn-secondary" bindtap="cancelFriendPK" style="width:100%;">
+          取消
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- PK Status Bar（游戏进行中） -->
+  <view class="pk-status" wx:if="{{gameMode === 'friend' && gameStatus === 'playing'}}">
+    <view class="pk-player {{isRoomOwner ? 'pk-me' : ''}}">
+      <image class="pk-avatar" src="{{userInfo?.avatarUrl || '/assets/icons/user.png'}}" mode="aspectFill"></image>
+      <text class="pk-name">{{userInfo?.nickName || '我'}}</text>
+      <text class="pk-attempts">{{myAttempts}}/8</text>
+    </view>
+    <view class="pk-vs">VS</view>
+    <view class="pk-player {{!isRoomOwner ? 'pk-me' : ''}}">
+      <image class="pk-avatar" src="{{opponentInfo?.avatar || '/assets/icons/user.png'}}" mode="aspectFill"></image>
+      <text class="pk-name">{{opponentInfo?.nickname || '对手'}}</text>
+      <text class="pk-attempts">- /8</text>
+    </view>
+  </view>
+
   <!-- Difficulty Selection Modal -->
   <view class="modal-mask" wx:if="{{showDifficultySelection}}" style="z-index: 99;">
     <view class="modal-content">
