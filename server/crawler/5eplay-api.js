@@ -81,12 +81,26 @@ async function fetchFrom5eplay() {
   }
 
   // ----- 合并结果，按 eplayId 去重（同一比赛可能出现在多个 API）-----
+  //     不同 API 对同一比赛的 ID 格式可能不同，统一提取数字部分
   if (allMatches.length > 0) {
+    const extractId = (m) => {
+      if (m.eplayId) {
+        const num = String(m.eplayId).match(/(\d+)/);
+        if (num) return `id:${num[1]}`;
+      }
+      // 无 ID 时用队伍+日期组合作为 key
+      if (m.team1 && m.team2 && m.date) {
+        return `pair:${m.team1}|${m.team2}|${m.date}`;
+      }
+      return null;
+    };
+
     const seen = new Set();
     const deduped = allMatches.filter(m => {
-      if (!m.eplayId) return true;          // 无 ID 的保留
-      if (seen.has(m.eplayId)) return false; // 已见过 → 跳过
-      seen.add(m.eplayId);
+      const key = extractId(m);
+      if (!key) return true;           // 无法去重的保留
+      if (seen.has(key)) return false; // 已见过 → 跳过
+      seen.add(key);
       return true;
     });
     const dupCount = allMatches.length - deduped.length;

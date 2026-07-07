@@ -110,15 +110,16 @@ Page({
   async loadAll() {
     this.setData({ loading: true });
     try {
-      const [matchRes, playersRes] = await Promise.all([
-        fetchMatchDetail(this.data.matchId),
-        this.loadMatchPlayersSafe()
-      ]);
+      // 1. 先拉比赛详情（需要拿到 team 名）
+      const matchRes = await fetchMatchDetail(this.data.matchId);
       if (!matchRes.success || !matchRes.data) {
         wx.showToast({ title: '比赛加载失败', icon: 'none' });
         return;
       }
       this.setData({ match: matchRes.data });
+
+      // 2. 再拉选手数据（后端通过 matchId 联表查询，无需传队名）
+      const playersRes = await fetchMatchPlayers('', '', this.data.matchId);
       if (playersRes.success && playersRes.data) {
         this.setData({ team1: playersRes.data.team1, team2: playersRes.data.team2 });
         this.buildPlayerTabs(playersRes.data.team1, playersRes.data.team2);
@@ -173,9 +174,7 @@ Page({
   },
 
   async loadMatchPlayersSafe() {
-    const m = this.data.match;
-    if (!m) return { success: false, data: null } as any;
-    return await fetchMatchPlayers(m.teamA.name, m.teamB.name, this.data.matchId);
+    return await fetchMatchPlayers('', '', this.data.matchId);
   },
 
   buildPlayerTabs(team1: any, team2: any) {
