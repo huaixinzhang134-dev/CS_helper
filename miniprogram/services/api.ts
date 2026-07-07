@@ -32,15 +32,6 @@ export interface Match {
   roundScores?: { map: string; team1Score: number; team2Score: number }[];
 }
 
-export interface UserProfile {
-  uid: string;
-  nickname: string;
-  avatarUrl: string;
-  token: string;
-  level: number;
-  points: number;
-}
-
 // ---------- 通用请求封装 ----------
 
 interface ApiResp<T> {
@@ -84,6 +75,49 @@ const get  = <T>(p: string, q?: Record<string, any>) => request<T>('GET', `${p}$
 const post = <T>(p: string, body?: any) => request<T>('POST', p, body);
 const put  = <T>(p: string, body?: any) => request<T>('PUT', p, body);
 const del  = <T>(p: string, q?: Record<string, any>) => request<T>('DELETE', `${p}${queryString(q)}`);
+
+// ---------- 带 token 的请求封装 ----------
+
+function requestWithToken<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, token: string, data?: any) {
+  return new Promise<{ success: boolean; data: T | null; message?: string; code?: number }>((resolve) => {
+    wx.request({
+      url: `${API_BASE}${path}`,
+      method,
+      data,
+      header: {
+        'content-type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      success: (res: any) => {
+        const body = res.data as ApiResp<T>;
+        if (body && body.code === 0) {
+          resolve({ success: true, data: body.data });
+        } else {
+          resolve({
+            success: false,
+            data: null,
+            message: body?.message || '后端返回错误',
+            code: body?.code
+          });
+        }
+      },
+      fail: (err: any) => {
+        console.error(`[auth request ${method} ${path}] fail`, err);
+        resolve({ success: false, data: null, message: err.errMsg || '网络请求失败' });
+      }
+    });
+  });
+}
+
+function getAuth<T>(p: string, token?: string) {
+  return requestWithToken<T>('GET', p, token || getToken());
+}
+function postAuth<T>(p: string, body?: any, token?: string) {
+  return requestWithToken<T>('POST', p, token || getToken(), body);
+}
+function putAuth<T>(p: string, body?: any, token?: string) {
+  return requestWithToken<T>('PUT', p, token || getToken(), body);
+}
 
 function queryString(q?: Record<string, any>) {
   if (!q) return '';
@@ -297,27 +331,123 @@ export const fetchMatchPlayers = async (
 
 
 // ============================================================
-// 用户 / 登录（mock）
+// 用户类型
 // ============================================================
 
-export const login = async (): Promise<{ success: boolean; data: UserProfile | null }> => {
-  const mockUser: UserProfile = {
-    uid: 'u888',
-    nickname: 'CS_Fanatic',
-    avatarUrl: '/assets/icons/game_active.png',
-    token: 'mock_token_xyz123',
-    level: 5,
-    points: 1280
-  };
-  return Promise.resolve({ success: true, data: mockUser });
+export interface GuessRecordItem {
+  id: string;
+  won: boolean;
+  attempts: number;
+  difficulty: string;
+  targetPlayerId: string;
+  targetPlayerName: string;
+  playedAt: string;
+}
+
+export interface UserInfo {
+  id: string;
+  openid: string;
+  nickname: string;
+  avatarUrl: string | null;
+  winCount: number;
+  totalGames: number;
+  winRate: number;
+  guessRecords: GuessRecordItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoginResult {
+  token: string;
+  user: UserInfo;
+}
+
+export interface GuessRecordListResp {
+  list: GuessRecordItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+// ============================================================
+// 用户 / 微信登录
+// ============================================================
+
+/**
+ * 微信登录：发送 wx.login() 得到的 code 到后端换 token + 用户信息
+ */
+export const loginWithWeChat = async (
+  code: string
+): Promise<{ success: boolean; data: LoginResult | null; message?: string }> => {
+  const res = await post<LoginResult>('/users/login', { code });
+  if (res.success && res.data) {
+    // 保存 token
+    wx.setStorageSync('token', res.data.token);
+    // 保存用户信息
+    wx.setStorageSync('userInfo', res.data.user);
+  }
+  return { success: res.success, data: res.data, message: res.message };
 };
 
 /**
- * 取当前用户 openid（mock 阶段直接用 uid；公网部署应改为 wx.login + 后端换 openid）
+ * 获取当前 token
  */
-export const getCurrentUserOpenid = (): string => {
-  const me = wx.getStorageSync('userInfo') || {};
-  return me.uid || me.openid || 'guest';
+export const getToken = (): string => {
+  return wx.getStorageSync('token') || '';
+};
+
+/**
+ * 获取当前用户信息（先从本地缓存取，没有则从后端拉）
+ */
+export const getCurrentUserInfo = async (): Promise<{ success: boolean; data: UserInfo | null }> => {
+  const cached = wx.getStorageSync('userInfo');
+  if (cached && cached.openid) {
+    return { success: true, data: cached };
+  }
+  // 本地没有则从后端拉
+  return await fetchUserProfile();
+};
+
+/**
+ * 从后端拉取用户信息（需 token）
+ */
+export const fetchUserProfile = async (): Promise<{ success: boolean; data: UserInfo | null }> => {
+  const token = getToken();
+  if (!token) return { success: false, data: null };
+  return await getAuth<UserInfo>('/users/profile', token);
+};
+
+/**
+ * 更新用户信息（昵称/头像）
+ */
+export const updateUserProfile = async (
+  data: { nickname?: string; avatarUrl?: string }
+): Promise<{ success: boolean; data: UserInfo | null; message?: string }> => {
+  return await putAuth<UserInfo>('/users/profile', data);
+};
+
+/**
+ * 记录猜一猜结果
+ */
+export const submitGuessRecord = async (data: {
+  won: boolean;
+  attempts: number;
+  difficulty: string;
+  targetPlayerId: string;
+  targetPlayerName: string;
+}): Promise<{ success: boolean; data: UserInfo | null; message?: string }> => {
+  return await postAuth<UserInfo>('/users/guess/record', data);
+};
+
+/**
+ * 获取竞猜记录列表
+ */
+export const fetchGuessRecords = async (
+  page: number = 0,
+  pageSize: number = 20
+): Promise<{ success: boolean; data: GuessRecordListResp | null }> => {
+  return await getAuth<GuessRecordListResp>(`/users/guess/records?page=${page}&pageSize=${pageSize}`);
 };
 
 

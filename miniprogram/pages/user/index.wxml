@@ -1,30 +1,89 @@
 <view class="container user-page">
+  <!-- ====== 编辑资料弹窗 ====== -->
+  <view class="modal-mask" wx:if="{{isEditing}}" bindtap="onCancelEdit">
+    <view class="modal-content edit-modal" catchtap="">
+      <view class="modal-title">编辑资料</view>
+      <view class="edit-body">
+        <!-- 头像选择（使用微信新版 chooseAvatar） -->
+        <view class="edit-avatar-row">
+          <text class="edit-label">头像</text>
+          <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+            <image class="edit-avatar" src="{{editAvatarUrl || '/assets/icons/game.png'}}" mode="aspectFill"></image>
+          </button>
+        </view>
+        <!-- 昵称输入 -->
+        <view class="edit-input-row">
+          <text class="edit-label">昵称</text>
+          <input class="edit-input" value="{{editNickname}}" bindinput="onNicknameInput" placeholder="请输入昵称" maxlength="20" />
+        </view>
+      </view>
+      <view class="modal-footer">
+        <button class="btn-secondary" bindtap="onCancelEdit">取消</button>
+        <button class="btn-primary" bindtap="onSaveProfile">保存</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ====== 竞猜记录弹窗 ====== -->
+  <view class="modal-mask" wx:if="{{showGuessRecords}}" bindtap="onCloseGuessRecords">
+    <view class="modal-content record-modal" catchtap="">
+      <view class="modal-title">竞猜记录</view>
+      <scroll-view scroll-y class="record-list" bindscrolltolower="onRecordScrollToLower" lower-threshold="50">
+        <view class="record-empty" wx:if="{{guessRecords.length === 0 && !recordLoading}}">
+          <text>暂无竞猜记录</text>
+        </view>
+        <view class="record-item" wx:for="{{guessRecords}}" wx:key="id">
+          <view class="record-status {{item.won ? 'won' : 'lost'}}">
+            {{item.won ? '胜' : '负'}}
+          </view>
+          <view class="record-info">
+            <text class="record-player">{{item.targetPlayerName || '未知选手'}}</text>
+            <text class="record-detail">
+              难度: {{diffMap[item.difficulty] || item.difficulty}}
+              · 尝试: {{item.attempts}}次
+            </text>
+          </view>
+          <text class="record-date">{{item._dateStr}}</text>
+        </view>
+        <view class="record-loading" wx:if="{{recordLoading}}">
+          <text>加载中...</text>
+        </view>
+      </scroll-view>
+      <view class="modal-footer">
+        <button class="btn-primary" bindtap="onCloseGuessRecords">关闭</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ====== 头部：用户信息 / 登录入口 ====== -->
   <view class="header">
     <block wx:if="{{userInfo}}">
-      <view class="user-info">
-        <image class="avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill"></image>
+      <!-- 已登录 -->
+      <view class="user-info" bindtap="onEditProfile">
+        <image class="avatar" src="{{userInfo.avatarUrl || '/assets/icons/game.png'}}" mode="aspectFill"></image>
         <view class="user-detail">
           <text class="nickname">{{userInfo.nickname}}</text>
-          <view class="level-badge">Lv.{{userInfo.level}}</view>
+          <text class="edit-hint">点击编辑资料 ></text>
         </view>
       </view>
       <view class="stats-row">
         <view class="stat-item">
-          <text class="stat-num">{{userInfo.points}}</text>
-          <text class="stat-label">积分</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-num">12</text>
+          <text class="stat-num">{{userInfo.winCount}}</text>
           <text class="stat-label">胜场</text>
         </view>
         <view class="stat-item">
-          <text class="stat-num">56%</text>
+          <text class="stat-num">{{userInfo.totalGames}}</text>
+          <text class="stat-label">总局</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-num">{{userInfo.winRate}}%</text>
           <text class="stat-label">胜率</text>
         </view>
       </view>
     </block>
 
     <block wx:else>
+      <!-- 未登录 -->
       <view class="login-area">
         <view class="avatar-placeholder">
           <image class="icon-user" src="/assets/icons/game.png" mode="aspectFit"></image>
@@ -39,18 +98,20 @@
     </block>
   </view>
 
+  <!-- ====== 菜单列表 ====== -->
   <view class="menu-list">
-    <view class="menu-item">
+    <view class="menu-item" bindtap="onOpenGuessRecords">
       <text class="menu-text">我的竞猜记录</text>
       <text class="arrow">></text>
     </view>
     <view class="menu-spacer"></view>
-    <view class="menu-item">
+    <view class="menu-item" bindtap="onAbout">
       <text class="menu-text">关于我们</text>
       <text class="arrow">></text>
     </view>
   </view>
 
+  <!-- ====== 退出登录 ====== -->
   <view class="footer" wx:if="{{userInfo}}">
     <button class="btn-logout" bindtap="handleLogout">退出登录</button>
   </view>

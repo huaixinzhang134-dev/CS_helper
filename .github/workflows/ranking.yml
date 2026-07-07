@@ -35,4 +35,7 @@ jobs:
           NODE_ENV: production
 
       - name: 导入到 Railway MySQL
-        run: node scripts/import_ranking.js
+        run: |
+          npm install
+          node import_ranking.js
+        working-directory: scripts

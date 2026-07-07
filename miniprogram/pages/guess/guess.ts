@@ -1,4 +1,4 @@
-import { fetchPlayerListAll, searchPlayers, fetchRankedTeamNames, Player } from '../../services/api';
+import { fetchPlayerListAll, searchPlayers, fetchRankedTeamNames, submitGuessRecord, Player } from '../../services/api';
 import { STATIC_BASE } from '../../config';
 
 // HLTV 占位剪影 URL
@@ -104,22 +104,20 @@ Page({
    * 检查用户登录状态
    */
   checkUserLogin() {
-    wx.checkSession({
-      success: () => {
-        // session_key 未过期，检查本地缓存
-        const userInfo = wx.getStorageSync('userInfo');
-        if (userInfo) {
-          this.setData({ userInfo });
-        } else {
-          this.setData({ userInfo: null });
+    const token = wx.getStorageSync('token');
+    const cachedUser = wx.getStorageSync('userInfo');
+    if (token && cachedUser && cachedUser.openid) {
+      this.setData({
+        userInfo: {
+          openid: cachedUser.openid,
+          nickName: cachedUser.nickname || cachedUser.nickName || '微信用户',
+          avatarUrl: cachedUser.avatarUrl || '',
+          winCount: cachedUser.winCount || 0
         }
-      },
-      fail: () => {
-        // session_key 已过期，清除本地用户信息
-        wx.removeStorageSync('userInfo');
-        this.setData({ userInfo: null });
-      }
-    });
+      });
+    } else {
+      this.setData({ userInfo: null });
+    }
   },
 
   /**
@@ -167,26 +165,32 @@ Page({
   /**
    * 登录以进行好友PK
    */
-  loginForFriendPK() {
-    wx.getUserProfile({
-      desc: '用于完善用户资料',
-      success: (res) => {
-        const userInfo = {
-          openid: 'demo_' + Date.now(), // 实际需要调用后端获取
-          nickName: res.userInfo.nickName,
-          avatarUrl: res.userInfo.avatarUrl,
-          winCount: 0
-        };
+  async loginForFriendPK() {
+    // 检查是否已有登录 token
+    const token = wx.getStorageSync('token');
+    const cachedUser = wx.getStorageSync('userInfo');
+    if (token && cachedUser && cachedUser.openid) {
+      this.setData({
+        userInfo: {
+          openid: cachedUser.openid,
+          nickName: cachedUser.nickname || cachedUser.nickName || '微信用户',
+          avatarUrl: cachedUser.avatarUrl || '',
+          winCount: cachedUser.winCount || 0
+        },
+        gameMode: 'friend',
+        showFriendInvite: true
+      });
+      return;
+    }
 
-        wx.setStorageSync('userInfo', userInfo);
-        this.setData({
-          userInfo,
-          gameMode: 'friend',
-          showFriendInvite: true
-        });
-      },
-      fail: () => {
-        wx.showToast({ title: '需要登录才能进行好友PK', icon: 'none' });
+    // 未登录，引导用户去"我的"页面登录
+    wx.showModal({
+      title: '提示',
+      content: '好友PK需要先登录，请前往"我的"页面进行微信一键登录',
+      success: (res) => {
+        if (res.confirm) {
+          wx.switchTab({ url: '/pages/user/index' });
+        }
       }
     });
   },
@@ -536,6 +540,11 @@ Page({
       pkResult
     });
 
+    // 非PK模式且游戏结束时，异步提交记录到后端
+    if (newStatus === 'won' || newStatus === 'lost') {
+      this.submitGameResult(newStatus === 'won', myAttempts);
+    }
+
     // 显示结果提示
     if (newStatus === 'won' || newStatus === 'lost') {
       if (this.data.gameMode === 'friend') {
@@ -573,6 +582,7 @@ Page({
       this.setData({ userInfo });
       wx.showToast({ title: '胜场+1！', icon: 'success' });
     }
+    // PK模式的胜场由 submitGameResult 统一记录到后端
   },
 
   /**
@@ -628,6 +638,29 @@ Page({
   },
 
   /**
+   * 提交游戏结果到后端（fire-and-forget）
+   */
+  async submitGameResult(won: boolean, attempts: number) {
+    const token = wx.getStorageSync('token');
+    if (!token) return; // 未登录不记录
+
+    const target = this.data.targetPlayer;
+    if (!target) return;
+
+    try {
+      await submitGuessRecord({
+        won,
+        attempts,
+        difficulty: this.data.difficulty,
+        targetPlayerId: target.playerId || target._id || '',
+        targetPlayerName: target.name || ''
+      });
+    } catch (err) {
+      console.error('submitGuessRecord failed', err);
+    }
+  },
+
+  /**
    * 认输按钮 - 直接结束游戏显示答案
    */
   onGiveUp() {
@@ -642,5 +675,8 @@ Page({
       resultContent: `很遗憾，正确答案是 ${target.name}`,
       showResultModal: true
     });
+
+    // 记录失败结果（认输，尝试次数=当前已猜次数）
+    this.submitGameResult(false, this.data.myAttempts || 0);
   }
 });

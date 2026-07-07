@@ -9,6 +9,7 @@
     "clear": "node import-players.js clear"
   },
   "dependencies": {
-    "@cloudbase/node-sdk": "^3.7.0"
+    "@cloudbase/node-sdk": "^3.7.0",
+    "mysql2": "^3.22.5"
   }
 }

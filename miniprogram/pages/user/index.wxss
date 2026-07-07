@@ -171,3 +171,211 @@
   width: 100%;
   border-radius: 12rpx;
 }
+
+/* ========== 编辑资料提示 ========== */
+.edit-hint {
+  font-size: 24rpx;
+  color: #999999;
+  display: block;
+  margin-top: 6rpx;
+}
+
+/* ========== Modal / 弹窗 ========== */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  width: 600rpx;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  text-align: center;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #E0E0E0;
+}
+
+.modal-body {
+  padding: 20rpx 30rpx;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 20rpx;
+  padding: 20rpx 30rpx;
+  border-top: 1rpx solid #E0E0E0;
+}
+
+.modal-footer .btn-primary,
+.modal-footer .btn-secondary {
+  flex: 1;
+  font-size: 28rpx;
+  padding: 20rpx 0;
+  border-radius: 12rpx;
+  text-align: center;
+}
+
+.btn-primary {
+  background-color: #0066CC;
+  color: #FFFFFF;
+  border: none;
+}
+
+.btn-secondary {
+  background-color: #F0F0F0;
+  color: #333333;
+  border: none;
+}
+
+/* ========== 编辑资料 ========== */
+.edit-modal {
+  width: 560rpx;
+}
+
+.edit-body {
+  padding: 30rpx;
+}
+
+.edit-avatar-row,
+.edit-input-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.edit-label {
+  font-size: 28rpx;
+  color: #333;
+  width: 100rpx;
+  flex-shrink: 0;
+}
+
+.avatar-btn {
+  padding: 0;
+  background: none;
+  border: none;
+  line-height: 1;
+}
+
+.avatar-btn::after {
+  border: none;
+}
+
+.edit-avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  border: 2rpx solid #DDD;
+}
+
+.edit-input {
+  flex: 1;
+  height: 72rpx;
+  background: #F5F5F5;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+}
+
+/* ========== 竞猜记录 ========== */
+.record-modal {
+  width: 640rpx;
+}
+
+.record-list {
+  max-height: 60vh;
+  padding: 20rpx 30rpx;
+}
+
+.record-empty {
+  text-align: center;
+  color: #999;
+  font-size: 28rpx;
+  padding: 60rpx 0;
+}
+
+.record-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F0F0F0;
+}
+
+.record-item:last-child {
+  border-bottom: none;
+}
+
+.record-status {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: bold;
+  color: #FFF;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.record-status.won {
+  background-color: #4CAF50;
+}
+
+.record-status.lost {
+  background-color: #F44336;
+}
+
+.record-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.record-player {
+  font-size: 28rpx;
+  color: #000;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-detail {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+
+.record-date {
+  font-size: 22rpx;
+  color: #999;
+  flex-shrink: 0;
+  margin-left: 10rpx;
+}
+
+.record-loading {
+  text-align: center;
+  color: #999;
+  font-size: 24rpx;
+  padding: 20rpx 0;
+}

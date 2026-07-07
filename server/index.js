@@ -15,6 +15,7 @@ const commentsRouter = require('./routes/comments');
 const teamsRouter = require('./routes/teams');
 const syncRouter = require('./routes/sync');
 const logoRouter = require('./routes/logo');
+const usersRouter = require('./routes/users');
 
 const { setupWebSocket } = require('./ws');
 
@@ -58,6 +59,9 @@ app.use('/api/matches/sync', syncRouter);
 
 // 队标代理（SVG → PNG 转换）
 app.use('/api/logo', logoRouter);
+
+// 用户（微信登录、竞猜记录）
+app.use('/api/users', usersRouter);
 
 // 404
 app.use((req, res) => {

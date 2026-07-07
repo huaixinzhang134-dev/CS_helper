@@ -84,6 +84,7 @@ CREATE TABLE team_member (
 DROP TABLE IF EXISTS matches;
 CREATE TABLE matches (
   id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  eplay_id        VARCHAR(128)    NULL DEFAULT NULL,
   match_date      DATE            NOT NULL,
   match_time      TIME            NOT NULL,
   match_type      VARCHAR(8)      NOT NULL DEFAULT '',
@@ -98,13 +99,14 @@ CREATE TABLE matches (
   updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
                                     ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
+  UNIQUE KEY uk_match_eplay_id (eplay_id),
   KEY idx_match_date (match_date),
   KEY idx_match_team1 (team1_id),
   KEY idx_match_team2 (team2_id),
   KEY idx_match_status (status),
   KEY idx_match_event (event_name(191))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='比赛信息表';
+  COMMENT='比赛信息表（eplay_id 唯一键保证覆盖更新）';
 
 
 -- ============================================================
@@ -145,6 +147,28 @@ CREATE TABLE team_ranking (
   KEY idx_ranking_hltv_id (hltv_team_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Valve 官方世界排名';
+
+
+-- ============================================================
+-- 7. 用户表  users
+-- ============================================================
+DROP TABLE IF EXISTS users;
+CREATE TABLE users (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  openid          VARCHAR(64)     NOT NULL,
+  nickname        VARCHAR(64)     NOT NULL DEFAULT '微信用户',
+  avatar_url      VARCHAR(512)    NULL,
+  win_count       INT UNSIGNED    NOT NULL DEFAULT 0,
+  total_games     INT UNSIGNED    NOT NULL DEFAULT 0,
+  win_rate        DECIMAL(5,2)    NOT NULL DEFAULT 0.00,
+  guess_records   JSON            NULL,
+  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                    ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_openid (openid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='用户表（微信登录信息、竞猜数据）';
 
 
 -- ============================================================

@@ -11,13 +11,8 @@ App<IAppOption>({
     logs.unshift(Date.now())
     wx.setStorageSync('logs', logs)
 
-    // 登录
-    wx.login({
-      success: res => {
-        console.log(res.code)
-        // TODO 公网部署时：发送 res.code 到后端换 openId / sessionKey / unionId
-      },
-    })
+    // 登录（延迟到"我的"页面用户主动点击微信一键登录）
+    // 不再自动 wx.login，由 pages/user/index.ts handleLogin 统一管理
 
     // 初始化深色模式适配
     this.initDarkMode();
