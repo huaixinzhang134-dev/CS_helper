@@ -47,7 +47,10 @@ async function resolveTeamId(teamName, logoUrl) {
  * 构建统一 Match DTO（与 matches.js toMatchDTO 对齐）
  */
 function proxyLogo(url) {
-  if (!url || !url.includes('hltv.org')) return url || '';
+  if (!url) return '';
+  // 已代理或非 HLTV 源，直接返回
+  if (url.startsWith('/api/logo') || url.includes('/api/logo?')) return url;
+  if (!url.includes('hltv.org')) return url;
   // HLTV CDN 屏蔽外部请求，通过后端代理转发
   return '/api/logo?url=' + encodeURIComponent(url);
 }

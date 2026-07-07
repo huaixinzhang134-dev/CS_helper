@@ -11,7 +11,8 @@ const { query } = require('../db/pool');
  */
 function logoToPng(url, baseUrl) {
   if (!url) return '';
-  // 非 HLTV 源（如 5eplay oss）可以直接加载
+  // 已经是代理地址或非 HLTV 源，直接返回
+  if (url.startsWith('/api/logo') || url.includes('/api/logo?')) return url;
   if (!url.includes('hltv.org')) return url;
   // HLTV 的 CDN 屏蔽外部请求，通过后端代理转发
   return baseUrl + '/api/logo?url=' + encodeURIComponent(url);
