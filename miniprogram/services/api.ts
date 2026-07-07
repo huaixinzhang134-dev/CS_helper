@@ -418,6 +418,14 @@ export const getCurrentUserInfo = async (): Promise<{ success: boolean; data: Us
 };
 
 /**
+ * 获取当前用户 openid（同步从缓存取）
+ */
+export const getCurrentUserOpenid = (): string => {
+  const cached = wx.getStorageSync('userInfo');
+  return cached?.openid || 'guest';
+};
+
+/**
  * 从后端拉取用户信息（需 token）
  */
 export const fetchUserProfile = async (): Promise<{ success: boolean; data: UserInfo | null }> => {
