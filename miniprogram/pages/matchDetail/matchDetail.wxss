@@ -32,12 +32,18 @@
   align-items: center;
   flex: 1;
 }
-.hero-logo {
+.hero-logo-wrap {
   width: 100rpx;
   height: 100rpx;
   margin-bottom: 12rpx;
+  overflow: hidden;
   border-radius: 12rpx;
   background: rgba(255,255,255,0.05);
+}
+.hero-logo {
+  width: 200%;
+  height: 100%;
+  margin-left: -100%;  /* 只显示右半部分（HLTV 队标左半为底标背景） */
 }
 .hero-team-name {
   font-size: 26rpx;
