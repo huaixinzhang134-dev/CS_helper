@@ -5,7 +5,7 @@
     <view class="hero-event">{{match.event}}</view>
     <view class="hero-matchup">
       <view class="hero-team">
-        <view class="hero-logo-wrap {{teamALogoHltv ? 'hltv-crop' : ''}}">
+        <view class="hero-logo-wrap">
           <image class="hero-logo" src="{{match.teamA.logo}}" mode="aspectFill"></image>
         </view>
         <text class="hero-team-name">{{match.teamA.name || 'TBD'}}</text>
@@ -28,7 +28,7 @@
         </view>
       </view>
       <view class="hero-team">
-        <view class="hero-logo-wrap {{teamBLogoHltv ? 'hltv-crop' : ''}}">
+        <view class="hero-logo-wrap">
           <image class="hero-logo" src="{{match.teamB.logo}}" mode="aspectFill"></image>
         </view>
         <text class="hero-team-name">{{match.teamB.name || 'TBD'}}</text>

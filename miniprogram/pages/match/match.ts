@@ -31,7 +31,6 @@ Page({
     // 注册全量列表更新回调
     this._unsubUpdates = matchWS.on('matches_update', (msg: { data: Match[] }) => {
       const data = msg.data || [];
-      this.markLogoHltv(data);
       const { list, anchorId } = this.sortMatches(data);
       const liveCount = list.filter(m => m.status === 'Live').length;
       this.setData({
@@ -51,16 +50,6 @@ Page({
 
     // 连接
     matchWS.connect();
-  },
-
-  /**
-   * 标记队标 URL 是否来自 HLTV（需要裁剪左半部分底标）
-   */
-  markLogoHltv(matches: any[]) {
-    for (const m of matches) {
-      m.teamALogoHltv = m.teamA.logo && m.teamA.logo.indexOf('hltv.org') > -1;
-      m.teamBLogoHltv = m.teamB.logo && m.teamB.logo.indexOf('hltv.org') > -1;
-    }
   },
 
   sortMatches(matches: any[]) {
@@ -107,7 +96,6 @@ Page({
       const res = await fetchLiveMatches();
       if (res.success) {
         const data = res.data || [];
-        this.markLogoHltv(data);
         const { list, anchorId } = this.sortMatches(data);
         const liveCount = list.filter(m => m.status === 'Live').length;
         this.setData({ matches: list, anchorId, liveCount });

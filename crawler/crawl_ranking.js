@@ -175,6 +175,18 @@ function isCloudflareBlock(html) {
 // ======================== 队标爬取 ========================
 
 /**
+ * 将 HLTV 队标 URL 转为缩略图版本（去掉背景，小尺寸）
+ */
+function normalizeLogoUrl(url) {
+  if (!url || !url.includes('hltv.org')) return url;
+  // SVG 无需缩放，直接返回
+  if (url.includes('.svg')) return url;
+  // 去掉已有 query params，加上缩略图参数
+  const base = url.split('?')[0];
+  return `${base}?ixlib=java-2.1.0&w=50`;
+}
+
+/**
  * 从 HLTV 队伍页面 HTML 中提取队标 URL
  */
 function extractLogoUrl(html) {
@@ -191,14 +203,14 @@ function extractLogoUrl(html) {
     if (img.length > 0) {
       let src = img.attr('src') || '';
       if (src && !src.startsWith('http')) src = `https:${src}`;
-      if (src && src.includes('teamlogo') && !src.includes('silhouette')) return src;
+      if (src && src.includes('teamlogo') && !src.includes('silhouette')) return normalizeLogoUrl(src);
     }
   }
   const allImgs = $('img[src*="teamlogo"]');
   for (const img of allImgs) {
     let src = $(img).attr('src') || '';
     if (src && !src.startsWith('http')) src = `https:${src}`;
-    if (src && !src.includes('silhouette')) return src;
+    if (src && !src.includes('silhouette')) return normalizeLogoUrl(src);
   }
   return '';
 }

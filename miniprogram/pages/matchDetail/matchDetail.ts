@@ -35,9 +35,7 @@ Page({
     wsConnected: false,
     scoreAnimated: false,
 
-    // HLTV 队标裁剪
-    teamALogoHltv: false,
-    teamBLogoHltv: false,
+    // HLTV 队标裁剪（不再需要）
 
     // 选手 tab
     playerTabs: [{ id: 'all', label: '全部', team: '' }] as any[],
@@ -120,17 +118,7 @@ Page({
         wx.showToast({ title: '比赛加载失败', icon: 'none' });
         return;
       }
-      const m = matchRes.data;
-      // 标记 HLTV 队标
-      if (m) {
-        (m as any)._teamALogoHltv = m.teamA?.logo?.indexOf('hltv.org') > -1;
-        (m as any)._teamBLogoHltv = m.teamB?.logo?.indexOf('hltv.org') > -1;
-      }
-      this.setData({
-        match: m,
-        teamALogoHltv: m?.teamA?.logo?.indexOf('hltv.org') > -1 || false,
-        teamBLogoHltv: m?.teamB?.logo?.indexOf('hltv.org') > -1 || false,
-      });
+      this.setData({ match: matchRes.data });
 
       // 2. 再拉选手数据（后端通过 matchId 联表查询，无需传队名）
       const playersRes = await fetchMatchPlayers('', '', this.data.matchId);
