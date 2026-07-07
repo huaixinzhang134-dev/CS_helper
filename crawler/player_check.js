@@ -211,18 +211,45 @@ async function closeBrowser() {
 }
 
 /**
+ * 连接到 MySQL 数据库
+ * 使用与 import_ranking.js 一致的凭据
+ */
+let dbPool = null;
+async function getDbConnection() {
+  if (dbPool) return dbPool;
+  const host = process.env.DB_HOST || process.env.MYSQLHOST || 'mysql-production-0b76.up.railway.app';
+  const port = parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '3306', 10);
+  const user = process.env.DB_USER || process.env.MYSQLUSER || 'root';
+  const password = process.env.DB_PASS || process.env.MYSQLPASSWORD || '';
+  const database = process.env.DB_NAME || process.env.MYSQLDATABASE || 'railway';
+
+  if (!password) {
+    console.warn('\n⚠ 未设置数据库密码，请在运行前设置环境变量:');
+    console.warn('   export DB_HOST=mysql-production-0b76.up.railway.app');
+    console.warn('   export DB_PORT=3306');
+    console.warn('   export DB_USER=root');
+    console.warn('   export DB_PASS=你的密码');
+    console.warn('   export DB_NAME=railway\n');
+    return null;
+  }
+
+  try {
+    const conn = await mysql.createConnection({ host, port, user, password, database,
+      ssl: { rejectUnauthorized: false }, connectTimeout: 10000 });
+    console.log(`  已连接数据库 ${host}:${port}/${database}\n`);
+    dbPool = conn;
+    return conn;
+  } catch (err) {
+    console.error(`  数据库连接失败: ${err.message}`);
+    return null;
+  }
+}
+
+/**
  * 将位置更新写入 MySQL
  */
-async function syncPositionToDb(playerId, name, position) {
-  const conn = await mysql.createConnection({
-    host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '3306', 10),
-    user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
-    password: process.env.DB_PASS || process.env.MYSQLPASSWORD || '',
-    database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'cs_match_pro',
-    ssl: process.env.MYSQL_SSL ? { rejectUnauthorized: false } : undefined,
-    connectTimeout: 5000,
-  });
+async function syncPositionToDb(conn, playerId, name, position) {
+  if (!conn) return;
   try {
     const [result] = await conn.execute(
       'UPDATE player SET position = ? WHERE game_id = ? OR name = ?',
@@ -231,8 +258,8 @@ async function syncPositionToDb(playerId, name, position) {
     if (result.affectedRows > 0) {
       console.log(`  DB ✓ ${name} → "${position}" (${result.affectedRows} 行)`);
     }
-  } finally {
-    await conn.end();
+  } catch (err) {
+    console.error(`  DB ✗ ${name}: ${err.message}`);
   }
 }
 
@@ -271,6 +298,15 @@ async function checkAllPositions() {
     let correctedCount = 0;
     let failedCount = 0;
 
+    // 如果启用 DB 同步，先连接数据库
+    let dbConn = null;
+    if (useDb) {
+      dbConn = await getDbConnection();
+      if (!dbConn) {
+        console.log('⚠ 数据库连接失败，仅保存本地文件\n');
+      }
+    }
+
     for (let i = 0; i < players.length; i++) {
       const player = players[i];
       console.log(`[${i + 1}/${players.length}] 检查 ${player.name} (${player._id})...`);
@@ -282,12 +318,8 @@ async function checkAllPositions() {
         const idx = players.findIndex(p => p._id === result._id);
         if (idx !== -1) players[idx] = result;
 
-        if (useDb) {
-          try {
-            await syncPositionToDb(result._id, result.name, result.position);
-          } catch (err) {
-            console.error(`  DB ✗ ${result.name}: ${err.message}`);
-          }
+        if (dbConn) {
+          await syncPositionToDb(dbConn, result._id, result.name, result.position);
         }
       }
 
@@ -313,6 +345,7 @@ async function checkAllPositions() {
     console.log('已保存当前进度');
   } finally {
     await closeBrowser();
+    if (dbPool) { try { await dbPool.end(); } catch {} }
     process.exit(0);
   }
 }
