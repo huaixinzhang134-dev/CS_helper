@@ -159,7 +159,10 @@ async function saveMatchPlayers(matchId, playerStats) {
     const stat = normalizePlayerStat(raw);
     if (!stat.player_name) continue;
 
-    const gameId = await resolvePlayerGameId(stat.player_name, stat.team_name);
+    // 优先使用 CDN API 自带的选手 ID（csgo_pl_xxxxx），名称匹配兜底
+    const gameId = (raw.id && /^csgo_pl_/.test(raw.id))
+      ? raw.id
+      : await resolvePlayerGameId(stat.player_name, stat.team_name);
 
     try {
       await query(
