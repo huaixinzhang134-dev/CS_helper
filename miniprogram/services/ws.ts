@@ -78,12 +78,12 @@ class MatchWebSocket {
     try {
       task = wx.connectSocket({
         url: this.wsUrl,
-        timeout: 5000,
+        timeout: 20000,   // Railway 冷启动较慢，20s 超时
         success: () => {
           console.log('[WS] 连接请求已发送');
         },
         fail: (err) => {
-          console.error('[WS] 连接请求失败', err);
+          console.log('[WS] 连接请求失败，稍后重试', err.errMsg);
           this.scheduleReconnect();
         }
       });
