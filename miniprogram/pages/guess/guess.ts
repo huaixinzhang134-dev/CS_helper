@@ -147,9 +147,26 @@ Page({
 
   /**
    * 选择游戏模式 → 弹出难度选择
+   * 好友PK必须先登录
    */
   selectGameMode(e: any) {
     const mode = e.currentTarget.dataset.mode;
+    if (mode === 'friend') {
+      const token = wx.getStorageSync('token');
+      const cachedUser = wx.getStorageSync('userInfo');
+      if (!token || !cachedUser || !cachedUser.openid) {
+        wx.showModal({
+          title: '需要登录',
+          content: '好友PK需要先登录，请前往"我的"页面进行微信登录',
+          success: (res) => {
+            if (res.confirm) {
+              wx.switchTab({ url: '/pages/user/index' });
+            }
+          }
+        });
+        return;
+      }
+    }
     this.setData({ showModeSelection: false, gameMode: mode, showDifficultySelection: true });
   },
 
@@ -604,10 +621,14 @@ Page({
     // 显示结果提示
     if (newStatus === 'won' || newStatus === 'lost') {
       if (this.data.gameMode === 'friend') {
-        // PK模式的特殊处理
+        // PK模式：显示结果，不自动开始新回合
         setTimeout(() => {
-          this.checkAdLogic();
-        }, 2000);
+          this.setData({
+            showResultModal: true,
+            resultTitle: pkResult?.type === 'win' ? '🎉 你赢了！' : '😞 你输了',
+            resultContent: pkResult?.message || `答案选手: ${target.name}`,
+          });
+        }, 500);
       } else {
         // 个人游戏模式 - 使用自定义弹窗（点击空白可关闭）
         const isUnlimited = this.data.gameMode === 'personal';
@@ -687,10 +708,28 @@ Page({
 
   /**
    * 结算弹窗：再来一局按钮 → 重置并开始新回合
+   * PK模式结算后回到模式选择
    */
   onResultRestart() {
     this.setData({ showResultModal: false });
-    this.checkAdLogic();
+    if (this.data.gameMode === 'friend') {
+      // PK模式回到选择界面
+      this.setData({
+        showModeSelection: true,
+        gameMode: '',
+        pkRoomId: '',
+        isRoomOwner: false,
+        opponentInfo: null,
+        myAttempts: 0,
+        targetPlayer: null,
+        targetAvatarUrl: '',
+        guesses: [],
+        gameStatus: 'playing' as 'playing',
+        pkResult: null,
+      });
+    } else {
+      this.checkAdLogic();
+    }
   },
 
   /**
