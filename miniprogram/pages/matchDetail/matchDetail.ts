@@ -175,7 +175,7 @@ Page({
   async loadMatchPlayersSafe() {
     const m = this.data.match;
     if (!m) return { success: false, data: null } as any;
-    return await fetchMatchPlayers(m.teamA.name, m.teamB.name);
+    return await fetchMatchPlayers(m.teamA.name, m.teamB.name, this.data.matchId);
   },
 
   buildPlayerTabs(team1: any, team2: any) {
