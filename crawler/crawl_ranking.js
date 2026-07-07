@@ -627,36 +627,31 @@ function parseRoster(html) {
   const roster = [];
   const seen = new Set();
 
-  // 先定位现役阵容容器
-  // HLTV 常见容器：.bodyshot-team, .team-roster, [class*="roster"]
-  const rosterContainer = $('.bodyshot-team, .team-roster, [class*="roster"]').first();
+  // HLTV 现役阵容结构：
+  //   div.bodyshot-team-bg > div.bodyshot-team.g-grid > a:nth-child(N)
+  //     a > div > div > div > span.text-ellipsis.bold = 选手名
+  //     a[href*="/player/{id}/"] = 选手 ID
+  const rosterContainer = $('.bodyshot-team.g-grid, .bodyshot-team-bg');
 
-  // 在阵容容器内搜索选手链接
-  const container = rosterContainer.length > 0 ? rosterContainer : $('body');
-  container.find('a[href*="/player/"]').each((_, el) => {
-    const href = $(el).attr('href') || '';
-    const idMatch = href.match(/\/player\/(\d+)\//);
-    if (!idMatch) return;
+  if (rosterContainer.length > 0) {
+    // 在现役阵容容器内搜索选手链接
+    rosterContainer.first().find('a[href*="/player/"]').each((_, el) => {
+      const href = $(el).attr('href') || '';
+      const idMatch = href.match(/\/player\/(\d+)\//);
+      if (!idMatch) return;
+      const playerId = idMatch[1];
+      if (seen.has(playerId)) return;
 
-    const playerId = idMatch[1];
-    if (seen.has(playerId)) return;
-
-    let name = $(el).text().trim()
-      || $(el).attr('title')
-      || $(el).attr('data-name')
-      || $(el).find('span').text().trim()
-      || $(el).find('img').attr('alt') || '';
-    name = name.replace(/[^\w\s\-\.]/g, '').trim();
-    if (name && name.length >= 2) {
-      seen.add(playerId);
-      roster.push({ playerId, name });
-    }
-  });
-
-  // 最多 7 人（5 主力 + 替补），超了说明匹配到了非现役区域
-  if (roster.length > 7) {
-    // 只保留前 7 个（按页面顺序就是现役优先）
-    return roster.slice(0, 7);
+      // 选手名在 span.text-ellipsis.bold 中
+      let name = $(el).find('span.text-ellipsis.bold').text().trim()
+        || $(el).find('span').text().trim()
+        || $(el).attr('title') || '';
+      name = name.replace(/[^\w\s\-\.]/g, '').trim();
+      if (name && name.length >= 2) {
+        seen.add(playerId);
+        roster.push({ playerId, name });
+      }
+    });
   }
 
   return roster;
