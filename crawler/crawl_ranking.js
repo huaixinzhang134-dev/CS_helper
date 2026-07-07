@@ -63,16 +63,26 @@ class CrawlerPool {
     this._needFreeProxies = true;
   }
 
-  /** 异步抓取免费代理列表 */
+  /** 异步抓取 + 验证免费代理列表 */
   _fetchFreeProxies() {
     return new Promise((resolve) => {
       const urls = [
         'https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/http/data.json',
-        'https://proxylist.geonode.com/api/proxy-list?limit=30&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps',
+        'https://proxylist.geonode.com/api/proxy-list?limit=50&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps',
       ];
       let tried = 0;
+      const rawProxies = [];
+
       const tryNext = () => {
-        if (tried >= urls.length) { resolve(); return; }
+        if (tried >= urls.length) {
+          if (rawProxies.length === 0) { console.log('  ⚠ 免费代理源均不可用'); resolve(); return; }
+          this._validateProxies(rawProxies).then((valid) => {
+            if (valid.length > 0) { this.proxies = valid; console.log(`  免费代理池: ${rawProxies.length}→${valid.length} 个`); }
+            else console.log('  ⚠ 所有免费代理均不可用');
+            resolve();
+          });
+          return;
+        }
         const url = urls[tried++];
         const client = url.startsWith('https') ? https : http;
         client.get(url, { timeout: 8000, headers: { 'User-Agent': 'curl/8.0' } }, (res) => {
@@ -81,16 +91,40 @@ class CrawlerPool {
           res.on('end', () => {
             try {
               const parsed = JSON.parse(data);
-              let list = [];
-              if (Array.isArray(parsed)) list = parsed.filter(p => p.ip && p.port).map(p => `http://${p.ip}:${p.port}`);
-              if (parsed.data && Array.isArray(parsed.data)) list = parsed.data.filter(p => p.ip && p.port).map(p => `http://${p.ip}:${p.port}`);
-              if (list.length > 0) { this.proxies = list; console.log(`  免费代理池: ${list.length} 个`); resolve(); }
-              else tryNext();
-            } catch { tryNext(); }
+              if (Array.isArray(parsed)) parsed.filter(p => p.ip && p.port).forEach(p => rawProxies.push(`http://${p.ip}:${p.port}`));
+              if (parsed.data && Array.isArray(parsed.data)) parsed.data.filter(p => p.ip && p.port).forEach(p => rawProxies.push(`http://${p.ip}:${p.port}`));
+            } catch (_) {}
+            tryNext();
           });
         }).on('error', () => tryNext());
       };
       tryNext();
+    });
+  }
+
+  /** 验证代理是否可用（HTTP GET 测试） */
+  _validateProxies(proxyList) {
+    const TEST_URL = 'http://www.gstatic.com/generate_204';
+    const CONCURRENCY = 15;
+    const MAX_VALID = 20;
+    const valid = [];
+
+    return new Promise((resolve) => {
+      let idx = 0, done = 0, total = proxyList.length;
+      const check = () => {
+        while (idx < total && valid.length < MAX_VALID) {
+          const proxyUrl = proxyList[idx++];
+          const parts = proxyUrl.replace('http://', '').split(':');
+          const host = parts[0], port = parseInt(parts[1] || '80');
+          if (!host) { done++; if (done === total) resolve(valid); continue; }
+          const req = http.request({ host, port, path: TEST_URL, method: 'GET', timeout: 5000, headers: { 'Host': 'www.gstatic.com' } },
+            (res) => { if (res.statusCode >= 200 && res.statusCode < 400) valid.push(proxyUrl); done++; if (done === total) resolve(valid); else setImmediate(check); req.destroy(); });
+          req.on('error', () => { done++; if (done === total) resolve(valid); else setImmediate(check); });
+          req.on('timeout', () => { req.destroy(); done++; if (done === total) resolve(valid); else setImmediate(check); });
+          req.end();
+        }
+      };
+      for (let i = 0; i < CONCURRENCY; i++) check();
     });
   }
 
