@@ -80,10 +80,13 @@ const del  = <T>(p: string, q?: Record<string, any>) => request<T>('DELETE', `${
 
 function requestWithToken<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, token: string, data?: any) {
   return new Promise<{ success: boolean; data: T | null; message?: string; code?: number }>((resolve) => {
+    const reqData = (method === 'PUT' || method === 'POST') && data !== undefined
+      ? JSON.stringify(data)
+      : data;
     wx.request({
       url: `${API_BASE}${path}`,
       method,
-      data,
+      data: reqData,
       header: {
         'content-type': 'application/json',
         'Authorization': `Bearer ${token}`

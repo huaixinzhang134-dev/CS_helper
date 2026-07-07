@@ -1,27 +1,54 @@
 /** app.wxss **/
 
 /*
-  CS Gaming Theme - 支持深色模式
-  浅色模式：白色背景，黑色字体
-  深色模式：黑色背景，白色字体
+  CS Gaming Theme - 深色模式/浅色模式适配
+  浅色模式（默认）：白底黑字
+  深色模式（系统深色）：黑底白字
+  猜一猜（guess）页面不参与此适配，始终保持原有风格
 */
+
+/* ========== 1. CSS 变量定义（浅色模式 = 默认） ========== */
 page {
-  /* Color Palette - 浅色模式（默认） */
-  --primary-color: #0066CC;   /* 主色调 - 蓝色 */
-  --secondary-color: #FF9800; /* 警告/接近 - 橙色 */
-  --success-color: #4CAF50;   /* 正确/成功 - 绿色 */
-  --error-color: #F44336;     /* 错误/失败 - 红色 */
+  /* 主色 */
+  --primary-color: #0066CC;
+  --secondary-color: #FF9800;
+  --success-color: #4CAF50;
+  --error-color: #F44336;
+  --accent-color: #0066CC;
 
-  --bg-page: #FFFFFF;         /* 页面背景 - 白色 */
-  --bg-card: #F5F5F5;         /* 卡片背景 - 浅灰 */
-  --bg-input: #EEEEEE;        /* 输入框背景 */
-  --bg-hover: #E0E0E0;        /* 悬停背景 */
-  --border-color: #E0E0E0;    /* 边框颜色 */
+  /* 背景色 */
+  --bg-page: #FFFFFF;
+  --bg-card: #F5F5F5;
+  --bg-input: #EEEEEE;
+  --bg-hover: #E0E0E0;
+  --bg-page-secondary: #FAFAFA;
 
-  --text-primary: #000000;    /* 主要文字 - 黑色 */
-  --text-secondary: #666666;  /* 次要文字 - 深灰 */
-  --text-muted: #999999;      /* 禁用/提示文字 - 浅灰 */
-  --text-inverse: #FFFFFF;    /* 反色文字 - 白色 */
+  /* 边框 */
+  --border-color: #E0E0E0;
+  --border-light: #EEEEEE;
+  --border-input: #CCCCCC;
+
+  /* 文字色 */
+  --text-primary: #000000;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --text-inverse: #FFFFFF;
+
+  /* 弹窗/遮罩 */
+  --modal-backdrop: rgba(0, 0, 0, 0.5);
+  --modal-bg: #FFFFFF;
+  --modal-border: #E0E0E0;
+
+  /* UI 组件 */
+  --btn-primary-bg: #0066CC;
+  --btn-primary-text: #FFFFFF;
+  --btn-secondary-bg: #F0F0F0;
+  --btn-secondary-text: #333333;
+
+  /* 阴影 */
+  --shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4rpx 20rpx rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8rpx 30rpx rgba(0, 0, 0, 0.15);
 
   /* Spacing */
   --spacing-xs: 8rpx;
@@ -30,7 +57,6 @@ page {
   --spacing-lg: 32rpx;
   --spacing-xl: 48rpx;
 
-  /* Global Settings */
   background-color: var(--bg-page);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -39,25 +65,42 @@ page {
   box-sizing: border-box;
 }
 
-/* 深色模式适配 - 当用户手机开启深色模式时自动应用 */
+/* ========== 2. 深色模式覆盖 ========== */
 @media (prefers-color-scheme: dark) {
   page {
-    /* 深色模式配色 */
-    --primary-color: #00E5FF;   /* 主色调 - 霓虹蓝 */
-    --secondary-color: #FFC107; /* 警告/接近 - 琥珀色 */
-    --success-color: #00C853;   /* 正确/成功 - 绿色 */
-    --error-color: #FF3D00;     /* 错误/失败 - 红色 */
+    --primary-color: #00E5FF;
+    --secondary-color: #FFC107;
+    --success-color: #00C853;
+    --error-color: #FF3D00;
+    --accent-color: #00E5FF;
 
-    --bg-page: #0F111A;         /* 页面背景 - 深色 */
-    --bg-card: #1E212B;         /* 卡片背景 - 深灰 */
-    --bg-input: #2C2F3E;        /* 输入框背景 */
-    --bg-hover: #3C3F4E;        /* 悬停背景 */
-    --border-color: #3C3F4E;    /* 边框颜色 */
+    --bg-page: #0F111A;
+    --bg-card: #1E212B;
+    --bg-input: #2C2F3E;
+    --bg-hover: #3C3F4E;
+    --bg-page-secondary: #16181F;
 
-    --text-primary: #FFFFFF;    /* 主要文字 - 白色 */
-    --text-secondary: #B0BEC5;  /* 次要文字 - 浅灰 */
-    --text-muted: #546E7A;      /* 禁用/提示文字 - 深灰 */
-    --text-inverse: #000000;    /* 反色文字 - 黑色 */
+    --border-color: #3C3F4E;
+    --border-light: #2C2F3E;
+    --border-input: #3C3F4E;
+
+    --text-primary: #FFFFFF;
+    --text-secondary: #B0BEC5;
+    --text-muted: #546E7A;
+    --text-inverse: #000000;
+
+    --modal-backdrop: rgba(0, 0, 0, 0.7);
+    --modal-bg: #1E212B;
+    --modal-border: #3C3F4E;
+
+    --btn-primary-bg: #00E5FF;
+    --btn-primary-text: #000000;
+    --btn-secondary-bg: #2C2F3E;
+    --btn-secondary-text: #B0BEC5;
+
+    --shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4rpx 20rpx rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8rpx 30rpx rgba(0, 0, 0, 0.5);
   }
 }
 

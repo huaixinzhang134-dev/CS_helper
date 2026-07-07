@@ -34,7 +34,7 @@ App<IAppOption>({
     });
   },
 
-  // 更新 tabBar 样式
+  // 更新 tabBar + navBar 样式
   updateTabBarStyle(isDark: boolean) {
     if (isDark) {
       wx.setTabBarStyle({
@@ -43,12 +43,20 @@ App<IAppOption>({
         backgroundColor: '#1E212B',
         borderStyle: 'black'
       });
+      wx.setNavigationBarColor({
+        backgroundColor: '#0F111A',
+        frontColor: '#ffffff',
+      });
     } else {
       wx.setTabBarStyle({
         color: '#666666',
         selectedColor: '#0066CC',
         backgroundColor: '#FFFFFF',
         borderStyle: 'white'
+      });
+      wx.setNavigationBarColor({
+        backgroundColor: '#FFFFFF',
+        frontColor: '#000000',
       });
     }
   },

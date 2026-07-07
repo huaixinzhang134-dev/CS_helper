@@ -1,5 +1,21 @@
 /* miniprogram/pages/guess/guess.wxss */
 
+/*
+  猜一猜页面固定深色风格，不受系统深色/浅色模式切换影响
+  即使手机切换到浅色模式，此页面始终保持黑底白字冷色调
+*/
+page {
+  --primary-color: #00E5FF;
+  --secondary-color: #FFC107;
+  --success-color: #00C853;
+  --error-color: #FF3D00;
+  --danger-color: #FF3D00;
+  --text-secondary: #B0BEC5;
+  --text-muted: #546E7A;
+  --bg-card: #1E212B;
+  --accent-color: #00E5FF;
+}
+
 .guess-page {
   position: relative;
   background-color: #0F111A; /* Fallback */

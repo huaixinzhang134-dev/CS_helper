@@ -170,6 +170,13 @@ Page({
   },
 
   /**
+   * 点击遮罩层关闭（用 catchtap 防止原生组件穿透）
+   */
+  onMaskTap() {
+    this.setData({ isEditing: false });
+  },
+
+  /**
    * 取消编辑
    */
   onCancelEdit() {

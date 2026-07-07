@@ -10,11 +10,247 @@ const BASE_URL = 'https://www.hltv.org';
 const DATA_FILE = __dirname + '/playerbase.json';
 const DELAY_BETWEEN_REQUESTS = 2000;
 
-let browser;
-let page;
+// ======================== 轮换池配置 ========================
+
+/** 浏览器重启间隔（每个实例处理 N 次请求后重启） */
+const POOL_RESTART_INTERVAL = 100;
+/** 页面池大小（每个浏览器实例内建 N 个页面，轮转使用） */
+const POOL_PAGE_COUNT = 4;
+/** 超时重试最大次数 */
+const POOL_MAX_RETRIES = 3;
+/** 超时重试基础等待（ms），每次翻倍 */
+const POOL_RETRY_BASE_DELAY = 15000;
+
+// ======================== 轮换池（Page Pool + 定时重启 + 代理轮换） ========================
+
+class CrawlerPool {
+  constructor() {
+    this.browser = null;
+    this.pages = [];          // 当前 browser 的页面池
+    this.currentPageIdx = 0;  // 轮转索引
+    this.useCount = 0;        // 当前 browser 已处理的请求数
+    this.proxies = [];        // 代理列表
+    this.currentProxyIdx = 0;
+    this._loadProxies();
+  }
+
+  /** 从环境变量 / 命令行加载代理列表 */
+  _loadProxies() {
+    // 支持 PROXY_LIST 环境变量：'http://user:pass@host:port,http://user2:pass2@host2:port2'
+    const envProxies = process.env.PROXY_LIST || '';
+    if (envProxies) {
+      this.proxies = envProxies.split(',').map(s => s.trim()).filter(Boolean);
+      console.log(`  代理池: 已加载 ${this.proxies.length} 个代理`);
+    } else {
+      // 从命令行参数读取 --proxies=url1,url2,url3
+      const proxyArg = process.argv.find(a => a.startsWith('--proxies='));
+      if (proxyArg) {
+        this.proxies = proxyArg.replace('--proxies=', '').split(',').map(s => s.trim()).filter(Boolean);
+        console.log(`  代理池: 从 --proxies 加载 ${this.proxies.length} 个代理`);
+      }
+    }
+  }
+
+  /** 获取下一个代理（轮转），没有则返回 undefined */
+  _nextProxy() {
+    if (this.proxies.length === 0) return undefined;
+    const proxy = this.proxies[this.currentProxyIdx % this.proxies.length];
+    this.currentProxyIdx++;
+    return proxy;
+  }
+
+  /** 获取浏览器 launch args（含代理） */
+  _buildLaunchArgs(proxyUrl) {
+    const args = [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
+      '--disable-web-security',
+      '--disable-features=IsolateOrigins,site-per-process'
+    ];
+    if (proxyUrl) {
+      args.push(`--proxy-server=${proxyUrl}`);
+      console.log(`  使用代理: ${proxyUrl.replace(/\/\/.*@/, '//***:***@')}`);  // 脱敏打印
+    }
+    return args;
+  }
+
+  /** 启动一个新的浏览器实例 + N 个页面 */
+  async launch() {
+    if (this.browser) {
+      await this._closeBrowser();
+    }
+
+    puppeteer = require('puppeteer-extra');
+    const sp = require('puppeteer-extra-plugin-stealth');
+    puppeteer.use(sp());
+
+    const chromePath = detectChromePath();
+
+    // 轮换代理
+    const proxyUrl = this._nextProxy();
+    const launchArgs = this._buildLaunchArgs(proxyUrl);
+
+    console.log(`浏览器路径: ${chromePath || '系统默认'}`);
+    console.log(`启动浏览器实例 #${Math.floor(this.useCount / POOL_RESTART_INTERVAL) + 1}`);
+
+    this.browser = await puppeteer.launch({
+      headless: 'new',
+      executablePath: chromePath,
+      args: launchArgs,
+    });
+
+    // 创建页面池
+    this.pages = [];
+    for (let i = 0; i < POOL_PAGE_COUNT; i++) {
+      const p = await this.browser.newPage();
+      await p.setViewport({ width: 1920, height: 1080 });
+      // 随机 User-Agent
+      const ua = getRandomUA();
+      await p.setUserAgent(ua);
+      this.pages.push(p);
+    }
+    this.currentPageIdx = 0;
+    this.useCount = 0;
+    console.log(`  页面池: ${POOL_PAGE_COUNT} 个页面已就绪`);
+  }
+
+  /** 获取下一个页面（round-robin） */
+  _nextPage() {
+    const page = this.pages[this.currentPageIdx % this.pages.length];
+    this.currentPageIdx++;
+    return page;
+  }
+
+  /** 检查是否需要重启浏览器 */
+  async _checkRestart() {
+    if (this.useCount >= POOL_RESTART_INTERVAL) {
+      console.log(`\n--- 达到 ${POOL_RESTART_INTERVAL} 次请求限制，重启浏览器 ---\n`);
+      await this.launch();
+    }
+  }
+
+  /** 关闭浏览器 */
+  async _closeBrowser() {
+    if (!this.browser) return;
+    try {
+      for (const p of this.pages) {
+        try { await p.close(); } catch (_) {}
+      }
+      await this.browser.close();
+    } catch (_) {}
+    this.browser = null;
+    this.pages = [];
+  }
+
+  /**
+   * 发送请求（自动轮换页面 + 重启 + 重试）
+   * @param {string} url
+   * @param {object} options
+   * @param {number} options.timeout - 导航超时（ms），默认 60000
+   * @param {number} options.waitFor - 等待选择器出现
+   * @param {number} options.waitMs - 等待后固定延迟（ms）
+   */
+  async fetch(url, options = {}) {
+    const timeout = options.timeout || 60000;
+    const waitFor = options.waitFor;
+    const waitMs = options.waitMs || 2000;
+
+    let lastError;
+
+    for (let retry = 0; retry <= POOL_MAX_RETRIES; retry++) {
+      // 每次重试（除第一次外）重启浏览器换 IP
+      if (retry > 0) {
+        const backoff = POOL_RETRY_BASE_DELAY * Math.pow(2, retry - 1);
+        console.log(`  ⏳ 第 ${retry} 次重试，等待 ${(backoff / 1000).toFixed(0)}s 后重启浏览器...`);
+        await delay(backoff);
+        await this.launch();  // 重启浏览器（自动换代理）
+      }
+
+      // 检查是否需要定时重启
+      if (retry === 0) {
+        await this._checkRestart();
+      }
+
+      // 确保浏览器已启动
+      if (!this.browser || this.pages.length === 0) {
+        await this.launch();
+      }
+
+      const page = this._nextPage();
+      console.log(`  访问: ${url} (页面 ${this.currentPageIdx % this.pages.length + 1}/${this.pages.length})`);
+
+      try {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
+        this.useCount++;
+      } catch (navErr) {
+        lastError = navErr;
+        const msg = navErr.message || '';
+        console.error(`  ✗ 导航失败 (重试 ${retry}/${POOL_MAX_RETRIES}): ${msg.slice(0, 120)}`);
+        continue;
+      }
+
+      // 等待目标内容
+      if (waitFor) {
+        try {
+          await page.waitForSelector(waitFor, { timeout: 30000 });
+        } catch (_) {}
+      }
+
+      // 固定等待
+      await delay(waitMs);
+
+      // 获取 HTML 并检查 Cloudflare
+      try {
+        const html = await page.content();
+
+        if (isCloudflareBlock(html)) {
+          console.log(`  ⚠ Cloudflare 拦截 (重试 ${retry}/${POOL_MAX_RETRIES})`);
+          lastError = new Error('Cloudflare 拦截');
+          // 被 Cloudflare 挡了立即换浏览器
+          continue;
+        }
+
+        return html;  // ✓ 成功
+      } catch (contentErr) {
+        lastError = contentErr;
+        console.error(`  ✗ 获取页面内容失败 (重试 ${retry}/${POOL_MAX_RETRIES}): ${contentErr.message.slice(0, 120)}`);
+        continue;
+      }
+    }
+
+    throw lastError || new Error(`所有重试耗尽 (${POOL_MAX_RETRIES} 次)`);
+  }
+
+  /** 关闭所有资源 */
+  async close() {
+    await this._closeBrowser();
+  }
+}
+
+// 创建全局轮换池实例
+const pool = new CrawlerPool();
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/** 轮换 User-Agent 列表 */
+const UA_LIST = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+];
+
+function getRandomUA() {
+  return UA_LIST[Math.floor(Math.random() * UA_LIST.length)];
 }
 
 function detectChromePath() {
@@ -35,36 +271,6 @@ function detectChromePath() {
   return undefined;
 }
 
-async function initBrowser() {
-  if (browser) return;
-
-  puppeteer = require('puppeteer-extra');
-  stealthPlugin = require('puppeteer-extra-plugin-stealth');
-  puppeteer.use(stealthPlugin());
-
-  const chromePath = detectChromePath();
-  console.log(`浏览器路径: ${chromePath || '系统默认'}`);
-  browser = await puppeteer.launch({
-    headless: 'new',
-    executablePath: chromePath,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process'
-    ]
-  });
-
-  page = await browser.newPage();
-  await page.setViewport({ width: 1920, height: 1080 });
-  console.log('浏览器启动成功\n');
-}
-
 function isCloudflareBlock(html) {
   return html.includes('cf-challenge') ||
          html.includes('Just a moment') ||
@@ -73,37 +279,16 @@ function isCloudflareBlock(html) {
          html.includes('Enable JavaScript and cookies');
 }
 
+/**
+ * 通过轮换池请求页面（向后兼容的封装）
+ */
 async function fetchPageByUrl(url, retryCount = 0) {
-  await initBrowser();
-
-  try {
-    console.log(`  访问: ${url}`);
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-
-    try {
-      await page.waitForSelector('.playerRealname, .playerNickname', { timeout: 30000 });
-    } catch (e) {}
-    await delay(2000);
-
-    const html = await page.content();
-
-    if (isCloudflareBlock(html)) {
-      if (retryCount < 3) {
-        const waitTime = (retryCount + 1) * 10000;
-        console.log(`  ⚠ Cloudflare 拦截，${(waitTime / 1000).toFixed(0)}s 后重试 (${retryCount + 1}/3)...`);
-        await delay(waitTime);
-        await page.reload({ waitUntil: 'domcontentloaded' });
-        return fetchPageByUrl(url, retryCount + 1);
-      } else {
-        throw new Error(`Cloudflare 拦截，已重试 3 次: ${url}`);
-      }
-    }
-
-    return html;
-  } catch (err) {
-    console.error(`  ✗ 请求失败: ${err.message}`);
-    throw err;
-  }
+  // 使用 pool.fetch 替代旧的单页面逻辑
+  return pool.fetch(url, {
+    waitFor: '.playerRealname, .playerNickname',
+    waitMs: 2000,
+    timeout: 60000,
+  });
 }
 
 /**
@@ -127,12 +312,23 @@ function parsePositionFromHtml(html) {
 
 /**
  * 从页面属性中获取 ratio 值并辅助修正位置
+ * 注意：需要在调用 fetchPageByUrl 之后立即调用，由 checkPlayerPosition 控制时序
  */
 async function evaluateRatioAndCorrect(htmlPosition) {
   let correctedPosition = htmlPosition;
 
   try {
-    const ratioValue = await page.evaluate(() => {
+    // 从 pool 中获取上一次使用的 page（刚访问完该选手页面的 page）
+    // 如果 pool 没有可用 page 则跳过
+    const livePage = pool.pages && pool.pages.length > 0
+      ? pool.pages[(pool.currentPageIdx - 1) % pool.pages.length]
+      : null;
+
+    if (!livePage || livePage.isClosed()) {
+      return { position: correctedPosition, ratioValue: null, corrected: false };
+    }
+
+    const ratioValue = await livePage.evaluate(() => {
       const attrBase = '#infoBox > div.g-grid.stats-matches > div:nth-child(1) > div.playerpage-container.playerpage-container-attributes > div:nth-child';
       const ratioEl = document.querySelector(attrBase + '(7) > div.player-stat-top > span > p > b');
       return ratioEl ? parseFloat(ratioEl.textContent.trim()) : null;
@@ -202,12 +398,8 @@ function savePlayers(players) {
 }
 
 async function closeBrowser() {
-  if (browser) {
-    await browser.close();
-    browser = null;
-    page = null;
-    console.log('\n浏览器已关闭');
-  }
+  await pool.close();
+  console.log('\n轮换池已关闭');
 }
 
 /**

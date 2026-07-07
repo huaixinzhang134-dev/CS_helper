@@ -31,8 +31,150 @@ const DELAY_MAX = 2000;
 const DEFAULT_TOP = 60;
 const LOGO_DELAY_MS = 2000;
 
+// ======================== 轮换池配置 ========================
+
+const POOL_RESTART_INTERVAL = 50;    // 每 50 次请求重启浏览器
+const POOL_PAGE_COUNT = 3;            // 页面池大小
+const POOL_MAX_RETRIES = 3;           // 超时重试次数
+const POOL_RETRY_BASE_DELAY = 10000;  // 重试基础等待（ms）
+
+// ======================== 轮换池 ========================
+
+class CrawlerPool {
+  constructor() {
+    this.browser = null;
+    this.pages = [];
+    this.currentPageIdx = 0;
+    this.useCount = 0;
+    this.proxies = [];
+    this.currentProxyIdx = 0;
+    this._loadProxies();
+  }
+
+  _loadProxies() {
+    const envProxies = process.env.PROXY_LIST || '';
+    if (envProxies) {
+      this.proxies = envProxies.split(',').map(s => s.trim()).filter(Boolean);
+      if (this.proxies.length > 0) console.log(`  代理池: ${this.proxies.length} 个`);
+    }
+  }
+
+  _nextProxy() {
+    if (this.proxies.length === 0) return undefined;
+    return this.proxies[this.currentProxyIdx++ % this.proxies.length];
+  }
+
+  _buildLaunchArgs(proxyUrl) {
+    const args = [
+      '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote',
+      '--disable-gpu', '--disable-web-security',
+      '--disable-features=IsolateOrigins,site-per-process'
+    ];
+    if (proxyUrl) args.push(`--proxy-server=${proxyUrl}`);
+    return args;
+  }
+
+  async launch() {
+    if (this.browser) await this._closeBrowser();
+    puppeteer = require('puppeteer-extra');
+    const sp = require('puppeteer-extra-plugin-stealth');
+    puppeteer.use(sp());
+
+    const chromePath = detectChromePath();
+    const proxyUrl = this._nextProxy();
+
+    this.browser = await puppeteer.launch({
+      headless: 'new',
+      executablePath: chromePath,
+      args: this._buildLaunchArgs(proxyUrl),
+    });
+
+    this.pages = [];
+    for (let i = 0; i < POOL_PAGE_COUNT; i++) {
+      const p = await this.browser.newPage();
+      await p.setViewport({ width: 1920, height: 1080 });
+      this.pages.push(p);
+    }
+    this.currentPageIdx = 0;
+    this.useCount = 0;
+    console.log(`  浏览器实例 #${Math.floor(this.useCount / POOL_RESTART_INTERVAL) + 1}，页面池: ${POOL_PAGE_COUNT} 个`);
+  }
+
+  _nextPage() {
+    return this.pages[this.currentPageIdx++ % this.pages.length];
+  }
+
+  async _checkRestart() {
+    if (this.useCount >= POOL_RESTART_INTERVAL) {
+      console.log(`\n--- 达到 ${POOL_RESTART_INTERVAL} 次请求限制，重启浏览器 ---\n`);
+      await this.launch();
+    }
+  }
+
+  async _closeBrowser() {
+    if (!this.browser) return;
+    try { for (const p of this.pages) try { await p.close(); } catch (_) {} } catch (_) {}
+    try { await this.browser.close(); } catch (_) {}
+    this.browser = null;
+    this.pages = [];
+  }
+
+  async fetch(url, options = {}) {
+    const timeout = options.timeout || 60000;
+    const waitFor = options.waitFor;
+    const waitMs = options.waitMs || 2000;
+    let lastError;
+
+    for (let retry = 0; retry <= POOL_MAX_RETRIES; retry++) {
+      if (retry > 0) {
+        const backoff = POOL_RETRY_BASE_DELAY * Math.pow(2, retry - 1);
+        console.log(`  ⏳ 重试 ${retry}/${POOL_MAX_RETRIES}，等待 ${(backoff / 1000).toFixed(0)}s...`);
+        await delay(backoff);
+        await this.launch();
+      }
+      if (retry === 0) await this._checkRestart();
+      if (!this.browser || this.pages.length === 0) await this.launch();
+
+      const page = this._nextPage();
+      try {
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
+        this.useCount++;
+      } catch (e) {
+        lastError = e;
+        console.error(`  ✗ 导航失败: ${(e.message || '').slice(0, 100)}`);
+        continue;
+      }
+
+      if (waitFor) {
+        try { await page.waitForFunction(waitFor, { timeout: 30000 }); } catch (_) {}
+      }
+      await delay(waitMs);
+
+      try {
+        const html = await page.content();
+        if (isCloudflareBlock(html)) {
+          console.log(`  ⚠ Cloudflare 拦截`);
+          lastError = new Error('Cloudflare 拦截');
+          continue;
+        }
+        return html;
+      } catch (e) {
+        lastError = e;
+        continue;
+      }
+    }
+    throw lastError || new Error(`重试耗尽 (${POOL_MAX_RETRIES} 次)`);
+  }
+
+  async close() {
+    await this._closeBrowser();
+  }
+}
+
+const pool = new CrawlerPool();
+
 let browser;
-let page;
 
 // ======================== 工具函数 ========================
 
@@ -68,7 +210,7 @@ function detectChromePath() {
 }
 
 async function initBrowser() {
-  if (browser) return;
+  if (browser) return;  // 已初始化
 
   puppeteer = require('puppeteer-extra');
   const stealthPlugin = require('puppeteer-extra-plugin-stealth');
@@ -77,34 +219,16 @@ async function initBrowser() {
   const chromePath = detectChromePath();
   console.log(`浏览器路径: ${chromePath || '系统默认'}`);
 
-  browser = await puppeteer.launch({
-    headless: 'new',
-    executablePath: chromePath,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--no-first-run',
-      '--no-zygote',
-      '--disable-gpu',
-      '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process'
-    ]
-  });
-
-  page = await browser.newPage();
-  await page.setViewport({ width: 1920, height: 1080 });
+  // 启动轮换池（页面轮转 + 定时重启 + 代理轮换）
+  await pool.launch();
+  browser = pool.browser;
   console.log('浏览器启动成功\n');
 }
 
 async function closeBrowser() {
-  if (browser) {
-    await browser.close();
-    browser = null;
-    page = null;
-    console.log('\n浏览器已关闭');
-  }
+  await pool.close();
+  browser = null;
+  console.log('\n轮换池已关闭');
 }
 
 // ======================== 页面抓取 ========================
@@ -113,50 +237,26 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
            '(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 
 /**
- * 用 Puppeteer 抓取渲染后的页面 HTML
+ * 用 Puppeteer 抓取渲染后的页面 HTML（使用轮换池）
  */
 async function fetchPage(url, retryCount = 0) {
   await initBrowser();
 
+  // 等待排行榜内容出现的检测函数
+  const rankingDetected = `() => {
+    return document.querySelector('.ranking-list')
+        || document.querySelector('.ranked-teams')
+        || document.querySelector('[class*="ranking"]')
+        || document.querySelector('[class*="rank"]')
+        || document.body.innerText.length > 500;
+  }`;
+
   try {
-    console.log(`  正在访问: ${url}`);
-
-    await page.goto(url, {
-      waitUntil: 'domcontentloaded',
-      timeout: 60000
+    const html = await pool.fetch(url, {
+      timeout: 60000,
+      waitFor: rankingDetected,
+      waitMs: 2000,
     });
-
-    // 等待排行榜内容出现
-    try {
-      await page.waitForFunction(
-        () => {
-          return document.querySelector('.ranking-list')
-              || document.querySelector('.ranked-teams')
-              || document.querySelector('[class*="ranking"]')
-              || document.querySelector('[class*="rank"]')
-              || document.body.innerText.length > 500;
-        },
-        { timeout: 30000 }
-      );
-    } catch (e) {
-      console.log('  警告: 等待页面内容超时，继续');
-    }
-
-    await delay(2000);
-    const html = await page.content();
-
-    if (isCloudflareBlock(html)) {
-      if (retryCount < 3) {
-        const waitTime = (retryCount + 1) * 10000;
-        console.log(`  ⚠ Cloudflare 拦截，${(waitTime / 1000).toFixed(0)}s 后重试 (${retryCount + 1}/3)...`);
-        await delay(waitTime);
-        await page.reload({ waitUntil: 'domcontentloaded' });
-        return fetchPage(url, retryCount + 1);
-      } else {
-        throw new Error(`Cloudflare 拦截，已重试 3 次: ${url}`);
-      }
-    }
-
     return html;
   } catch (err) {
     console.error(`  ✗ 请求失败: ${err.message}`);

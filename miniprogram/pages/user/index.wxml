@@ -1,6 +1,6 @@
 <view class="container user-page">
   <!-- ====== 编辑资料弹窗 ====== -->
-  <view class="modal-mask" wx:if="{{isEditing}}" bindtap="onCancelEdit">
+  <view class="modal-mask" wx:if="{{isEditing}}" catchtap="onMaskTap">
     <view class="modal-content edit-modal" catchtap="">
       <view class="modal-title">编辑资料</view>
       <view class="edit-body">
@@ -14,7 +14,7 @@
         <!-- 昵称输入 -->
         <view class="edit-input-row">
           <text class="edit-label">昵称</text>
-          <input class="edit-input" type="nickname" value="{{editNickname}}" bindinput="onNicknameInput" placeholder="点击使用微信昵称" maxlength="20" />
+          <input class="edit-input" type="nickname" bindinput="onNicknameInput" placeholder="点击使用微信昵称" maxlength="20" />
         </view>
       </view>
       <view class="modal-footer">

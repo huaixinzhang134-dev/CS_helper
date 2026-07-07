@@ -80,7 +80,7 @@
 .hero-score-num {
   font-size: 56rpx;
   font-weight: 800;
-  color: #fff;
+  color: var(--text-inverse);
 }
 .hero-score-num.win {
   color: var(--success-color);
@@ -122,7 +122,7 @@
   font-weight: bold;
   color: var(--text-primary);
   padding: 20rpx 0 16rpx;
-  border-bottom: 1rpx solid rgba(255,255,255,0.06);
+  border-bottom: 1rpx solid var(--border-color);
   margin-bottom: 12rpx;
 }
 
@@ -131,7 +131,7 @@
   background: var(--bg-card);
   border-radius: 14rpx;
   overflow: hidden;
-  border: 1rpx solid rgba(255,255,255,0.05);
+  border: 1rpx solid var(--border-color);
 }
 .round-header,
 .round-row {
@@ -141,13 +141,13 @@
   font-size: 24rpx;
 }
 .round-header {
-  background: rgba(255,255,255,0.04);
+  background: var(--bg-input);
   font-weight: bold;
   color: var(--text-secondary);
-  border-bottom: 1rpx solid rgba(255,255,255,0.05);
+  border-bottom: 1rpx solid var(--border-color);
 }
 .round-row:not(:last-child) {
-  border-bottom: 1rpx solid rgba(255,255,255,0.03);
+  border-bottom: 1rpx solid var(--border-light);
 }
 .round-cell.map { flex: 2; }
 .round-cell.score { flex: 1; text-align: center; }
@@ -159,7 +159,7 @@
   border-radius: 14rpx;
   margin-bottom: 16rpx;
   padding: 16rpx;
-  border: 1rpx solid rgba(255,255,255,0.05);
+  border: 1rpx solid var(--border-color);
 }
 .ts-team-name {
   font-size: 24rpx;
@@ -167,7 +167,7 @@
   color: var(--text-secondary);
   margin-bottom: 12rpx;
   padding-bottom: 8rpx;
-  border-bottom: 1rpx solid rgba(255,255,255,0.05);
+  border-bottom: 1rpx solid var(--border-color);
 }
 .ts-header,
 .ts-row {
@@ -180,7 +180,7 @@
 .ts-header {
   color: var(--text-muted);
   font-size: 22rpx;
-  border-bottom: 1rpx solid rgba(255,255,255,0.03);
+  border-bottom: 1rpx solid var(--border-light);
 }
 .ts-cell.name { flex: 2.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ts-cell.num { flex: 1; text-align: center; }
@@ -198,12 +198,12 @@
   margin-right: 12rpx;
   border-radius: 30rpx;
   font-size: 24rpx;
-  background: rgba(255,255,255,0.05);
+  background: var(--bg-input);
   color: var(--text-secondary);
 }
 .player-tab.active {
   background: var(--accent-color);
-  color: #fff;
+  color: var(--text-inverse);
   font-weight: bold;
 }
 .tab-team {
@@ -217,7 +217,7 @@
 }
 .comment-item {
   padding: 20rpx 0;
-  border-bottom: 1rpx solid rgba(255,255,255,0.04);
+  border-bottom: 1rpx solid var(--border-light);
 }
 .comment-header {
   display: flex;
@@ -265,7 +265,7 @@
   background: var(--bg-card);
   padding: 12rpx 20rpx;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
-  border-top: 1rpx solid rgba(255,255,255,0.06);
+  border-top: 1rpx solid var(--border-color);
   z-index: 100;
 }
 .bar-row {
@@ -282,7 +282,7 @@
   padding: 0;
   border-radius: 32rpx;
   font-size: 22rpx;
-  background: rgba(255,255,255,0.08);
+  background: var(--bg-input);
   color: var(--text-primary);
   border: none;
   white-space: nowrap;
@@ -293,7 +293,7 @@
 .comment-input {
   flex: 1;
   height: 64rpx;
-  background: rgba(255,255,255,0.06);
+  background: var(--bg-input);
   border-radius: 32rpx;
   padding: 0 24rpx;
   font-size: 24rpx;
@@ -309,7 +309,7 @@
   border-radius: 32rpx;
   font-size: 24rpx;
   background: var(--accent-color);
-  color: #fff;
+  color: var(--text-inverse);
   border: none;
   text-align: center;
 }
@@ -321,7 +321,7 @@
 .modal-mask {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: var(--modal-backdrop);
   z-index: 200;
   display: flex;
   align-items: flex-end;
@@ -339,6 +339,7 @@
   font-weight: bold;
   margin-bottom: 24rpx;
   text-align: center;
+  color: var(--text-primary);
 }
 .team-group {
   margin-bottom: 20rpx;
@@ -356,10 +357,10 @@
   padding: 16rpx 20rpx;
   border-radius: 12rpx;
   margin-bottom: 4rpx;
-  background: rgba(255,255,255,0.03);
+  background: var(--bg-input);
 }
 .player-row:active {
-  background: rgba(255,255,255,0.08);
+  background: var(--bg-hover);
 }
 .pr-name { font-size: 28rpx; font-weight: bold; }
 .pr-pos { font-size: 22rpx; color: var(--text-muted); }
@@ -369,8 +370,8 @@
 }
 .btn-cancel {
   width: 60%;
-  background: rgba(255,255,255,0.06) !important;
-  color: var(--text-secondary) !important;
+  background: var(--btn-secondary-bg) !important;
+  color: var(--btn-secondary-text) !important;
   border: none !important;
   border-radius: 40rpx !important;
 }

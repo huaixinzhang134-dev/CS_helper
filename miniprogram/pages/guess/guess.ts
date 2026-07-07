@@ -89,6 +89,7 @@ Page({
     // 检查是否通过分享进入PK模式
     if (options.pkRoomId && options.opponentId) {
       this.setData({
+        loading: false,
         showModeSelection: false,
         gameMode: 'friend',
         pkRoomId: options.pkRoomId,
@@ -119,6 +120,11 @@ Page({
   onShow() {
     // 页面显示时检查用户登录状态
     this.checkUserLogin();
+  },
+
+  onUnload() {
+    // 离开页面时清理轮询
+    this._stopPollingForJoiner();
   },
 
   /**
@@ -241,10 +247,14 @@ Page({
    * 取消好友PK
    */
   cancelFriendPK() {
+    this._stopPollingForJoiner();
     this.setData({
       showFriendInvite: false,
       showModeSelection: true,
-      gameMode: ''
+      gameMode: '',
+      pkRoomId: '',
+      isRoomOwner: false,
+      targetPlayer: null,
     });
   },
 
@@ -272,6 +282,17 @@ Page({
           gameStatus: 'playing',
           myAttempts: 0,
         });
+
+        // 开始轮询等待对手加入
+        this._startPollingForJoiner();
+
+        // 自动弹出分享面板引导分享
+        setTimeout(() => {
+          wx.showShareMenu({
+            withShareTicket: true,
+            menus: ['shareAppMessage']
+          });
+        }, 300);
       } else {
         wx.showToast({ title: res.message || '创建房间失败', icon: 'none' });
         this.setData({ showModeSelection: true, gameMode: '' });
@@ -281,6 +302,63 @@ Page({
       wx.showToast({ title: '创建房间失败', icon: 'none' });
       this.setData({ showModeSelection: true, gameMode: '' });
     }
+  },
+
+  /**
+   * 开始轮询等待对手加入
+   */
+  _startPollingForJoiner() {
+    this._stopPollingForJoiner(); // 清除旧轮询
+    const maxWait = 5 * 60 * 1000; // 最多等待 5 分钟
+    const startedAt = Date.now();
+    (this as any)._pkPollTimer = setInterval(async () => {
+      // 超时检查
+      if (Date.now() - startedAt > maxWait) {
+        this._stopPollingForJoiner();
+        wx.showToast({ title: '等待超时，请重新创建房间', icon: 'none' });
+        this.cancelFriendPK();
+        return;
+      }
+      if (!this.data.pkRoomId) {
+        this._stopPollingForJoiner();
+        return;
+      }
+      try {
+        const res = await getPkRoom(this.data.pkRoomId);
+        if (res.success && res.data && res.data.joiner) {
+          // 对手已加入！
+          const joiner = res.data.joiner;
+          this.setData({
+            showFriendInvite: false,
+            opponentInfo: joiner,
+            opponentName: joiner.nickname || '对手',
+            opponentAvatar: joiner.avatar || '/assets/icons/user.png',
+          });
+          wx.showToast({ title: '对手已加入！', icon: 'success' });
+          this._stopPollingForJoiner();
+        }
+      } catch (err) {
+        // 轮询失败静默处理
+      }
+    }, 2000); // 每 2 秒轮询一次
+  },
+
+  /**
+   * 停止轮询
+   */
+  _stopPollingForJoiner() {
+    if ((this as any)._pkPollTimer) {
+      clearInterval((this as any)._pkPollTimer);
+      (this as any)._pkPollTimer = null;
+    }
+  },
+
+  /**
+   * 取消等待对手（关闭邀请弹窗）
+   */
+  cancelWaitForJoiner() {
+    this._stopPollingForJoiner();
+    this.cancelFriendPK();
   },
 
   /**
@@ -714,6 +792,7 @@ Page({
     this.setData({ showResultModal: false });
     if (this.data.gameMode === 'friend') {
       // PK模式回到选择界面
+      this._stopPollingForJoiner();
       this.setData({
         showModeSelection: true,
         gameMode: '',

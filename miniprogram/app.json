@@ -14,7 +14,8 @@
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#0F111A",
     "navigationBarTitleText": "云雪CS助手",
-    "navigationBarTextStyle": "white"
+    "navigationBarTextStyle": "white",
+    "darkmode": true
   },
   "tabBar": {
     "color": "#666666",

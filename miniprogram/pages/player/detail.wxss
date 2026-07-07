@@ -16,7 +16,7 @@
   border-radius: 50%;
   border: 4rpx solid var(--primary-color);
   margin-right: 40rpx;
-  background-color: #000;
+  background-color: var(--bg-input);
 }
 
 .info {
@@ -86,10 +86,10 @@
 .former-team-tag {
   font-size: 22rpx;
   color: var(--text-primary);
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--bg-input);
   padding: 4rpx 14rpx;
   border-radius: 6rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.1);
+  border: 1rpx solid var(--border-color);
 }
 
 .stats-card {

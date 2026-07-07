@@ -55,7 +55,7 @@ jobs:
           DB_PASS: ${{ secrets.DB_PASS }}
           DB_NAME: ${{ secrets.DB_NAME }}
 
-      - name: 快速检查选手位置（步枪手 → 狙击手/指挥）
+      - name: 快速检查选手位置（步枪手 → 狙击手/指挥，带轮换池）
         run: node player_check.js --quick
         working-directory: crawler
         env:
@@ -65,3 +65,4 @@ jobs:
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASS: ${{ secrets.DB_PASS }}
           DB_NAME: ${{ secrets.DB_NAME }}
+          # PROXY_LIST: ${{ secrets.PROXY_LIST }}  # 解注可用 HTTP 代理轮换（逗号分隔），每 100 次请求 + 每次超时重试自动换浏览器换代理
