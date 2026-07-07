@@ -16,19 +16,24 @@ jobs:
         with:
           node-version: 22
 
-      - name: 安装系统依赖（Puppeteer + Chromium）
+      - name: 缓存 Puppeteer 内置 Chromium
+        id: cache-puppeteer
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/puppeteer
+          key: puppeteer-chromium-${{ runner.os }}-${{ hashFiles('crawler/package-lock.json') }}
+
+      - name: 安装系统依赖（Puppeteer 运行时库）
         run: |
           sudo apt-get update
           sudo apt-get install -y ca-certificates fonts-liberation \
             libasound2t64 libatk-bridge2.0-0 libatk1.0-0 libcups2 \
             libdrm2 libgbm1 libnss3 libxcomposite1 libxdamage1 \
-            libxrandr2 xdg-utils chromium-browser
+            libxrandr2 xdg-utils
 
-      - name: 安装依赖（跳过 Chromium 下载，用系统已安装的）
+      - name: 安装 Node 依赖（含 Puppeteer 内置 Chromium）
         run: npm install
         working-directory: crawler
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: true
 
       - name: 爬取排名
         run: node crawl_ranking.js --top=60
