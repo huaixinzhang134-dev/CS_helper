@@ -47,6 +47,23 @@ async function main() {
   }
 
   console.log(`✅ 排名数据导入完成: ${inserted} 条`);
+
+  // 如果存在 team_details.json（全量爬取产出），更新队标为详情页高质量版
+  const detailsPath = path.join(__dirname, '..', 'crawler', 'team_details.json');
+  if (fs.existsSync(detailsPath)) {
+    const details = JSON.parse(fs.readFileSync(detailsPath, 'utf8'));
+    let logoUpdated = 0;
+    for (const team of details) {
+      if (!team.logo) continue;
+      const [result] = await conn.execute(
+        `UPDATE team SET logo_url = ? WHERE name = ? AND logo_url != ?`,
+        [team.logo, team.name, team.logo]
+      );
+      if (result.affectedRows > 0) logoUpdated++;
+    }
+    console.log(`✅ 队标更新完成: ${logoUpdated}/${details.length} 条`);
+  }
+
   await conn.end();
 }
 
