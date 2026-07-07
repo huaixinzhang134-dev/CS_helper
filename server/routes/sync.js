@@ -250,13 +250,12 @@ async function upsertMatch(m, req) {
     if (rows.length > 0) existingId = rows[0].id;
   }
 
-  // ----- 3. 无 eplay_id 或没找到，按 (date, team1, team2) + time 回退匹配 -----
-  //     排除 legacy_ 和 NULL 的旧行，避免误匹配
+  // ----- 3. 无 eplay_id 或没找到，按 (date, team1, team2) 回退匹配 -----
+  //     不排除 legacy 行，防止爬虫时间修改后重复插入
   if (!existingId && fields.match_date && team1Id && team2Id) {
     const [rows] = await query(
       `SELECT id FROM matches
        WHERE match_date = ? AND team1_id = ? AND team2_id = ?
-         AND (eplay_id IS NOT NULL AND eplay_id NOT LIKE 'legacy_%')
        ORDER BY match_time = ? DESC, id DESC
        LIMIT 1`,
       [fields.match_date, team1Id, team2Id, fields.match_time]
@@ -388,33 +387,19 @@ router.post('/', async (req, res, next) => {
       );
       if (r1.affectedRows > 0) console.log(`[sync] 清理 ${r1.affectedRows} 条 eplay_id 重复`);
 
-      // 2. 同一天+同对手，一行有 eplay_id 一行没有 → 保留有 ID 的
+      // 2. 同一天+同对手+同赛事，时间相差 8h → 保留较晚（UTC+8）的
       const [r2] = await query(
         `DELETE m1 FROM matches m1
          INNER JOIN matches m2
          ON m1.match_date = m2.match_date
           AND m1.team1_id = m2.team1_id
           AND m1.team2_id = m2.team2_id
-          AND m1.id > m2.id
-         WHERE (m1.eplay_id IS NULL OR m1.eplay_id = '')
-           AND (m2.eplay_id IS NOT NULL AND m2.eplay_id != '')`
+          AND m1.event_name = m2.event_name
+          AND m1.tab = m2.tab
+          AND m1.id < m2.id
+         WHERE ADDTIME(m1.match_time, '08:00') = m2.match_time`
       );
-      if (r2.affectedRows > 0) console.log(`[sync] 清理 ${r2.affectedRows} 条无 eplay_id 旧行`);
-
-      // 3. 同名+同对手+同日期，两边都有 eplay_id（但格式不同导致没被规则1抓到）
-      //    保留 updated_at 最新的那条
-      const [r3] = await query(
-        `DELETE m1 FROM matches m1
-         INNER JOIN matches m2
-         ON m1.match_date = m2.match_date
-          AND m1.team1_id = m2.team1_id
-          AND m1.team2_id = m2.team2_id
-          AND m1.id > m2.id
-          AND m1.updated_at < m2.updated_at
-         WHERE m1.eplay_id IS NOT NULL AND m1.eplay_id != ''
-           AND m2.eplay_id IS NOT NULL AND m2.eplay_id != ''`
-      );
-      if (r3.affectedRows > 0) console.log(`[sync] 清理 ${r3.affectedRows} 条 eplay_id 格式不同的重复`);
+      if (r2.affectedRows > 0) console.log(`[sync] 清理 ${r2.affectedRows} 条 UTC/UTC+8 时间重复`);
     } catch (err) {
       console.error('[sync] 清理重复比赛失败:', err.message);
     }
