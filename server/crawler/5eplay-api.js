@@ -80,10 +80,21 @@ async function fetchFrom5eplay() {
     }
   }
 
-  // ----- 合并结果后返回 -----
+  // ----- 合并结果，按 eplayId 去重（同一比赛可能出现在多个 API）-----
   if (allMatches.length > 0) {
-    console.log(`[5eplay] 总共获取 ${allMatches.length} 场比赛（合并）`);
-    return { source: 'merged', matches: allMatches };
+    const seen = new Set();
+    const deduped = allMatches.filter(m => {
+      if (!m.eplayId) return true;          // 无 ID 的保留
+      if (seen.has(m.eplayId)) return false; // 已见过 → 跳过
+      seen.add(m.eplayId);
+      return true;
+    });
+    const dupCount = allMatches.length - deduped.length;
+    if (dupCount > 0) {
+      console.log(`[5eplay] 合并后去重 ${dupCount} 条重复比赛`);
+    }
+    console.log(`[5eplay] 总共 ${deduped.length} 场比赛`);
+    return { source: 'merged', matches: deduped };
   }
 
   // ----- 兜底: SSR 页面抓取 -----
@@ -241,9 +252,11 @@ function normalizeMatch(raw) {
     let date = info.date || raw.date || raw.match_date || '';
     let time = info.time || raw.time || raw.match_time || '';
     if (info.plan_ts && !date) {
-      const d = new Date(parseInt(info.plan_ts) * 1000);
-      date = d.toISOString().slice(0, 10);
-      time = d.toTimeString().slice(0, 5);
+      // plan_ts 是 Unix 时间戳（秒），转 UTC+8（东八区，5eplay 为中国平台）
+      const ts = parseInt(info.plan_ts) * 1000;
+      const utc8Date = new Date(ts + 8 * 3600 * 1000);
+      date = `${utc8Date.getUTCFullYear()}-${String(utc8Date.getUTCMonth() + 1).padStart(2, '0')}-${String(utc8Date.getUTCDate()).padStart(2, '0')}`;
+      time = `${String(utc8Date.getUTCHours()).padStart(2, '0')}:${String(utc8Date.getUTCMinutes()).padStart(2, '0')}`;
     }
 
     const matchType = info.format
