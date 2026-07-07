@@ -50,6 +50,7 @@ class CrawlerPool {
     this.consecutiveFails = 0;
     this.proxies = [];
     this.currentProxyIdx = 0;
+    this._needFreeProxies = false;
     this._loadProxies();
   }
 
@@ -57,8 +58,40 @@ class CrawlerPool {
     const envProxies = process.env.PROXY_LIST || '';
     if (envProxies) {
       this.proxies = envProxies.split(',').map(s => s.trim()).filter(Boolean);
-      if (this.proxies.length > 0) console.log(`  代理池: ${this.proxies.length} 个`);
+      if (this.proxies.length > 0) { console.log(`  代理池: ${this.proxies.length} 个`); return; }
     }
+    this._needFreeProxies = true;
+  }
+
+  /** 异步抓取免费代理列表 */
+  _fetchFreeProxies() {
+    return new Promise((resolve) => {
+      const urls = [
+        'https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/http/data.json',
+        'https://proxylist.geonode.com/api/proxy-list?limit=30&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps',
+      ];
+      let tried = 0;
+      const tryNext = () => {
+        if (tried >= urls.length) { resolve(); return; }
+        const url = urls[tried++];
+        const client = url.startsWith('https') ? https : http;
+        client.get(url, { timeout: 8000, headers: { 'User-Agent': 'curl/8.0' } }, (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => {
+            try {
+              const parsed = JSON.parse(data);
+              let list = [];
+              if (Array.isArray(parsed)) list = parsed.filter(p => p.ip && p.port).map(p => `http://${p.ip}:${p.port}`);
+              if (parsed.data && Array.isArray(parsed.data)) list = parsed.data.filter(p => p.ip && p.port).map(p => `http://${p.ip}:${p.port}`);
+              if (list.length > 0) { this.proxies = list; console.log(`  免费代理池: ${list.length} 个`); resolve(); }
+              else tryNext();
+            } catch { tryNext(); }
+          });
+        }).on('error', () => tryNext());
+      };
+      tryNext();
+    });
   }
 
   _nextProxy() {
@@ -79,6 +112,13 @@ class CrawlerPool {
 
   async launch() {
     if (this.browser) await this._closeBrowser();
+
+    // 首次启动时异步抓取免费代理
+    if (this._needFreeProxies) {
+      this._needFreeProxies = false;
+      await this._fetchFreeProxies();
+    }
+
     puppeteer = require('puppeteer-extra');
     const sp = require('puppeteer-extra-plugin-stealth');
     puppeteer.use(sp());

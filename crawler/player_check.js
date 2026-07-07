@@ -2,6 +2,8 @@ const fs = require('fs');
 const cheerio = require('cheerio');
 const path = require('path');
 const mysql = require('mysql2/promise');
+const https = require('https');
+const http = require('http');
 
 let puppeteer;
 let stealthPlugin;
@@ -34,24 +36,87 @@ class CrawlerPool {
     this.consecutiveFails = 0; // 连续失败次数
     this.proxies = [];        // 代理列表
     this.currentProxyIdx = 0;
+    this._needFreeProxies = false; // 需要异步抓取免费代理
     this._loadProxies();
   }
 
-  /** 从环境变量 / 命令行加载代理列表 */
+  /** 从环境变量 / 命令行加载代理列表，无配置时尝试抓取免费代理 */
   _loadProxies() {
     // 支持 PROXY_LIST 环境变量：'http://user:pass@host:port,http://user2:pass2@host2:port2'
     const envProxies = process.env.PROXY_LIST || '';
     if (envProxies) {
       this.proxies = envProxies.split(',').map(s => s.trim()).filter(Boolean);
       console.log(`  代理池: 已加载 ${this.proxies.length} 个代理`);
-    } else {
-      // 从命令行参数读取 --proxies=url1,url2,url3
-      const proxyArg = process.argv.find(a => a.startsWith('--proxies='));
-      if (proxyArg) {
-        this.proxies = proxyArg.replace('--proxies=', '').split(',').map(s => s.trim()).filter(Boolean);
-        console.log(`  代理池: 从 --proxies 加载 ${this.proxies.length} 个代理`);
-      }
+      return;
     }
+
+    // 从命令行参数读取 --proxies=url1,url2,url3
+    const proxyArg = process.argv.find(a => a.startsWith('--proxies='));
+    if (proxyArg) {
+      this.proxies = proxyArg.replace('--proxies=', '').split(',').map(s => s.trim()).filter(Boolean);
+      console.log(`  代理池: 从 --proxies 加载 ${this.proxies.length} 个代理`);
+      return;
+    }
+
+    // 无手动代理配置时，标记需要异步抓取免费代理
+    this._needFreeProxies = true;
+  }
+
+  /** 异步抓取免费代理列表（从公开代理 API） */
+  _fetchFreeProxies() {
+    return new Promise((resolve) => {
+      const urls = [
+        'https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/http/data.json',
+        'https://proxylist.geonode.com/api/proxy-list?limit=30&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps',
+      ];
+      let tried = 0;
+
+      const tryNext = () => {
+        if (tried >= urls.length) {
+          console.log('  ⚠ 免费代理源均不可用，将直连（可能被 Cloudflare 拦截）');
+          resolve();
+          return;
+        }
+        const url = urls[tried++];
+        const client = url.startsWith('https') ? https : http;
+
+        client.get(url, { timeout: 8000, headers: { 'User-Agent': 'curl/8.0' } }, (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => {
+            try {
+              const parsed = JSON.parse(data);
+              let list = [];
+
+              // proxifly 格式: [{ ip, port, protocols: ['http'] }]
+              if (Array.isArray(parsed)) {
+                list = parsed
+                  .filter((p) => p.ip && p.port && (!p.protocols || p.protocols.some((pr) => pr.includes('http'))))
+                  .map((p) => `http://${p.ip}:${p.port}`);
+              }
+              // geonode 格式: { data: [{ ip, port, protocols: ['http'] }] }
+              if (parsed.data && Array.isArray(parsed.data)) {
+                list = parsed.data
+                  .filter((p) => p.ip && p.port)
+                  .map((p) => `http://${p.ip}:${p.port}`);
+              }
+
+              if (list.length > 0) {
+                this.proxies = list;
+                console.log(`  免费代理池: 已加载 ${list.length} 个代理`);
+                resolve();
+              } else {
+                tryNext();
+              }
+            } catch {
+              tryNext();
+            }
+          });
+        }).on('error', () => tryNext());
+      };
+
+      tryNext();
+    });
   }
 
   /** 获取下一个代理（轮转），没有则返回 undefined */
@@ -86,6 +151,12 @@ class CrawlerPool {
   async launch() {
     if (this.browser) {
       await this._closeBrowser();
+    }
+
+    // 首次启动时异步抓取免费代理
+    if (this._needFreeProxies) {
+      this._needFreeProxies = false;
+      await this._fetchFreeProxies();
     }
 
     puppeteer = require('puppeteer-extra');
