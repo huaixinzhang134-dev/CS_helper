@@ -217,19 +217,15 @@ async function closeBrowser() {
 let dbPool = null;
 async function getDbConnection() {
   if (dbPool) return dbPool;
-  const host = process.env.DB_HOST || process.env.MYSQLHOST || 'mysql-production-0b76.up.railway.app';
-  const port = parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '3306', 10);
+  const host = process.env.DB_HOST || process.env.MYSQLHOST || 'hayabusa.proxy.rlwy.net';
+  const port = parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '16612', 10);
   const user = process.env.DB_USER || process.env.MYSQLUSER || 'root';
-  const password = process.env.DB_PASS || process.env.MYSQLPASSWORD || '';
+  const password = process.env.DB_PASS || process.env.MYSQLPASSWORD || 'ojfZTZhWxfsJgcnKswraKulftkRjbOLG';
   const database = process.env.DB_NAME || process.env.MYSQLDATABASE || 'railway';
 
   if (!password) {
-    console.warn('\n⚠ 未设置数据库密码，请在运行前设置环境变量:');
-    console.warn('   export DB_HOST=mysql-production-0b76.up.railway.app');
-    console.warn('   export DB_PORT=3306');
-    console.warn('   export DB_USER=root');
-    console.warn('   export DB_PASS=你的密码');
-    console.warn('   export DB_NAME=railway\n');
+    console.warn('\n⚠ 请在运行前设置数据库密码环境变量:');
+    console.warn('   export DB_PASS=你的Railway MySQL密码');
     return null;
   }
 
@@ -273,20 +269,28 @@ async function checkAllPositions() {
 
   const args = process.argv.slice(2);
   const useDb = args.includes('--db');
+  const quickMode = args.includes('--quick');
   const filterIds = args.filter(a => /^\d+$/.test(a));
   const filterNames = args.filter(a => !a.startsWith('-') && !/^\d+$/.test(a));
 
   let players = loadPlayers();
   console.log(`共加载 ${players.length} 个选手数据`);
 
-  if (useDb) console.log('模式: 检查 + 同步到数据库\n');
-  else console.log('模式: 仅检查（加 --db 同步到数据库）\n');
+  if (useDb) console.log('模式: 检查 + 同步到数据库');
+  else console.log('模式: 仅检查（加 --db 同步到数据库）');
+  if (quickMode) console.log('快速模式: 仅检查当前为"步枪手"的选手\n');
+  else console.log('');
 
   if (filterIds.length > 0 || filterNames.length > 0) {
     players = players.filter(p =>
       filterIds.includes(p._id) || filterNames.includes(p.name)
     );
     console.log(`筛选后待检查: ${players.length} 个选手\n`);
+  }
+  if (quickMode) {
+    const before = players.length;
+    players = players.filter(p => p.position === '步枪手' || !p.position);
+    console.log(`快速模式: 从 ${before} 人筛选出 ${players.length} 个"步枪手"待检查\n`);
   }
 
   if (players.length === 0) {
@@ -300,15 +304,23 @@ async function checkAllPositions() {
 
     // 如果启用 DB 同步，先连接数据库
     let dbConn = null;
-    if (useDb) {
+    const enableDb = useDb || quickMode;
+    if (enableDb) {
       dbConn = await getDbConnection();
       if (!dbConn) {
         console.log('⚠ 数据库连接失败，仅保存本地文件\n');
       }
     }
 
+    // 待同步到 DB 的变更队列
+    const pendingDbSync = [];
+
     for (let i = 0; i < players.length; i++) {
       const player = players[i];
+      if (player.position === '教练') {
+        console.log(`[${i + 1}/${players.length}] 跳过 ${player.name} (教练)`);
+        continue;
+      }
       console.log(`[${i + 1}/${players.length}] 检查 ${player.name} (${player._id})...`);
 
       const result = await checkPlayerPosition(player);
@@ -317,18 +329,34 @@ async function checkAllPositions() {
         correctedCount++;
         const idx = players.findIndex(p => p._id === result._id);
         if (idx !== -1) players[idx] = result;
-
-        if (dbConn) {
-          await syncPositionToDb(dbConn, result._id, result.name, result.position);
-        }
+        pendingDbSync.push({ id: result._id, name: result.name, position: result.position });
       }
 
       await delay(DELAY_BETWEEN_REQUESTS);
 
+      // 每 300 个选手或最后一批，批量同步到数据库
+      if (pendingDbSync.length > 0 && dbConn && ((i + 1) % 300 === 0 || i === players.length - 1)) {
+        console.log(`  ── 批量同步 ${pendingDbSync.length} 条位置变更到数据库...`);
+        for (const item of pendingDbSync) {
+          await syncPositionToDb(dbConn, item.id, item.name, item.position);
+        }
+        pendingDbSync.length = 0;
+      }
+
+      // 每 20 个保存一次本地文件
       if ((i + 1) % 20 === 0) {
         savePlayers(players);
         console.log(`--- 已保存进度: ${i + 1}/${players.length} ---\n`);
       }
+    }
+
+    // 最后一批同步
+    if (pendingDbSync.length > 0 && dbConn) {
+      console.log(`  ── 最后同步 ${pendingDbSync.length} 条位置变更到数据库...`);
+      for (const item of pendingDbSync) {
+        await syncPositionToDb(dbConn, item.id, item.name, item.position);
+      }
+      pendingDbSync.length = 0;
     }
 
     savePlayers(players);
