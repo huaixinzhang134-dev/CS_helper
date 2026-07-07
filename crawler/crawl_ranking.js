@@ -738,12 +738,18 @@ if (require.main === module) {
     console.log('模式: 全量爬取（排名 + 队伍详情 + 选手阵容）\n');
 
     (async () => {
-      const teams = await crawlRanking(DEFAULT_TOP, OUTPUT_FILE);
-      if (teams.length > 0) {
-        await crawlTeamDetails(teams);
-        console.log('\n全量爬取完成');
-      } else {
-        console.log('\n排名爬取失败，跳过队伍详情');
+      try {
+        const teams = await crawlRanking(DEFAULT_TOP, OUTPUT_FILE);
+        if (teams.length > 0) {
+          await crawlTeamDetails(teams);
+          console.log('\n全量爬取完成');
+        } else {
+          console.log('\n排名爬取失败，跳过队伍详情');
+        }
+      } finally {
+        await closeBrowser();
+        // 强制退出，避免 Puppeteer 残留进程卡住
+        process.exit(0);
       }
     })();
     return;
