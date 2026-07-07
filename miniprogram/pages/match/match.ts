@@ -70,7 +70,6 @@ Page({
 
   sortMatches(matches: any[]) {
     if (matches.length === 0) return { list: [], anchorId: '' };
-    if (matches.length === 0) return { list: [], anchorId: '' };
 
     const now = new Date().getTime();
 
