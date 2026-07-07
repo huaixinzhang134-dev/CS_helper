@@ -46,6 +46,12 @@ async function resolveTeamId(teamName, logoUrl) {
 /**
  * 构建统一 Match DTO（与 matches.js toMatchDTO 对齐）
  */
+function proxyLogo(url) {
+  if (!url || !url.includes('hltv.org')) return url || '';
+  // HLTV CDN 屏蔽外部请求，通过后端代理转发
+  return '/api/logo?url=' + encodeURIComponent(url);
+}
+
 function toMatchDTO(row) {
   return {
     _id: String(row.id),
@@ -54,12 +60,12 @@ function toMatchDTO(row) {
     status: row.status || 'Upcoming',
     teamA: {
       name: row.teamA_name || row.team_a_name || '',
-      logo: row.teamA_logo || '',
+      logo: proxyLogo(row.teamA_logo),
       score: row.team1_score || 0
     },
     teamB: {
       name: row.teamB_name || row.team_b_name || '',
-      logo: row.teamB_logo || '',
+      logo: proxyLogo(row.teamB_logo),
       score: row.team2_score || 0
     },
     time: row.match_date && row.match_time
