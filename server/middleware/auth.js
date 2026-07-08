@@ -9,7 +9,7 @@
 const crypto = require('crypto');
 
 // 从环境变量读取密钥，部署时务必设置
-const AUTH_SECRET = process.env.AUTH_SECRET || 'cs-match-auth-dev-secret';
+const AUTH_SECRET = process.env.AUTH_SECRET || 'change-me-in-production';
 
 /**
  * 生成 token
