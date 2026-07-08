@@ -52,6 +52,7 @@ router.post('/rooms', async (req, res, next) => {
       creator: { nickname: creatorNickname || '玩家1', avatar: creatorAvatar || '' },
       joiner: null,
       targetPlayer: {
+        _id: String(target.id),               // 兼容客户端 player._id === target._id 比对
         id: target.id,
         playerId: target.game_id,
         name: target.name,
@@ -98,6 +99,12 @@ router.post('/rooms/:id/join', async (req, res, next) => {
     }
 
     const { joinerNickname, joinerAvatar } = req.body;
+
+    // 房间人数上限2人，已有人加入则拒绝
+    if (room.joiner) {
+      return res.status(400).json({ code: 400, message: '房间已满，加入失败', data: null });
+    }
+
     room.joiner = { nickname: joinerNickname || '玩家2', avatar: joinerAvatar || '' };
     room.updatedAt = Date.now();
 

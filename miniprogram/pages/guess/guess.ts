@@ -390,6 +390,8 @@ Page({
             });
             this._stopPollingForPkProgress();
             this.submitGameResult(false, this.data.myAttempts);
+            // 同时向服务端报告失败结果，确保双方结果都记录在服务端
+            this.reportPkGameResult(false, this.data.myAttempts);
           }
         }
       } catch (err) {
