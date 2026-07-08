@@ -109,12 +109,11 @@
   <!-- Header -->
   <view class="header">
     <view class="title"><text class="highlight">弗一把</text></view>
-    <button
-      class="hint-btn {{hintUsed ? 'used' : (myAttempts > 6 ? '' : 'locked')}}"
-      wx:if="{{gameStatus === 'playing' && targetPlayer}}"
+    <view
+      class="hint-btn {{hintUsed ? 'used' : ''}}"
+      wx:if="{{gameStatus === 'playing' && targetPlayer && myAttempts > 6}}"
       bindtap="onGetHint"
-      disabled="{{hintUsed || myAttempts <= 6}}"
-    >获取提示</button>
+    >提示</view>
   </view>
 
   <!-- Game Board -->
