@@ -16,6 +16,7 @@ function toDTO(row) {
   return {
     _id: String(row.id),
     userId: row.user_id,
+    userName: row.user_name || row.user_id || '匿名用户',
     playerGameId: row.player_game_id,
     content: row.content,
     createdAt: row.created_at
@@ -42,8 +43,11 @@ router.get('/', async (req, res, next) => {
 
     const [rows, countRows] = await Promise.all([
       query(
-        `SELECT * FROM player_comments ${whereSQL}
-         ORDER BY created_at DESC, id DESC
+        `SELECT pc.*, u.nickname AS user_name
+         FROM player_comments pc
+         LEFT JOIN users u ON u.openid = pc.user_id
+         ${whereSQL}
+         ORDER BY pc.created_at DESC, pc.id DESC
          LIMIT ${pageSize} OFFSET ${offset}`,
         params
       ),
@@ -94,7 +98,11 @@ router.post('/', async (req, res, next) => {
       [userId, playerGameId, trimmed]
     );
 
-    const [rows] = await query('SELECT * FROM player_comments WHERE id = ?', [result.insertId]);
+    const [rows] = await query(
+      `SELECT pc.*, u.nickname AS user_name
+       FROM player_comments pc
+       LEFT JOIN users u ON u.openid = pc.user_id
+       WHERE pc.id = ?`, [result.insertId]);
     res.json({ code: 0, message: '发送成功', data: toDTO(rows[0]) });
   } catch (err) { next(err); }
 });

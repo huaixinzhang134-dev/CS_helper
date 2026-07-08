@@ -116,7 +116,7 @@
       bindlongpress="onCommentLongPress"
     >
       <view class="comment-header">
-        <text class="comment-user">{{item.userId}}</text>
+        <text class="comment-user">{{item.userName}}</text>
         <text class="comment-player">→ {{item.playerName}}</text>
         <text class="comment-team" wx:if="{{item.playerTeam}}"> · {{item.playerTeam}}</text>
       </view>

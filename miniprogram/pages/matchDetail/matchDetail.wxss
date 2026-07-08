@@ -275,7 +275,7 @@
   gap: 12rpx;
 }
 .pick-player-btn {
-  width: 25%;
+  width: 150rpx;
   flex-shrink: 0;
   height: 64rpx;
   line-height: 64rpx;
@@ -298,10 +298,15 @@
   padding: 0 24rpx;
   font-size: 24rpx;
   color: var(--text-primary);
+  caret-color: var(--accent-color);
   min-width: 0;
 }
+.ph {
+  color: var(--text-muted);
+  font-size: 24rpx;
+}
 .send-btn {
-  width: 25%;
+  width: 150rpx;
   flex-shrink: 0;
   height: 64rpx;
   line-height: 64rpx;

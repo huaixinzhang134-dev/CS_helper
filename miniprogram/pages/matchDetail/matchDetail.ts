@@ -17,6 +17,7 @@ interface DisplayComment {
   playerGameId: string;
   content: string;
   userId: string;
+  userName: string;
   createdAt: any;
   playerName: string;
   playerTeam: string;
@@ -168,6 +169,7 @@ Page({
       playerGameId: c.playerGameId,
       content: c.content,
       userId: c.userId,
+      userName: c.userName || c.userId || '匿名用户',
       createdAt: c.createdAt,
       playerName: player?.name || c.playerGameId,
       playerTeam: player?.team || '',

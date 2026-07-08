@@ -279,6 +279,7 @@ export const fetchMatchDetail = async (
 export interface CommentItem {
   _id: string;
   userId: string;
+  userName: string;
   playerGameId: string;
   content: string;
   createdAt: string | Date;
