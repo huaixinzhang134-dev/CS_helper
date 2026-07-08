@@ -189,6 +189,7 @@ Page({
     if (this.data.gameMode === 'personal') {
       // 个人模式：由服务端根据难度随机选择目标选手
       await this.startNewRound();
+      wx.showToast({ title: '游戏已开始', icon: 'none', duration: 1500 });
     } else if (this.data.gameMode === 'friend') {
       // PK模式：不需要前端加载选手池，服务端选择目标
       if (!this.data.userInfo) {
