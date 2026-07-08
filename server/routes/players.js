@@ -63,6 +63,46 @@ router.get('/', async (req, res, next) => {
 });
 
 /**
+ * GET /api/players/pool?difficulty=trivial|easy|hard|hell
+ * 根据难度返回选手池（用于猜一猜游戏，避免前端全量加载）
+ *   trivial：选手现役队伍在世界排名前30的战队中
+ *   easy：current_team 在 team_ranking 表中的选手（世界排名前60）
+ *   hard：有现役队伍的选手（含无排名战队）
+ *   hell：所有选手（含自由人、退役选手等）
+ */
+router.get('/pool', async (req, res, next) => {
+  try {
+    const difficulty = req.query.difficulty || 'hell';
+    let sql;
+    if (difficulty === 'trivial') {
+      sql = `SELECT p.* FROM player p
+             WHERE p.current_team IN (
+               SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY \`rank\` ASC LIMIT 30) AS top30
+             )
+             ORDER BY p.id ASC`;
+    } else if (difficulty === 'easy') {
+      sql = `SELECT p.* FROM player p
+             INNER JOIN team_ranking r ON r.team_name = p.current_team
+             ORDER BY p.id ASC`;
+    } else if (difficulty === 'hard') {
+      sql = `SELECT * FROM player
+             WHERE current_team IS NOT NULL AND current_team != ''
+             ORDER BY id ASC`;
+    } else {
+      sql = 'SELECT * FROM player ORDER BY id ASC';
+    }
+    const [rows] = await query(sql);
+    res.json({
+      code: 0,
+      message: '',
+      data: rows.map(toPlayerDTO)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * GET /api/players/count
  */
 router.get('/count', async (req, res, next) => {
@@ -86,6 +126,45 @@ router.get('/random', async (req, res, next) => {
     const [rows] = await query(
       'SELECT * FROM player ORDER BY RAND() LIMIT 1'
     );
+    if (rows.length === 0) {
+      return res.json({ code: 0, message: '', data: null });
+    }
+    res.json({ code: 0, message: '', data: toPlayerDTO(rows[0]) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/players/random-by-difficulty?difficulty=trivial|easy|hard|hell
+ * 根据难度随机选一个目标选手（单人模式和PK模式共用同一套难度逻辑）
+ *   trivial：选手现役队伍在世界排名前30的战队中
+ *   easy：选手现役队伍在 team_ranking 表中（世界排名前60）
+ *   hard：有现役队伍即可（含无排名战队）
+ *   hell：所有选手（含自由人/退役）
+ */
+router.get('/random-by-difficulty', async (req, res, next) => {
+  try {
+    const difficulty = req.query.difficulty || 'hell';
+    let sql;
+    if (difficulty === 'trivial') {
+      sql = `SELECT p.* FROM player p
+             WHERE p.current_team IN (
+               SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY \`rank\` ASC LIMIT 30) AS top30
+             )
+             ORDER BY RAND() LIMIT 1`;
+    } else if (difficulty === 'easy') {
+      sql = `SELECT p.* FROM player p
+             INNER JOIN team_ranking r ON r.team_name = p.current_team
+             ORDER BY RAND() LIMIT 1`;
+    } else if (difficulty === 'hard') {
+      sql = `SELECT * FROM player
+             WHERE current_team IS NOT NULL AND current_team != ''
+             ORDER BY RAND() LIMIT 1`;
+    } else {
+      sql = 'SELECT * FROM player ORDER BY RAND() LIMIT 1';
+    }
+    const [rows] = await query(sql);
     if (rows.length === 0) {
       return res.json({ code: 0, message: '', data: null });
     }

@@ -74,6 +74,13 @@
     <view class="modal-content">
       <view class="modal-title">选择难度</view>
       <view class="mode-buttons">
+        <button class="mode-btn" bindtap="selectDifficulty" data-diff="trivial">
+          <text class="mode-icon">🌱</text>
+          <view class="mode-text">
+            <text class="mode-name">极简</text>
+            <text class="mode-desc">目标选手来自世界排名前 30 的战队</text>
+          </view>
+        </button>
         <button class="mode-btn" bindtap="selectDifficulty" data-diff="easy">
           <text class="mode-icon">🌟</text>
           <view class="mode-text">
@@ -155,7 +162,7 @@
       <view class="result-box">
         <text wx:if="{{gameStatus === 'won'}}" class="result-text won">恭喜回答正确！</text>
         <text wx:if="{{gameStatus === 'lost'}}" class="result-text lost">正确答案: {{targetPlayer.name}}</text>
-        <button class="btn-restart" bindtap="checkAdLogic">下一局</button>
+        <button class="btn-restart" bindtap="onResultRestart">下一局</button>
       </view>
     </view>
 
@@ -243,8 +250,8 @@
     </view>
   </view>
 
-  <!-- Ad Modal (Simulated) -->
-  <view class="modal-mask" wx:if="{{showAdModal}}">
+  <!-- Ad Modal (预留) 暂时注释掉，广告是很之后的事 -->
+  <!-- <view class="modal-mask" wx:if="{{showAdModal}}">
     <view class="modal-content">
       <view class="modal-title">观看广告开始下一局？</view>
       <view class="modal-body">每日免费次数已用完，观看视频获取更多机会。</view>
@@ -253,5 +260,5 @@
         <button class="btn-primary" bindtap="onWatchAd">观看视频</button>
       </view>
     </view>
-  </view>
+  </view> -->
 </view>

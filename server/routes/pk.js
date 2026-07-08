@@ -67,6 +67,8 @@ router.post('/rooms', async (req, res, next) => {
       },
       creatorResult: null,  // { won, attempts }
       joinerResult: null,
+      creatorAttempts: 0,   // 实时尝试次数（用于对方进度展示）
+      joinerAttempts: 0,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -136,6 +138,8 @@ router.get('/rooms/:id', async (req, res, next) => {
         targetPlayer: room.targetPlayer,
         creatorResult: room.creatorResult,
         joinerResult: room.joinerResult,
+        creatorAttempts: room.creatorAttempts || 0,
+        joinerAttempts: room.joinerAttempts || 0,
         createdAt: room.createdAt,
       },
     });
@@ -145,8 +149,36 @@ router.get('/rooms/:id', async (req, res, next) => {
 });
 
 /**
+ * POST /api/pk/rooms/:id/attempt
+ * 报告当前尝试次数（用于对方实时看到你的猜测进度）
+ * Body: { role: 'creator'|'joiner', attempts: number }
+ */
+router.post('/rooms/:id/attempt', async (req, res, next) => {
+  try {
+    const room = rooms.get(req.params.id);
+    if (!room) {
+      return res.status(404).json({ code: 404, message: '房间不存在', data: null });
+    }
+    const { role, attempts } = req.body;
+    if (role === 'creator') {
+      room.creatorAttempts = attempts;
+    } else if (role === 'joiner') {
+      room.joinerAttempts = attempts;
+    }
+    room.updatedAt = Date.now();
+    res.json({
+      code: 0,
+      data: { creatorAttempts: room.creatorAttempts, joinerAttempts: room.joinerAttempts },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * POST /api/pk/rooms/:id/result
  * 报告游戏结果（玩家猜中或耗尽次数）
+ * 当一方已报告胜利时，另一方直接判负（先胜先赢）
  * Body: { role: 'creator'|'joiner', won: boolean, attempts: number }
  */
 router.post('/rooms/:id/result', async (req, res, next) => {
@@ -157,14 +189,27 @@ router.post('/rooms/:id/result', async (req, res, next) => {
     }
 
     const { role, won, attempts } = req.body;
-    if (role === 'creator') {
-      room.creatorResult = { won, attempts };
-    } else if (role === 'joiner') {
-      room.joinerResult = { won, attempts };
+
+    // 如果对方已报告胜利，则另一方直接判负，不能再赢
+    const otherRole = role === 'creator' ? 'joiner' : 'creator';
+    const otherResult = otherRole === 'creator' ? room.creatorResult : room.joinerResult;
+    if (otherResult && otherResult.won) {
+      // 对方已赢，当前玩家只能输
+      if (role === 'creator') {
+        room.creatorResult = { won: false, attempts };
+      } else {
+        room.joinerResult = { won: false, attempts };
+      }
+    } else {
+      if (role === 'creator') {
+        room.creatorResult = { won, attempts };
+      } else if (role === 'joiner') {
+        room.joinerResult = { won, attempts };
+      }
     }
     room.updatedAt = Date.now();
 
-    // 如果双方都完成了，判断胜负
+    // 判断胜负
     let winner = null;
     if (room.creatorResult && room.joinerResult) {
       const c = room.creatorResult;
@@ -176,6 +221,10 @@ router.post('/rooms/:id/result', async (req, res, next) => {
       } else {
         winner = 'draw';
       }
+    } else if (room.creatorResult && room.creatorResult.won) {
+      winner = 'creator'; // 等待对手结束
+    } else if (room.joinerResult && room.joinerResult.won) {
+      winner = 'joiner'; // 等待对手结束
     }
 
     res.json({
@@ -195,24 +244,33 @@ router.post('/rooms/:id/result', async (req, res, next) => {
 
 /**
  * 根据难度从 player 表中随机选一个目标选手
+ * trivial：选手现役队伍在世界排名前30的战队中
+ * easy：选手现役队伍必须在 team_ranking 表中（世界排名前60）
+ * hard：有现役队伍即可（含无排名战队）
+ * hell：所有选手（含自由人/退役）
  */
 async function selectTargetPlayer(difficulty) {
-  let sql = 'SELECT * FROM player WHERE 1=1';
-  const params = [];
-
-  if (difficulty === 'easy') {
-    // 简单：有现役队伍且 name != real_name（排除教练/工作人员）
-    sql += ' AND current_team IS NOT NULL AND current_team != ""';
+  let sql;
+  if (difficulty === 'trivial') {
+    sql = `SELECT p.* FROM player p
+           WHERE p.current_team IN (
+             SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY \`rank\` ASC LIMIT 30) AS top30
+           )
+           ORDER BY RAND() LIMIT 1`;
+  } else if (difficulty === 'easy') {
+    sql = `SELECT p.* FROM player p
+           INNER JOIN team_ranking r ON r.team_name = p.current_team
+           ORDER BY RAND() LIMIT 1`;
   } else if (difficulty === 'hard') {
-    // 困难：有现役队伍
-    sql += ' AND current_team IS NOT NULL AND current_team != ""';
+    sql = `SELECT * FROM player
+           WHERE current_team IS NOT NULL AND current_team != ''
+           ORDER BY RAND() LIMIT 1`;
+  } else {
+    sql = 'SELECT * FROM player ORDER BY RAND() LIMIT 1';
   }
-  // 地狱：不过滤
-
-  sql += ' ORDER BY RAND() LIMIT 1';
 
   try {
-    const [rows] = await query(sql, params);
+    const [rows] = await query(sql);
     if (rows.length === 0) {
       // 兜底：去掉所有条件再试
       const [fallback] = await query('SELECT * FROM player ORDER BY RAND() LIMIT 1');

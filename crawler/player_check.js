@@ -52,7 +52,8 @@ async function initBrowser() {
       '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
       '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote',
       '--disable-gpu', '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process'
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-background-networking', '--disable-background-timer-throttling'
     ]
   });
 
@@ -82,7 +83,8 @@ async function fetchPageByUrl(url, retryCount = 0) {
 
   try {
     console.log(`  访问: ${url}`);
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    // 使用 'load' 而不是 'domcontentloaded'，更稳定但稍慢
+    await page.goto(url, { waitUntil: 'load', timeout: 90000 });
 
     try {
       await page.waitForSelector('.playerRealname, .playerNickname', { timeout: 30000 });
@@ -96,7 +98,7 @@ async function fetchPageByUrl(url, retryCount = 0) {
         const waitTime = (retryCount + 1) * 10000;
         console.log(`  ⚠ Cloudflare 拦截，${(waitTime / 1000).toFixed(0)}s 后重试 (${retryCount + 1}/3)...`);
         await delay(waitTime);
-        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.reload({ waitUntil: 'load', timeout: 90000 });
         return fetchPageByUrl(url, retryCount + 1);
       } else {
         throw new Error(`Cloudflare 拦截，已重试 3 次: ${url}`);
@@ -105,6 +107,21 @@ async function fetchPageByUrl(url, retryCount = 0) {
 
     return html;
   } catch (err) {
+    // "操作被取消" 通常也是 Cloudflare/网络问题，统一重试
+    const isCanceled = err.message.includes('canceled') || err.message.includes('cancelled');
+    if (isCanceled && retryCount < 3) {
+      const waitTime = (retryCount + 1) * 8000;
+      console.log(`  ⚠ 请求被取消 (可能是 Cloudflare 中断)，${(waitTime / 1000).toFixed(0)}s 后重试 (${retryCount + 1}/3)...`);
+
+      // 先关闭当前页面重新打开一个新页面，避免页面状态损坏
+      try { await page.close(); } catch (_) {}
+      page = await browser.newPage();
+      await page.setViewport({ width: 1920, height: 1080 });
+
+      await delay(waitTime);
+      return fetchPageByUrl(url, retryCount + 1);
+    }
+
     console.error(`  ✗ 请求失败: ${err.message}`);
     throw err;
   }
@@ -236,6 +253,12 @@ async function checkAllPositions() {
   const useDb = args.includes('--db');
   const quickMode = args.includes('--quick');
 
+  // 分片参数：--start=N（跳过前N个，默认0）--limit=N（最多处理N个，默认全部）
+  const startArg = args.find(a => a.startsWith('--start='));
+  const limitArg = args.find(a => a.startsWith('--limit='));
+  const chunkStart = startArg ? parseInt(startArg.split('=')[1], 10) || 0 : 0;
+  const chunkLimit = limitArg ? parseInt(limitArg.split('=')[1], 10) || Infinity : Infinity;
+
   let players = loadPlayers();
   console.log(`共加载 ${players.length} 个选手数据`);
 
@@ -247,6 +270,13 @@ async function checkAllPositions() {
 
   if (players.length === 0) { console.log('没有需要检查的选手'); return; }
 
+  // 应用分片
+  if (chunkStart > 0 || chunkLimit < Infinity) {
+    const chunkEnd = Math.min(chunkStart + chunkLimit, players.length);
+    players = players.slice(chunkStart, chunkEnd);
+    console.log(`分片模式: 处理第 ${chunkStart + 1}～${chunkEnd} 个，共 ${players.length} 人\n`);
+  }
+
   // 断点续检
   const progress = loadProgress();
   let startIndex = 0;
@@ -256,10 +286,30 @@ async function checkAllPositions() {
   }
 
   const pendingDbSync = [];
+  let dbConn = null;
+
+  // === 信号处理：外力终止时把当前批次未写入的变动刷进 DB ===
+  let signalReceived = false;
+  async function flushOnSignal(signal) {
+    if (signalReceived) return;
+    signalReceived = true;
+    console.log(`\n⚠ 收到 ${signal} 信号，正在刷新 ${pendingDbSync.length} 条待写入数据...`);
+    if (pendingDbSync.length > 0 && dbConn) {
+      for (const item of pendingDbSync) {
+        try { await syncPositionToDb(dbConn, item.id, item.name, item.position); } catch (_) {}
+      }
+      pendingDbSync.length = 0;
+    }
+    saveProgress(startIndex, players.length);
+    await closeBrowser();
+    if (dbPool) { try { await dbPool.end(); } catch {} }
+    process.exit(0);
+  }
+  process.on('SIGINT', () => flushOnSignal('SIGINT'));
+  process.on('SIGTERM', () => flushOnSignal('SIGTERM'));
 
   try {
     let correctedCount = 0;
-    let dbConn = null;
     const enableDb = useDb || quickMode;
     if (enableDb) dbConn = await getDbConnection();
 

@@ -1,4 +1,4 @@
-import { fetchPlayerListAll, searchPlayers, fetchRankedTeamNames, submitGuessRecord, createPkRoom, joinPkRoom, getPkRoom, reportPkResult, Player } from '../../services/api';
+import { fetchRandomPlayerByDifficulty, searchPlayers, submitGuessRecord, createPkRoom, joinPkRoom, getPkRoom, reportPkResult, reportPkAttempt, Player } from '../../services/api';
 import { STATIC_BASE } from '../../config';
 
 // HLTV 占位剪影 URL
@@ -49,7 +49,6 @@ Page({
     loading: true,
     targetPlayer: null as Player | null, // 目标选手
     targetAvatarUrl: '', // 目标选手头像URL
-    allPlayers: [] as Player[], // 所有选手缓存
     searchResults: [] as Player[], // 搜索结果
     searchQuery: '', // 搜索关键词
     searchPage: 0, // 当前搜索页码
@@ -65,8 +64,7 @@ Page({
 
     // 难度选择
     showDifficultySelection: false, // 显示难度选择弹窗
-    difficulty: '' as 'easy' | 'hard' | 'hell' | '', // 难度等级
-    rankedTeamNames: [] as string[], // 排名队伍名称缓存
+    difficulty: '' as 'trivial' | 'easy' | 'hard' | 'hell' | '', // 难度等级
 
     // 新增游戏模式相关
     showModeSelection: true, // 显示模式选择弹窗
@@ -123,8 +121,13 @@ Page({
   },
 
   onUnload() {
-    // 离开页面时清理轮询
+    // 离开页面时清理所有轮询
     this._stopPollingForJoiner();
+    this._stopPollingForPkProgress();
+    if ((this as any)._pkResultTimer) {
+      clearInterval((this as any)._pkResultTimer);
+      (this as any)._pkResultTimer = null;
+    }
   },
 
   /**
@@ -177,31 +180,17 @@ Page({
   },
 
   /**
-   * 选择难度 → 开始游戏
+   * 选择难度 → 加载选手池 → 开始游戏
    */
   async selectDifficulty(e: any) {
     const diff = e.currentTarget.dataset.diff;
     this.setData({ difficulty: diff, showDifficultySelection: false });
 
-    // 简单模式需要预取排名队伍名称
-    if (diff === 'easy') {
-      if (this.data.rankedTeamNames.length === 0) {
-        wx.showLoading({ title: '加载排名数据...' });
-        const res = await fetchRankedTeamNames();
-        wx.hideLoading();
-        if (res.success && res.data.length > 0) {
-          this.setData({ rankedTeamNames: res.data });
-        } else {
-          wx.showToast({ title: '排名数据加载失败，使用默认难度', icon: 'none' });
-          this.setData({ difficulty: 'hard' });
-        }
-      }
-    }
-
     if (this.data.gameMode === 'personal') {
-      this.startNewRound();
+      // 个人模式：由服务端根据难度随机选择目标选手
+      await this.startNewRound();
     } else if (this.data.gameMode === 'friend') {
-      // 好友PK需要登录
+      // PK模式：不需要前端加载选手池，服务端选择目标
       if (!this.data.userInfo) {
         this.loginForFriendPK();
       } else {
@@ -248,6 +237,11 @@ Page({
    */
   cancelFriendPK() {
     this._stopPollingForJoiner();
+    this._stopPollingForPkProgress();
+    if ((this as any)._pkResultTimer) {
+      clearInterval((this as any)._pkResultTimer);
+      (this as any)._pkResultTimer = null;
+    }
     this.setData({
       showFriendInvite: false,
       showModeSelection: true,
@@ -255,6 +249,7 @@ Page({
       pkRoomId: '',
       isRoomOwner: false,
       targetPlayer: null,
+      opponentAttempts: 0,
     });
   },
 
@@ -336,6 +331,8 @@ Page({
           });
           wx.showToast({ title: '对手已加入！', icon: 'success' });
           this._stopPollingForJoiner();
+          // 开始轮询PK游戏进度（对手尝试次数、是否已猜中）
+          this._startPollingForPkProgress();
         }
       } catch (err) {
         // 轮询失败静默处理
@@ -351,6 +348,96 @@ Page({
       clearInterval((this as any)._pkPollTimer);
       (this as any)._pkPollTimer = null;
     }
+  },
+
+  /**
+   * 开始轮询PK游戏进度（获取对方尝试次数、检查对方是否已猜中）
+   */
+  _startPollingForPkProgress() {
+    this._stopPollingForPkProgress();
+    if (!this.data.pkRoomId) return;
+
+    (this as any)._pkProgressTimer = setInterval(async () => {
+      if (!this.data.pkRoomId || this.data.gameStatus === 'won' || this.data.gameStatus === 'lost') {
+        return; // 游戏已结束，停止轮询
+      }
+      try {
+        const res = await getPkRoom(this.data.pkRoomId);
+        if (res.success && res.data) {
+          const room = res.data;
+          const role = this.data.isRoomOwner ? 'creator' : 'joiner';
+          const opponentRole = this.data.isRoomOwner ? 'joiner' : 'creator';
+
+          // 更新对方尝试次数
+          const oppAttempts = opponentRole === 'joiner' ? (room.joinerAttempts || 0) : (room.creatorAttempts || 0);
+          if (oppAttempts !== this.data.opponentAttempts) {
+            this.setData({ opponentAttempts: oppAttempts });
+          }
+
+          // 检查对方是否已猜中（对方 result.won === true）
+          const oppResult = opponentRole === 'joiner' ? room.joinerResult : room.creatorResult;
+          if (oppResult && oppResult.won && this.data.gameStatus === 'playing') {
+            // 对方已猜中，当前玩家判负
+            this.setData({
+              gameStatus: 'lost',
+              pkResult: {
+                type: 'lose',
+                message: `对手已猜中！答案是${room.targetPlayer?.name || ''}`
+              },
+              showResultModal: true,
+              resultTitle: '😞 你输了',
+              resultContent: `对手在第${oppResult.attempts}次猜中了答案！`,
+            });
+            this._stopPollingForPkProgress();
+            this.submitGameResult(false, this.data.myAttempts);
+          }
+        }
+      } catch (err) {
+        // 静默处理
+      }
+    }, 2000); // 每2秒轮询一次
+  },
+
+  /**
+   * 停止PK进度轮询
+   */
+  _stopPollingForPkProgress() {
+    if ((this as any)._pkProgressTimer) {
+      clearInterval((this as any)._pkProgressTimer);
+      (this as any)._pkProgressTimer = null;
+    }
+  },
+
+  /**
+   * 开始轮询PK最终结果（自己已结束后，等待对方结果）
+   */
+  _startPollingForPkResult() {
+    // 先清除进度轮询
+    this._stopPollingForPkProgress();
+
+    if ((this as any)._pkResultTimer) clearInterval((this as any)._pkResultTimer);
+    if (!this.data.pkRoomId) return;
+
+    let pollCount = 0;
+    (this as any)._pkResultTimer = setInterval(async () => {
+      pollCount++;
+      if (pollCount > 30) { // 最多等60秒
+        clearInterval((this as any)._pkResultTimer);
+        (this as any)._pkResultTimer = null;
+        return;
+      }
+      try {
+        const res = await getPkRoom(this.data.pkRoomId);
+        if (res.success && res.data) {
+          const room = res.data;
+          // 如果双方都完成，显示最终胜负
+          if (room.creatorResult && room.joinerResult) {
+            clearInterval((this as any)._pkResultTimer);
+            (this as any)._pkResultTimer = null;
+          }
+        }
+      } catch (err) {}
+    }, 2000);
   },
 
   /**
@@ -406,6 +493,8 @@ Page({
           myAttempts: 0,
           showModeSelection: false,
         });
+        // 开始轮询PK游戏进度
+        this._startPollingForPkProgress();
       } else {
         wx.showToast({ title: res.message || '加入房间失败', icon: 'none' });
       }
@@ -416,82 +505,47 @@ Page({
   },
 
   /**
-   * 初始化游戏
+   * 初始化游戏（不再全量加载选手，改为难度选择后懒加载）
    */
   async initGame() {
-    this.setData({ loading: true });
-    try {
-      const res = await fetchPlayerListAll();
-      if (res.success && res.data.length > 0) {
-        this.setData({ allPlayers: res.data });
-        if (this.data.gameMode === 'personal') {
-          this.startNewRound();
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load players', err);
-      wx.showToast({ title: '加载失败', icon: 'none' });
-    } finally {
-      this.setData({ loading: false });
-    }
+    this.setData({ loading: false });
   },
 
   /**
-   * 开始新回合
+   * 开始新回合（由服务端根据难度随机选目标）
    */
-  startNewRound() {
-    const { allPlayers, difficulty, rankedTeamNames } = this.data;
-    if (allPlayers.length === 0) return;
+  async startNewRound() {
+    const difficulty = this.data.difficulty || 'hell';
+    wx.showLoading({ title: '加载选手...' });
+    try {
+      const res = await fetchRandomPlayerByDifficulty(difficulty);
+      wx.hideLoading();
+      if (!res.success || !res.data) {
+        wx.showToast({ title: '获取选手失败', icon: 'none' });
+        return;
+      }
+      const target = res.data;
 
-    // 根据难度筛选目标池
-    let pool = allPlayers;
-    if (difficulty === 'easy' && rankedTeamNames.length > 0) {
-      // 简单：目标选手的队伍必须在 team_ranking 表中
-      pool = allPlayers.filter(p => p.team && rankedTeamNames.includes(p.team));
-      if (pool.length === 0) {
-        wx.showToast({ title: '当前排名数据为空，切换至普通难度', icon: 'none' });
-        pool = allPlayers;
-      }
-    } else if (difficulty === 'hard') {
-      // 困难：目标选手必须有现役队伍
-      pool = allPlayers.filter(p => p.team && p.team.trim() !== '');
-      if (pool.length === 0) {
-        wx.showToast({ title: '没有符合条件的选手', icon: 'none' });
-        pool = allPlayers;
-      }
+      // 单人模式无限次，PK模式8次
+      const maxAttempts = this.data.gameMode === 'friend' ? MAX_PK_ATTEMPTS :
+                         (this.data.gameMode === 'personal' ? UNLIMITED_ATTEMPTS : MAX_ATTEMPTS);
+
+      this.setData({
+        targetPlayer: target,
+        targetAvatarUrl: normalizeAvatarUrl(target.avatar),
+        guesses: [],
+        attemptsLeft: maxAttempts,
+        gameStatus: 'playing',
+        searchQuery: '',
+        searchResults: [],
+        showAdModal: false,
+        pkResult: null,
+        myAttempts: 0
+      });
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: '加载失败', icon: 'none' });
     }
-    // 地狱：不做筛选，使用全部选手
-
-    // 随机选择一个目标选手
-    const randomIndex = Math.floor(Math.random() * pool.length);
-    const target = pool[randomIndex];
-
-    // 单人模式无限次，PK模式8次
-    const maxAttempts = this.data.gameMode === 'friend' ? MAX_PK_ATTEMPTS :
-                       (this.data.gameMode === 'personal' ? UNLIMITED_ATTEMPTS : MAX_ATTEMPTS);
-
-    this.setData({
-      targetPlayer: target,
-      targetAvatarUrl: normalizeAvatarUrl(target.avatar),
-      guesses: [],
-      attemptsLeft: maxAttempts,
-      gameStatus: 'playing',
-      searchQuery: '',
-      searchResults: [],
-      showAdModal: false,
-      pkResult: null,
-      myAttempts: 0
-    });
-
-    // 如果是PK模式，保存目标选手到房间
-    if (this.data.gameMode === 'friend' && this.data.pkRoomId) {
-      const room = wx.getStorageSync('pkRoom_' + this.data.pkRoomId);
-      if (room) {
-        room.targetPlayer = target;
-        wx.setStorageSync('pkRoom_' + this.data.pkRoomId, room);
-      }
-    }
-
   },
 
   /**
@@ -589,19 +643,9 @@ Page({
     // 如果没有目标选手，先开始一局游戏
     if (!this.data.targetPlayer) {
       this.setData({ gameMode: 'personal' });
-      // 如果 allPlayers 为空（还没加载完），提示等待
-      if (this.data.allPlayers.length === 0) {
-        wx.showToast({ title: '数据加载中，请稍候...', icon: 'none' });
-        this.setData({ gameMode: '' });
-        return;
-      }
-      this.startNewRound();
-      // 再次检查 startNewRound 是否成功设置了 targetPlayer
-      if (!this.data.targetPlayer) {
-        wx.showToast({ title: '数据加载中，请稍候...', icon: 'none' });
-        this.setData({ gameMode: '' });
-        return;
-      }
+      wx.showToast({ title: '请先选择难度开始游戏', icon: 'none' });
+      this.setData({ gameMode: '' });
+      return;
     }
 
     // 清除搜索结果和输入
@@ -625,6 +669,21 @@ Page({
       wx.showToast({ title: '数据未就绪，请稍候...', icon: 'none' });
       return;
     }
+
+    // PK模式：校验登录
+    if (this.data.gameMode === 'friend' && !this.data.userInfo) {
+      wx.showModal({
+        title: '需要登录',
+        content: 'PK模式需要先登录，请前往"我的"页面进行微信登录',
+        success: (res) => {
+          if (res.confirm) {
+            wx.switchTab({ url: '/pages/user/index' });
+          }
+        }
+      });
+      return;
+    }
+
     const guesses = this.data.guesses;
 
     // 检查是否已经猜过
@@ -634,10 +693,9 @@ Page({
     }
 
     const feedback: GuessFeedback['status'] = {
-      // 战队判断：双方当前所属战队相同=正确(绿)；猜测选手曾在目标选手现役/历史战队待过 或 目标选手曾在猜测选手现役战队待过=接近(黄)
+      // 战队判断：当前战队相同=正确(绿)；猜测选手的当前战队是目标选手的曾经所属战队=接近(黄)
       team: player.team === target.team ? 'correct' :
-        ((player.formerTeams || []).includes(target.team) ||
-         (target.formerTeams || []).includes(player.team) ? 'close' : 'incorrect'),
+        ((target.formerTeams || []).includes(player.team) ? 'close' : 'incorrect'),
       // 国家判断：国家相同=绿；region相同但国家不同=黄；均不同=无色
       country: player.country === target.country ? 'correct' :
         (player.region && target.region && player.region === target.region ? 'close' : 'incorrect'),
@@ -665,11 +723,12 @@ Page({
 
       // PK模式处理
       if (this.data.gameMode === 'friend') {
-        this.handlePKWin(myAttempts);
         pkResult = {
           type: 'win',
           message: `胜利！你在第${myAttempts}次猜中了！`
         };
+        // 向服务端报告胜利
+        this.reportPkGameResult(true, myAttempts);
       }
     } else if (!isUnlimitedMode && newAttempts <= 0) {
       newStatus = 'lost';
@@ -680,6 +739,8 @@ Page({
           type: 'lose',
           message: `你输了，答案是${target.name}`
         };
+        // 向服务端报告失败
+        this.reportPkGameResult(false, myAttempts);
       }
     }
 
@@ -691,7 +752,12 @@ Page({
       pkResult
     });
 
-    // 非PK模式且游戏结束时，异步提交记录到后端
+    // PK模式：每次猜测后上报尝试次数，并拉取对方进度
+    if (this.data.gameMode === 'friend' && this.data.pkRoomId) {
+      this.syncPkAttempts(myAttempts);
+    }
+
+    // 游戏结束时提交记录
     if (newStatus === 'won' || newStatus === 'lost') {
       this.submitGameResult(newStatus === 'won', myAttempts);
     }
@@ -699,7 +765,8 @@ Page({
     // 显示结果提示
     if (newStatus === 'won' || newStatus === 'lost') {
       if (this.data.gameMode === 'friend') {
-        // PK模式：显示结果，不自动开始新回合
+        // PK模式：显示结果，同时开始轮询对方是否也已结束
+        this._startPollingForPkResult();
         setTimeout(() => {
           this.setData({
             showResultModal: true,
@@ -714,7 +781,7 @@ Page({
         const content = newStatus === 'won'
           ? (isUnlimited
             ? `恭喜猜对了选手 ${target.name}！`
-            : `你用了 ${this.data.attemptsLeft - 1} 次机会猜对了选手 ${target.name}！`)
+            : `你用了 ${myAttempts} 次机会猜对了选手 ${target.name}！`)
           : `很遗憾，正确答案是 ${target.name}`;
 
         this.setData({
@@ -727,48 +794,65 @@ Page({
   },
 
   /**
-   * 处理PK胜利
+   * PK模式：上报当前尝试次数到服务端
    */
-  handlePKWin(attempts: number) {
-    const userInfo = this.data.userInfo;
-    if (userInfo && attempts <= MAX_PK_ATTEMPTS) {
-      userInfo.winCount += 1;
-      wx.setStorageSync('userInfo', userInfo);
-      this.setData({ userInfo });
-      wx.showToast({ title: '胜场+1！', icon: 'success' });
+  async syncPkAttempts(attempts: number) {
+    if (!this.data.pkRoomId || !this.data.userInfo) return;
+    const role = this.data.isRoomOwner ? 'creator' : 'joiner';
+    try {
+      const res = await reportPkAttempt(this.data.pkRoomId, role, attempts);
+      if (res.success && res.data) {
+        // 更新对方的尝试次数
+        if (role === 'creator') {
+          this.setData({ opponentAttempts: res.data.joinerAttempts });
+        } else {
+          this.setData({ opponentAttempts: res.data.creatorAttempts });
+        }
+      }
+    } catch (err) {
+      // 静默失败
     }
-    // PK模式的胜场由 submitGameResult 统一记录到后端
+  },
+
+  /**
+   * PK模式：向服务端报告游戏结果
+   */
+  async reportPkGameResult(won: boolean, attempts: number) {
+    if (!this.data.pkRoomId || !this.data.userInfo) return;
+    const role = this.data.isRoomOwner ? 'creator' : 'joiner';
+    try {
+      await reportPkResult(this.data.pkRoomId, role, won, attempts);
+    } catch (err) {
+      console.error('reportPkResult failed', err);
+    }
   },
 
   /**
    * 广告/重置逻辑
    * 单人模式无限制，直接开始新游戏
    */
-  checkAdLogic() {
-    if (this.data.gameMode === 'personal') {
-      // 单人模式无次数限制，直接开始新游戏
-      this.startNewRound();
-    } else {
-      // 其他模式显示广告弹窗
-      this.setData({ showAdModal: true });
-    }
-  },
+  // async checkAdLogic() {
+  //   if (this.data.gameMode === 'personal') {
+  //     await this.startNewRound();
+  //   } else {
+  //     this.setData({ showAdModal: true });
+  //   }
+  // },
 
-  onWatchAd() {
-    wx.showLoading({ title: '广告播放中...' });
-    setTimeout(() => {
-      wx.hideLoading();
-      this.setData({ showAdModal: false });
-      this.startNewRound();
-      wx.showToast({ title: '获得新回合机会!', icon: 'success' });
-    }, 2000); // 模拟2秒广告
-  },
+  // onWatchAd() {
+  //   wx.showLoading({ title: '广告播放中...' });
+  //   setTimeout(() => {
+  //     wx.hideLoading();
+  //     this.setData({ showAdModal: false });
+  //     this.startNewRound();
+  //     wx.showToast({ title: '获得新回合机会!', icon: 'success' });
+  //   }, 2000);
+  // },
 
-  onSkipAd() {
-    // 假设可以跳过，或者跳过就不能玩了？这里设计为跳过也可以玩，但提示一下
-    this.setData({ showAdModal: false });
-    this.startNewRound();
-  },
+  // onSkipAd() {
+  //   this.setData({ showAdModal: false });
+  //   this.startNewRound();
+  // },
 
   /**
    * 结算弹窗：点击空白仅关闭弹窗，保留当前页面
@@ -788,11 +872,16 @@ Page({
    * 结算弹窗：再来一局按钮 → 重置并开始新回合
    * PK模式结算后回到模式选择
    */
-  onResultRestart() {
+  async onResultRestart() {
     this.setData({ showResultModal: false });
     if (this.data.gameMode === 'friend') {
       // PK模式回到选择界面
       this._stopPollingForJoiner();
+      this._stopPollingForPkProgress();
+      if ((this as any)._pkResultTimer) {
+        clearInterval((this as any)._pkResultTimer);
+        (this as any)._pkResultTimer = null;
+      }
       this.setData({
         showModeSelection: true,
         gameMode: '',
@@ -800,6 +889,7 @@ Page({
         isRoomOwner: false,
         opponentInfo: null,
         myAttempts: 0,
+        opponentAttempts: 0,
         targetPlayer: null,
         targetAvatarUrl: '',
         guesses: [],
@@ -807,7 +897,7 @@ Page({
         pkResult: null,
       });
     } else {
-      this.checkAdLogic();
+      await this.startNewRound();
     }
   },
 

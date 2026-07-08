@@ -28,16 +28,14 @@ async function resolveTeamId(teamName, logoUrl) {
 
   const [rows] = await query('SELECT id, logo_url FROM team WHERE name = ? LIMIT 1', [name]);
   if (rows.length > 0) {
-    // 🔁 总是覆盖队标：5eplay 的数据是最新的，不管之前有没有 logo
-    if (logoUrl && logoUrl !== (rows[0].logo_url || '')) {
-      await query('UPDATE team SET logo_url = ? WHERE id = ?', [logoUrl, rows[0].id]);
-    }
+    // 不覆盖已有队标：5eplay 的 logo 是 5e 域名，HLTV CDN URL 才是正确的
+    // 队标由 ranking.yml 爬虫（crawl_ranking.js）从 HLTV 获取
     return rows[0].id;
   }
 
   const [result] = await query(
     'INSERT INTO team (name, region, member_count, logo_url) VALUES (?, ?, 0, ?)',
-    [name, 'Other', logoUrl || '']
+    [name, 'Other', '']  // 新队伍也不写 5eplay 的 logo，等 HLTV 爬虫来补充
   );
   console.log(`[sync] 自动创建新战队: ${name} (id=${result.insertId})`);
   return result.insertId;

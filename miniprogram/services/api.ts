@@ -173,6 +173,29 @@ export const fetchPlayerListAll = async (): Promise<{ success: boolean; data: Pl
 };
 
 /**
+ * 根据难度获取选手池（替代全量 fetchPlayerListAll）
+ * easy：world top 60 排名战队内选手
+ * hard：所有现役选手
+ * hell：所有选手（含退役/自由人）
+ */
+export const fetchPlayerPoolByDifficulty = async (
+  difficulty: string
+): Promise<{ success: boolean; data: Player[] }> => {
+  const res = await get<Player[]>('/players/pool', { difficulty });
+  return { success: res.success, data: res.data ?? [] };
+};
+
+/**
+ * 根据难度随机选一个目标选手（单人模式和PK模式共用同一套难度逻辑）
+ */
+export const fetchRandomPlayerByDifficulty = async (
+  difficulty: string
+): Promise<{ success: boolean; data: Player | null }> => {
+  const res = await get<Player>('/players/random-by-difficulty', { difficulty });
+  return { success: res.success, data: res.data };
+};
+
+/**
  * 分页获取选手
  */
 export const fetchPlayerListPaginated = async (
@@ -562,4 +585,15 @@ export const reportPkResult = async (
   attempts: number
 ): Promise<{ success: boolean; data: { winner: string | null } | null; message?: string }> => {
   return await post<PkRoom>(`/pk/rooms/${roomId}/result`, { roomId, role, won, attempts });
+};
+
+/**
+ * 报告当前尝试次数（用于同步双方进度条）
+ */
+export const reportPkAttempt = async (
+  roomId: string,
+  role: 'creator' | 'joiner',
+  attempts: number
+): Promise<{ success: boolean; data: { creatorAttempts: number; joinerAttempts: number } | null }> => {
+  return await post<{ creatorAttempts: number; joinerAttempts: number }>(`/pk/rooms/${roomId}/attempt`, { role, attempts });
 };

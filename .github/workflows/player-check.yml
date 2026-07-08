@@ -7,8 +7,12 @@ on:
 
 jobs:
   check:
-    name: 检查选手位置（步枪手 → 狙击手/指挥）
+    name: 检查选手位置（第 ${{ matrix.chunk }} 组）
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        chunk: [0, 1, 2, 3, 4, 5]
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v5
@@ -38,7 +42,7 @@ jobs:
           google-chrome --version
 
       - name: 检查选手位置（快速模式：仅步枪手）
-        run: node player_check.js --quick
+        run: node player_check.js --quick --start=$((${{ matrix.chunk }} * 1000)) --limit=1000
         working-directory: crawler
         env:
           NODE_ENV: production
