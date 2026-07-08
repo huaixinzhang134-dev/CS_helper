@@ -81,6 +81,11 @@ Page({
     myName: '我',
     opponentAvatar: '/assets/icons/user.png',
     opponentName: '对手',
+
+    // 提示功能
+    hintUsed: false,         // 本局是否已用过提示
+    showHintModal: false,    // 提示弹窗
+    hintContent: '',         // 提示内容（完整文本）
   },
 
   onLoad(options: any) {
@@ -277,6 +282,9 @@ Page({
           attemptsLeft: MAX_PK_ATTEMPTS,
           gameStatus: 'playing',
           myAttempts: 0,
+          hintUsed: false,
+          showHintModal: false,
+          hintContent: '',
         });
 
         // 开始轮询等待对手加入
@@ -494,6 +502,9 @@ Page({
           attemptsLeft: MAX_PK_ATTEMPTS,
           gameStatus: 'playing',
           myAttempts: 0,
+          hintUsed: false,
+          showHintModal: false,
+          hintContent: '',
           showModeSelection: false,
         });
         // 开始轮询PK游戏进度
@@ -543,7 +554,10 @@ Page({
         searchResults: [],
         showAdModal: false,
         pkResult: null,
-        myAttempts: 0
+        myAttempts: 0,
+        hintUsed: false,
+        showHintModal: false,
+        hintContent: '',
       });
     } catch (err) {
       wx.hideLoading();
@@ -893,6 +907,9 @@ Page({
         opponentInfo: null,
         myAttempts: 0,
         opponentAttempts: 0,
+        hintUsed: false,
+        showHintModal: false,
+        hintContent: '',
         targetPlayer: null,
         targetAvatarUrl: '',
         guesses: [],
@@ -945,5 +962,39 @@ Page({
 
     // 记录失败结果（认输，尝试次数=当前已猜次数）
     this.submitGameResult(false, this.data.myAttempts || 0);
-  }
+  },
+
+  /**
+   * 获取提示：猜测次数 > 6 后才能使用，每局限一次
+   * 随机展示目标选手的战队/国家/年龄/Major次数（不含姓名）
+   */
+  onGetHint() {
+    const target = this.data.targetPlayer;
+    if (!target || this.data.hintUsed || this.data.myAttempts <= 6) return;
+
+    // 随机选取一个属性（排除姓名）
+    const hints: { key: string; text: string }[] = [];
+    if (target.team) hints.push({ key: 'team', text: `该选手的战队为：${target.team}` });
+    if (target.country) hints.push({ key: 'country', text: `该选手的国家为：${target.country}` });
+    if (target.age != null) hints.push({ key: 'age', text: `该选手的年龄为：${target.age}` });
+    if (target.majorAppearances != null) hints.push({ key: 'major', text: `该选手的Major参赛次数为：${target.majorAppearances}` });
+
+    if (hints.length === 0) return;
+
+    const pick = hints[Math.floor(Math.random() * hints.length)];
+
+    this.setData({
+      hintUsed: true,
+      showHintModal: true,
+      hintContent: pick.text,
+    });
+  },
+
+  /** 点击弹窗空白处 / "我知道了" — 关闭提示弹窗 */
+  onHintMaskTap() {
+    this.setData({ showHintModal: false });
+  },
+
+  /** 阻止事件冒泡到 mask */
+  onHintContentTap() {},
 });

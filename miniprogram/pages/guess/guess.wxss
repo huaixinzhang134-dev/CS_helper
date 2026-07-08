@@ -216,7 +216,11 @@ page {
 .header {
   position: relative;
   z-index: 2;
-  text-align: center;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
   padding-top: 40rpx;
   padding-bottom: 20rpx;
 }
@@ -232,6 +236,43 @@ page {
 .highlight {
   color: var(--primary-color);
   text-shadow: 0 0 10rpx rgba(0, 229, 255, 0.6);
+}
+
+/* Hint Button */
+.hint-btn {
+  padding: 8rpx 24rpx;
+  font-size: 24rpx;
+  font-weight: bold;
+  border-radius: 30rpx;
+  border: none;
+  background-color: #FFD600;
+  color: #00B8D4;
+  line-height: 1.4;
+}
+.hint-btn::after {
+  border: none;
+}
+.hint-btn.used {
+  opacity: 0.35;
+}
+.hint-btn.locked {
+  opacity: 0.35;
+}
+.hint-btn:active:not(.used):not(.locked) {
+  transform: scale(0.95);
+}
+
+/* Hint Modal */
+.hint-body {
+  padding: 20rpx 0;
+}
+.hint-text {
+  font-size: 32rpx;
+  color: #fff;
+  line-height: 1.6;
+}
+.hint-ok-btn {
+  width: 100%;
 }
 
 .subtitle {

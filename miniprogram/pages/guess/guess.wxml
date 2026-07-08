@@ -109,6 +109,12 @@
   <!-- Header -->
   <view class="header">
     <view class="title"><text class="highlight">弗一把</text></view>
+    <button
+      class="hint-btn {{hintUsed ? 'used' : (myAttempts > 6 ? '' : 'locked')}}"
+      wx:if="{{gameStatus === 'playing' && targetPlayer}}"
+      bindtap="onGetHint"
+      disabled="{{hintUsed || myAttempts <= 6}}"
+    >获取提示</button>
   </view>
 
   <!-- Game Board -->
@@ -246,6 +252,19 @@
       </view>
       <view class="modal-footer">
         <button class="btn-primary" bindtap="onResultRestart">再来一局</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- Hint Modal -->
+  <view class="modal-mask" wx:if="{{showHintModal}}" bindtap="onHintMaskTap">
+    <view class="modal-content hint-modal" catchtap="onHintContentTap">
+      <view class="modal-title">💡 提示</view>
+      <view class="modal-body hint-body">
+        <text class="hint-text">{{hintContent}}</text>
+      </view>
+      <view class="modal-footer">
+        <button class="btn-primary hint-ok-btn" bindtap="onHintMaskTap">我知道了</button>
       </view>
     </view>
   </view>
