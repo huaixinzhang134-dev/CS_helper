@@ -240,7 +240,7 @@ page {
   right: 20rpx;
   top: 50%;
   transform: translateY(-50%);
-  width: 75rpx;
+  width: 45rpx;
   height: 72rpx;
   padding: 0;
   font-size: 24rpx;
