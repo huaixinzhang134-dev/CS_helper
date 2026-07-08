@@ -7,8 +7,12 @@ on:
 
 jobs:
   players:
-    name: 爬取选手信息
+    name: 爬取选手信息（分片 ${{ matrix.chunk }}）
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        chunk: [0, 1, 2, 3, 4, 5, 6]
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v5
@@ -30,8 +34,66 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: true
 
-      - name: 快速增量更新选手信息
-        run: node player_data.js --images-only
+      - name: 爬取选手信息（分片 ${{ matrix.chunk }}）
+        run: node player_data.js --chunk ${{ matrix.chunk }}
         working-directory: crawler
         env:
           NODE_ENV: production
+
+      - name: 上传分片产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: playerbase-chunk-${{ matrix.chunk }}
+          path: crawler/playerbase_chunk${{ matrix.chunk }}.json
+          retention-days: 1
+
+  merge:
+    name: 合并分片 + 导入数据库
+    runs-on: ubuntu-latest
+    needs: players
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: 下载所有分片产物
+        uses: actions/download-artifact@v4
+
+      - name: 合并分片文件
+        run: |
+          echo '[]' > playerbase.json.tmp
+          for f in playerbase-chunk-*/playerbase_chunk*.json; do
+            echo "合并: $f"
+            cat "$f" >> playerbase_merged.json
+            echo "" >> playerbase_merged.json
+          done
+          # 去重（按 _id）
+          node -e "
+            const fs = require('fs');
+            const lines = fs.readFileSync('playerbase_merged.json','utf8').split('\n').filter(l=>l.trim());
+            const seen = new Set();
+            const unique = [];
+            for (const line of lines) {
+              try {
+                const p = JSON.parse(line);
+                if (p._id && !seen.has(p._id)) { seen.add(p._id); unique.push(line); }
+              } catch(e) {}
+            }
+            fs.writeFileSync('crawler/playerbase.json', unique.join('\n'), 'utf8');
+            console.log('合并完成: ' + unique.length + ' 个选手');
+          "
+
+      - name: 安装服务端依赖
+        run: npm install
+        working-directory: server
+
+      - name: 覆盖导入到 Railway MySQL
+        run: node scripts/import-players.js
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASS: ${{ secrets.DB_PASS }}
+          DB_NAME: ${{ secrets.DB_NAME }}

@@ -36,7 +36,20 @@ const DELAY_MAX = 2000;
 
 // 字母分类 —— HLTV URL 中使用大写
 // 实际 URL 示例: /players/archive/active?filter=N&page=2
-const CATEGORIES = ['numbers', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+const ALL_CATEGORIES = ['numbers', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+
+// 分片映射：7 个并发 job，每个爬取指定首字母（job7 负责 Y/Z/数字符号）
+const CHUNK_MAP = [
+  ['A', 'B', 'C', 'D'],
+  ['E', 'F', 'G', 'H'],
+  ['I', 'J', 'K', 'L'],
+  ['M', 'N', 'O', 'P'],
+  ['Q', 'R', 'S', 'T'],
+  ['U', 'V', 'W', 'X'],
+  ['Y', 'Z', 'numbers'],
+];
+
+let CATEGORIES = ALL_CATEGORIES;  // 默认全量，--chunk 参数会覆盖
 
 let allPlayers = [];
 let browser;
@@ -657,20 +670,29 @@ function imageExists(playerName) {
 
 // ======================== 数据持久化 ========================
 
+let CHUNK_SUFFIX = '';  // 分片模式下追加后缀，如 _chunk0
+
+function getOutputFile(base) {
+  return CHUNK_SUFFIX ? base.replace(/\.(\w+)$/, `_chunk${CHUNK_SUFFIX}.$1`) : base;
+}
+
 function saveData() {
+  const outFile = getOutputFile(OUTPUT_FILE);
+  const outJson = getOutputFile(OUTPUT_JSON_FILE);
   const textData = allPlayers.map(p => p.name).join('\n');
-  fs.writeFileSync(OUTPUT_FILE, textData, 'utf8');
-  console.log(`\n已保存 ${allPlayers.length} 个玩家名称到 ${OUTPUT_FILE}`);
+  fs.writeFileSync(outFile, textData, 'utf8');
+  console.log(`\n已保存 ${allPlayers.length} 个玩家名称到 ${outFile}`);
 
   const jsonLinesData = allPlayers.map(p => JSON.stringify(p)).join('\n');
-  fs.writeFileSync(OUTPUT_JSON_FILE, jsonLinesData, 'utf8');
-  console.log(`已保存详细数据到 ${OUTPUT_JSON_FILE} (JSON Lines格式)`);
+  fs.writeFileSync(outJson, jsonLinesData, 'utf8');
+  console.log(`已保存详细数据到 ${outJson} (JSON Lines格式)`);
 }
 
 function loadProgress() {
-  if (fs.existsSync(OUTPUT_JSON_FILE)) {
+  const outJson = getOutputFile(OUTPUT_JSON_FILE);
+  if (fs.existsSync(outJson)) {
     try {
-      const lines = fs.readFileSync(OUTPUT_JSON_FILE, 'utf8').split('\n').filter(l => l.trim());
+      const lines = fs.readFileSync(outJson, 'utf8').split('\n').filter(l => l.trim());
       return lines.map(l => JSON.parse(l));
     } catch (e) { return []; }
   }
@@ -922,6 +944,16 @@ if (require.main === module) {
   if (args.includes('--images-only')) {
     downloadMissingImages().then(() => console.log('\n图片下载完成'));
   } else {
+    // 解析 --chunk 参数：指定爬取哪个分片（0-6）
+    const chunkIdx = args.indexOf('--chunk');
+    if (chunkIdx >= 0 && chunkIdx + 1 < args.length) {
+      const chunk = parseInt(args[chunkIdx + 1], 10);
+      if (!isNaN(chunk) && chunk >= 0 && chunk < CHUNK_MAP.length) {
+        CATEGORIES = CHUNK_MAP[chunk];
+        CHUNK_SUFFIX = String(chunk);
+        console.log(`[chunk ${chunk}] 爬取分类: ${CATEGORIES.join(', ')}`);
+      }
+    }
     crawlAllPages().then(() => analyzeData());
   }
 }
