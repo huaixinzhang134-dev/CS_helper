@@ -16,6 +16,20 @@ const router = express.Router();
 
 const { query } = require('../db/pool');
 
+/**
+ * 安全格式化日期：mysql2 在 timezone=+08:00 时会将 DATE 列转为
+ * UTC+8 时区的 JS Date，toISOString()/String() 会回退 8 小时导致日期错一天。
+ */
+function fmtDate(d) {
+  if (d instanceof Date && !isNaN(d)) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  return String(d).slice(0, 10);
+}
+
 // ======================== 工具函数 ========================
 
 /**
@@ -66,7 +80,7 @@ function toMatchDTO(row) {
       score: row.team2_score || 0
     },
     time: row.match_date && row.match_time
-      ? `${String(row.match_date).slice(0, 10)}T${row.match_time}`
+      ? `${fmtDate(row.match_date)}T${row.match_time}`
       : '',
     roundScores: row.round_scores
       ? (typeof row.round_scores === 'string' ? JSON.parse(row.round_scores) : row.round_scores)

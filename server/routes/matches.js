@@ -5,6 +5,22 @@ const router = express.Router();
 const { query } = require('../db/pool');
 
 /**
+ * 安全格式化日期：mysql2 在 timezone=+08:00 时会将 DATE 列转为
+ * UTC+8 时区的 JS Date，toISOString() 会回退 8 小时导致日期错一天。
+ * 这里直接用本地时间方法取年月日，不依赖 UTC。
+ */
+function fmtDate(d) {
+  if (d instanceof Date && !isNaN(d)) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  // 兜底：string 或数字直接取前 10 位
+  return String(d).slice(0, 10);
+}
+
+/**
  * 队标 URL 处理（数据库已存储正确 CDN URL，直接使用）
  */
 function logoToPng(url, baseUrl) {
@@ -32,8 +48,8 @@ function toMatchDTO(row, baseUrl) {
       logo: logoToPng(row.teamB_logo, baseUrl),
       score: row.team2_score || 0
     },
-    time: row.match_time
-      ? `${row.match_date.toISOString ? row.match_date.toISOString().slice(0, 10) : row.match_date}T${row.match_time}`
+    time: row.match_date && row.match_time
+      ? `${fmtDate(row.match_date)}T${row.match_time}`
       : ''
   };
   // 附加局分数据（用于详情页展示小分）
