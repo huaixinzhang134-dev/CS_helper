@@ -110,12 +110,78 @@ router.get('/:id', async (req, res, next) => {
 
 /**
  * GET /api/matches/:id/players
- * 取比赛两队当前 5 名选手（按战队名匹配 player.current_team）
+ * 取比赛两队实际出场选手（优先从 match_players 精确获取，兜底按战队名查）
  */
 router.get('/:id/players', async (req, res, next) => {
   try {
     const { id } = req.params;
 
+    // 1. 先尝试从 match_players 获取本场实际出场选手（爬虫已推送的精确阵容）
+    const [mpRows] = await query(
+      `SELECT mp.*, p.id AS player_db_id, p.game_id, p.name, p.current_team,
+              p.country, p.country_code, p.age, p.avatar, p.position,
+              p.real_name, p.former_teams, p.region, p.major_appearances, p.rating AS player_rating
+       FROM match_players mp
+       LEFT JOIN player p ON (mp.player_game_id != '' AND p.game_id = mp.player_game_id)
+                          OR (p.name = mp.player_name AND p.current_team = mp.team_name)
+       WHERE mp.match_id = ?
+       ORDER BY mp.team_name, mp.id`,
+      [id]
+    );
+
+    if (mpRows.length > 0) {
+      // 精确阵容：仅显示本场实际出场的选手
+      const team1Map = new Map(); // team_name -> players[]
+      const team2Map = new Map();
+      const teamNames = []; // 保持出场顺序
+
+      for (const row of mpRows) {
+        const teamName = row.team_name || '';
+        const dto = {
+          _id: row.player_db_id ? String(row.player_db_id) : '',
+          playerId: row.game_id || row.player_game_id || '',
+          name: row.name || row.player_name || '',
+          team: teamName,
+          avatar: row.avatar || '',
+          country: row.country || '',
+          countryCode: row.country_code || '',
+          position: row.position || '',
+          kills: row.kills != null ? row.kills : null,
+          deaths: row.deaths != null ? row.deaths : null,
+          assists: row.assists != null ? row.assists : null,
+          rating: row.rating != null ? parseFloat(row.rating) : null
+        };
+
+        if (teamNames.length === 0) {
+          teamNames.push(teamName);
+          team1Map.set(teamName, [dto]);
+        } else if (teamName === teamNames[0]) {
+          team1Map.get(teamName).push(dto);
+        } else if (teamNames.length === 1) {
+          teamNames.push(teamName);
+          team2Map.set(teamName, [dto]);
+        } else {
+          team2Map.get(teamName).push(dto);
+        }
+      }
+
+      const team1Name = teamNames[0] || '';
+      const team2Name = teamNames[1] || '';
+      const team1 = team1Map.get(team1Name) || [];
+      const team2 = team2Map.get(team2Name) || [];
+
+      return res.json({
+        code: 0,
+        message: '',
+        data: {
+          team1: { name: team1Name, players: team1 },
+          team2: { name: team2Name, players: team2 },
+          total: mpRows.length
+        }
+      });
+    }
+
+    // 2. 兜底：无 match_players 数据时（如未开赛），按战队名查全队选手
     const [matchRows] = await query(
       `SELECT m.team1_id, m.team2_id,
               ta.name AS teamA_name, tb.name AS teamB_name
@@ -132,16 +198,12 @@ router.get('/:id/players', async (req, res, next) => {
     const team1Name = m.teamA_name || '';
     const team2Name = m.teamB_name || '';
 
-    // 兼容旧前端：直接按战队名查选手（player.current_team = 战队名）
-    // LEFT JOIN match_players 获取本场 K/D/A/Rating
     const [players] = await query(
-      `SELECT p.*, mp.kills, mp.deaths, mp.assists, mp.rating AS match_rating
+      `SELECT p.*
        FROM player p
-       LEFT JOIN match_players mp ON mp.match_id = ?
-         AND (mp.player_game_id = p.game_id OR mp.player_name = p.name)
        WHERE p.current_team IN (?, ?)
        ORDER BY p.current_team, p.name`,
-      [id, team1Name, team2Name]
+      [team1Name, team2Name]
     );
 
     const team1 = [];
@@ -156,11 +218,10 @@ router.get('/:id/players', async (req, res, next) => {
         country: p.country || '',
         countryCode: p.country_code || '',
         position: p.position || '',
-        // Per-match stats (null when no match_players row)
-        kills: p.kills != null ? p.kills : null,
-        deaths: p.deaths != null ? p.deaths : null,
-        assists: p.assists != null ? p.assists : null,
-        rating: p.match_rating != null ? parseFloat(p.match_rating) : null
+        kills: null,
+        deaths: null,
+        assists: null,
+        rating: null
       };
       if (p.current_team === team1Name) team1.push(dto);
       else if (p.current_team === team2Name) team2.push(dto);
