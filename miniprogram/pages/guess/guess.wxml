@@ -111,7 +111,7 @@
     <view class="title"><text class="highlight">弗一把</text></view>
     <view
       class="hint-btn {{hintUsed ? 'used' : ''}}"
-      wx:if="{{gameStatus === 'playing' && targetPlayer && myAttempts > 6}}"
+      wx:if="{{gameStatus === 'playing' && targetPlayer && myAttempts > 5}}"
       bindtap="onGetHint"
     >提示</view>
   </view>

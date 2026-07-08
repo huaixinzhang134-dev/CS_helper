@@ -970,7 +970,7 @@ Page({
    */
   onGetHint() {
     const target = this.data.targetPlayer;
-    if (!target || this.data.hintUsed || this.data.myAttempts <= 6) return;
+    if (!target || this.data.hintUsed || this.data.myAttempts <= 5) return;
 
     // 随机选取一个属性（排除姓名）
     const hints: { key: string; text: string }[] = [];
