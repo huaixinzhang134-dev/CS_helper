@@ -435,8 +435,9 @@ async function importLogosToDb() {
     host: process.env.DB_HOST || '127.0.0.1',
     port: parseInt(process.env.DB_PORT || '3306'),
     user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASS || '201005',
+    password: process.env.DB_PASS || '',
     database: process.env.DB_NAME || 'cs_match_pro',
+    ssl: { rejectUnauthorized: false }
   });
 
   let updated = 0, notFound = 0;
