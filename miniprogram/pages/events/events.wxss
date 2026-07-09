@@ -1,0 +1,81 @@
+.events-page {
+  padding: 20rpx;
+}
+
+.header {
+  margin-bottom: 30rpx;
+  padding-left: 10rpx;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 24rpx;
+  margin-top: 8rpx;
+  display: block;
+}
+
+.events-list {
+  height: calc(100vh - 180rpx);
+}
+
+.event-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--bg-card);
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  border: 1rpx solid var(--border-color);
+  box-shadow: var(--shadow-md);
+}
+
+.event-card-hover {
+  background-color: var(--bg-hover);
+  transform: scale(0.99);
+  transition: all 0.1s;
+}
+
+.event-info {
+  flex: 1;
+}
+
+.event-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.event-meta {
+  display: flex;
+  gap: 20rpx;
+}
+
+.event-count {
+  font-size: 22rpx;
+  color: var(--accent-color);
+  background-color: rgba(0, 102, 204, 0.1);
+  padding: 4rpx 12rpx;
+  border-radius: 12rpx;
+}
+
+.event-date {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  align-self: center;
+}
+
+.event-arrow {
+  font-size: 40rpx;
+  color: var(--text-muted);
+  margin-left: 16rpx;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  margin-top: 100rpx;
+  font-size: 28rpx;
+}

@@ -67,20 +67,44 @@ function toMatchDTO(row, baseUrl) {
 }
 
 /**
+ * GET /api/matches/events
+ * 返回所有赛事名称（去重），含比赛场次数和最近日期
+ * 注意：必须放在 /:id 路由之前，否则 Express 会把 "events" 当 id
+ */
+router.get('/events', async (req, res, next) => {
+  try {
+    const [rows] = await query(
+      `SELECT event_name AS name, COUNT(*) AS matchCount, MAX(match_date) AS latestDate
+       FROM matches GROUP BY event_name ORDER BY latestDate DESC`
+    );
+    res.json({ code: 0, message: '', data: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * GET /api/matches
  * 联表 team 拿战队名/logo（按战队 ID）
+ * 可选 query: ?event=XXX 筛选特定赛事
  */
 router.get('/', async (req, res, next) => {
   try {
-    const [rows] = await query(
-      `SELECT m.*,
-              ta.name AS teamA_name, ta.logo_url AS teamA_logo,
-              tb.name AS teamB_name, tb.logo_url AS teamB_logo
-       FROM matches m
-       LEFT JOIN team ta ON ta.id = m.team1_id
-       LEFT JOIN team tb ON tb.id = m.team2_id
-       ORDER BY m.match_date ASC, m.match_time ASC`
-    );
+    const eventFilter = req.query.event || '';
+    let sql = `SELECT m.*,
+                      ta.name AS teamA_name, ta.logo_url AS teamA_logo,
+                      tb.name AS teamB_name, tb.logo_url AS teamB_logo
+               FROM matches m
+               LEFT JOIN team ta ON ta.id = m.team1_id
+               LEFT JOIN team tb ON tb.id = m.team2_id`;
+    const params = [];
+    if (eventFilter) {
+      sql += ' WHERE m.event_name = ?';
+      params.push(eventFilter);
+    }
+    sql += ' ORDER BY m.match_date ASC, m.match_time ASC';
+
+    const [rows] = await query(sql, params);
 
     // 简单的排序：Live > Upcoming > Finished（与原前端一致）
     const statusOrder = { Live: 0, Upcoming: 1, Finished: 2 };

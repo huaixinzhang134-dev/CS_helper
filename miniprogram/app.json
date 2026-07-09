@@ -1,5 +1,6 @@
 {
   "pages": [
+    "pages/events/events",
     "pages/match/match",
     "pages/matchDetail/matchDetail",
     "pages/guess/guess",
@@ -24,7 +25,7 @@
     "borderStyle": "white",
     "list": [
       {
-        "pagePath": "pages/match/match",
+        "pagePath": "pages/events/events",
         "text": "赛事",
         "iconPath": "assets/icons/SS.png",
         "selectedIconPath": "assets/icons/SS.png"

@@ -5,19 +5,25 @@ Page({
   data: {
     loading: true,
     matches: [] as Match[],
-    anchorId: '',          // 距当前时间最近的比赛 ID（用于 scroll-into-view）
+    anchorId: '',
     refreshTriggered: false,
+
+    // 赛事筛选
+    eventName: '',
 
     // WS 状态
     wsConnected: false,
-    liveCount: 0          // 当前直播场次数
+    liveCount: 0
   },
 
-  onLoad() {
-    // 1. HTTP 拉取初始数据（fallback）
-    this.loadMatches();
+  onLoad(options: any) {
+    // 支持按赛事名称过滤
+    if (options.event) {
+      this.setData({ eventName: decodeURIComponent(options.event) });
+      wx.setNavigationBarTitle({ title: this.data.eventName });
+    }
 
-    // 2. 建立 WebSocket 实时连接
+    this.loadMatches();
     this.setupWS();
   },
 
@@ -93,7 +99,7 @@ Page({
   async loadMatches() {
     this.setData({ loading: true });
     try {
-      const res = await fetchLiveMatches();
+      const res = await fetchLiveMatches(this.data.eventName || undefined);
       if (res.success) {
         const data = res.data || [];
         const { list, anchorId } = this.sortMatches(data);

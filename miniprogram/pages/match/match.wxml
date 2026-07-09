@@ -1,8 +1,7 @@
 <view class="container match-page">
   <view class="header">
     <view class="header-row">
-      <view class="h1">赛事中心</view>
-      <!-- WS 连接状态指示 -->
+      <view class="h1">{{eventName || '全部赛事'}}</view>
       <view class="ws-status {{wsConnected ? 'connected' : ''}}">
         <view class="ws-dot"></view>
         <text>{{wsConnected ? '实时' : '离线'}}</text>

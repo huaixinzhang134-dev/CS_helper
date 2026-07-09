@@ -1,0 +1,30 @@
+<view class="container events-page">
+  <view class="header">
+    <view class="h1">赛事中心</view>
+    <text class="subtitle">按赛事分类浏览</text>
+  </view>
+
+  <scroll-view scroll-y class="events-list" refresher-enabled="{{true}}" bindrefresherrefresh="onPullDownRefresh">
+    <view
+      class="event-card"
+      wx:for="{{events}}"
+      wx:key="name"
+      data-name="{{item.name}}"
+      bindtap="onEventTap"
+      hover-class="event-card-hover"
+    >
+      <view class="event-info">
+        <text class="event-name">{{item.name}}</text>
+        <view class="event-meta">
+          <text class="event-count">{{item.matchCount}} 场比赛</text>
+          <text class="event-date">最近: {{item.latestDate}}</text>
+        </view>
+      </view>
+      <text class="event-arrow">›</text>
+    </view>
+
+    <view class="empty-state" wx:if="{{!loading && events.length === 0}}">
+      <text>暂无赛事数据</text>
+    </view>
+  </scroll-view>
+</view>

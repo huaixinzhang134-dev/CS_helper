@@ -255,10 +255,25 @@ export const getRandomPlayer = async (): Promise<{ success: boolean; data: Playe
 // ============================================================
 
 /**
- * 比赛列表
+ * 赛事列表（按 event_name 分组）
  */
-export const fetchLiveMatches = async (): Promise<{ success: boolean; data: Match[] }> => {
-  const res = await get<Match[]>('/matches');
+export interface MatchEvent {
+  name: string;
+  matchCount: number;
+  latestDate: string;
+}
+
+export const fetchMatchEvents = async (): Promise<{ success: boolean; data: MatchEvent[] }> => {
+  const res = await get<MatchEvent[]>('/matches/events');
+  return { success: res.success, data: res.data ?? [] };
+};
+
+/**
+ * 比赛列表（可选按赛事名称过滤）
+ */
+export const fetchLiveMatches = async (event?: string): Promise<{ success: boolean; data: Match[] }> => {
+  const query = event ? `?event=${encodeURIComponent(event)}` : '';
+  const res = await get<Match[]>(`/matches${query}`);
   return { success: res.success, data: res.data ?? [] };
 };
 

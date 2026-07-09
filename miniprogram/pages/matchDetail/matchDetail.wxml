@@ -128,22 +128,22 @@
     </view>
   </view>
 
-  <!-- ====== 底部输入栏 ====== -->
+  <!-- ====== 底部输入栏（三行布局） ====== -->
   <view class="comment-bar">
-    <view class="bar-row">
-      <button class="pick-player-btn" bindtap="onOpenPlayerModal">
-        {{selectedPlayer ? selectedPlayer.name : '+ 选选手'}}
-      </button>
-      <input class="comment-input"
-        placeholder="{{selectedPlayer ? '说点什么...' : '请先选一位选手'}}"
-        placeholder-class="ph"
-        value="{{draftContent}}" bindinput="onInputChange"
-        disabled="{{!selectedPlayer}}" maxlength="500"
-      />
-      <button class="send-btn {{sending || !selectedPlayer || !draftContent ? 'disabled' : ''}}"
-        bindtap="onSend" disabled="{{sending || !selectedPlayer || !draftContent}}"
-      >{{sending ? '...' : '发送'}}</button>
-    </view>
+    <button class="pick-player-btn" bindtap="onOpenPlayerModal">
+      {{selectedPlayer ? selectedPlayer.name : '+ 选选手'}}
+    </button>
+    <textarea class="comment-input"
+      placeholder="{{selectedPlayer ? '说点什么...' : '请先选一位选手'}}"
+      placeholder-class="ph"
+      value="{{draftContent}}" bindinput="onInputChange"
+      disabled="{{!selectedPlayer}}" maxlength="500"
+      auto-height="{{true}}"
+    />
+    <text class="char-count">{{draftContent.length}}/500</text>
+    <button class="send-btn {{sending || !selectedPlayer || !draftContent ? 'disabled' : ''}}"
+      bindtap="onSend" disabled="{{sending || !selectedPlayer || !draftContent}}"
+    >{{sending ? '发送中...' : '发送'}}</button>
   </view>
 
   <!-- ====== 选手选择弹窗 ====== -->

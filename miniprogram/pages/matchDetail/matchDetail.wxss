@@ -256,63 +256,62 @@
   font-size: 26rpx;
 }
 
-/* ====== 底部输入栏 ====== */
+/* ====== 底部输入栏（三行布局） ====== */
 .comment-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   background: var(--bg-card);
-  padding: 12rpx 20rpx;
+  padding: 16rpx 20rpx;
   padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid var(--border-color);
   z-index: 100;
-}
-.bar-row {
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
   gap: 12rpx;
 }
 .pick-player-btn {
-  width: 150rpx;
-  flex-shrink: 0;
+  width: 100%;
   height: 64rpx;
   line-height: 64rpx;
-  padding: 0;
-  border-radius: 32rpx;
-  font-size: 22rpx;
+  padding: 0 24rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
   background: var(--bg-input);
   color: var(--text-primary);
   border: none;
-  white-space: nowrap;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: left;
 }
 .comment-input {
-  flex: 1;
-  height: 64rpx;
+  width: 100%;
+  min-height: 120rpx;
   background: var(--bg-input);
-  border-radius: 32rpx;
-  padding: 0 24rpx;
-  font-size: 24rpx;
+  border-radius: 12rpx;
+  padding: 16rpx 24rpx;
+  font-size: 26rpx;
   color: var(--text-primary);
   caret-color: var(--accent-color);
-  min-width: 0;
+  box-sizing: border-box;
 }
 .ph {
   color: var(--text-muted);
   font-size: 24rpx;
 }
+.char-count {
+  text-align: right;
+  font-size: 20rpx;
+  color: var(--text-muted);
+  margin-top: -6rpx;
+  padding-right: 8rpx;
+}
 .send-btn {
-  width: 150rpx;
-  flex-shrink: 0;
-  height: 64rpx;
-  line-height: 64rpx;
+  width: 100%;
+  height: 72rpx;
+  line-height: 72rpx;
   padding: 0;
-  border-radius: 32rpx;
-  font-size: 24rpx;
+  border-radius: 12rpx;
+  font-size: 28rpx;
   background: var(--accent-color);
   color: var(--text-inverse);
   border: none;
