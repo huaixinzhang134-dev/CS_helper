@@ -18,7 +18,8 @@ export interface Player {
   region?: string;
   age: number;
   majorAppearances: number;
-  position: '狙击手' | '步枪手' | '指挥' | '教练' | string;
+  position: '狙击手' | '步枪手' | '教练' | string;
+  status: 'active' | 'retired' | 'coach' | 'free_agent' | 'unknown' | string;
   avatar: string;
 }
 

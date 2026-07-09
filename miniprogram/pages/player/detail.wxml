@@ -5,8 +5,15 @@
       <view class="name-row">
         <text class="nickname">{{player.name}}</text>
         <view class="country-badge">{{player.country}}</view>
+        <view class="status-badge status-{{player.status}}">{{player.statusText}}</view>
       </view>
       <text class="real-name">{{player.realName}}</text>
+      <view class="status-legend">
+        <view class="legend-item"><view class="legend-dot dot-active"></view><text>现役</text></view>
+        <view class="legend-item"><view class="legend-dot dot-coach"></view><text>教练</text></view>
+        <view class="legend-item"><view class="legend-dot dot-free_agent"></view><text>自由人</text></view>
+        <view class="legend-item"><view class="legend-dot dot-retired"></view><text>退役</text></view>
+      </view>
       <view class="team-info">
         <text class="team-label">现役队伍：</text>
         <text class="team-val">{{player.team || '无'}}</text>

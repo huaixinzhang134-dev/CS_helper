@@ -20,10 +20,18 @@ function normalizeAvatarUrl(avatar: string): string {
   return '/assets/icons/user.png';
 }
 
+const STATUS_MAP: Record<string, string> = {
+  active: '现役',
+  retired: '退役',
+  coach: '教练',
+  free_agent: '自由人',
+  unknown: '未知'
+};
+
 Page({
   data: {
     loading: true,
-    player: null as (Player & { avatarUrl?: string }) | null
+    player: null as (Player & { avatarUrl?: string; statusText?: string }) | null
   },
 
   onLoad(options: any) {
@@ -37,11 +45,10 @@ Page({
     try {
       const res = await fetchPlayerDetail(id);
       if (res.success && res.data) {
-        // 后端 avatar 字段已是 /static/players/<name>.png 形式
-        // normalizeAvatarUrl 负责拼 STATIC_BASE
         const playerWithAvatar = {
           ...res.data,
-          avatarUrl: normalizeAvatarUrl(res.data.avatar)
+          avatarUrl: normalizeAvatarUrl(res.data.avatar),
+          statusText: STATUS_MAP[res.data.status] || '未知'
         };
         this.setData({ player: playerWithAvatar });
         wx.setNavigationBarTitle({ title: res.data.name });

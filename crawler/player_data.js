@@ -227,7 +227,7 @@ async function fetchPage(category, pageNum, type = 'active') {
  * 解析列表页 HTML，提取所有选手链接
  * 兼容新旧两种页面结构
  */
-function parsePlayers(html) {
+function parsePlayers(html, archiveType) {
   const $ = cheerio.load(html);
   const players = [];
 
@@ -282,6 +282,7 @@ function parsePlayers(html) {
       name: playerName,
       displayName: displayName,
       url: href.startsWith('http') ? href : `${BASE_URL}${href}`,
+      archiveType: archiveType,  // 'active' | 'retired'
       // 顺便尝试找到选手头像小图
       thumbnail: $(element).find('img').first().attr('src') || ''
     });
@@ -301,10 +302,10 @@ function parsePlayers(html) {
  *   2. page.evaluate 从浏览器获取额外字段（rating / firepower）
  *   第二步失败不影响基本信息
  */
-async function fetchPlayerDetails(playerUrl, playerId, playerName) {
+async function fetchPlayerDetails(playerUrl, playerId, playerName, archiveType) {
   try {
     const profileHtml = await fetchPageByUrl(playerUrl);
-    const profileData = parsePlayerProfile(profileHtml, playerId, playerName);
+    const profileData = parsePlayerProfile(profileHtml, playerId, playerName, archiveType);
 
     // ---- 尝试获取 rating / firepower / sniping（通过浏览器 evaluate）----
     // 实际 HTML: .playerpage-container-attributes .player-stat 中包含 Rating 3.0 / Firepower
@@ -376,7 +377,7 @@ async function fetchPlayerDetails(playerUrl, playerId, playerName) {
  *   #teamsBox .team-breakdown 为历史战队表格
  *   #infoBox 内 .player-stat 为统计信息
  */
-function parsePlayerProfile(html, playerId, fallbackName) {
+function parsePlayerProfile(html, playerId, fallbackName, archiveType) {
   const $ = cheerio.load(html);
 
   // ===== 1. 游戏昵称 =====
@@ -461,8 +462,9 @@ function parsePlayerProfile(html, playerId, fallbackName) {
     });
   }
 
-  // ===== 8. 位置判断 =====
+  // ===== 8. 位置判断 & 职业状态 =====
   let position = '步枪手';
+  let status = (archiveType === 'retired') ? 'retired' : 'active';  // archiveType → status 默认值
   const bioText = (
     $('.player-summary, .player-profile-summary, .player-bio, .summary-content').text()
     + ' ' + $('[class*="role"]').text()
@@ -473,6 +475,7 @@ function parsePlayerProfile(html, playerId, fallbackName) {
     position = '指挥';
   } else if (bioText.includes('coach') || bioText.includes('教练')) {
     position = '教练';
+    status = 'coach';  // 教练覆盖 archiveType
   }
   // 比值推断：来自 page.evaluate 的结果（由调用方负责）
 
@@ -493,6 +496,7 @@ function parsePlayerProfile(html, playerId, fallbackName) {
     formerTeams: formerTeams.length > 0 ? formerTeams : [],
     majorAppearances: majorAppearances,
     position: position,
+    status: status,
     sniping: 'unknown',
     firepower: 'unknown',
     rating: 'unknown',
@@ -730,7 +734,7 @@ async function crawlAllPages() {
 
         for (let pageNum = 0; pageNum < MAX_PAGES; pageNum++) {
           const html = await fetchPage(category, pageNum, archiveType);
-          const players = parsePlayers(html);
+          const players = parsePlayers(html, archiveType);
 
           // 去重（按 id）
           let addedCount = 0;
@@ -775,7 +779,7 @@ async function crawlAllPages() {
       console.log(`[${i + 1}/${playerLinks.length}] ${pl.displayName || pl.name} (ID: ${pl.id})`);
 
       try {
-        const details = await fetchPlayerDetails(pl.url, pl.id, pl.name);
+        const details = await fetchPlayerDetails(pl.url, pl.id, pl.name, pl.archiveType);
 
         if (details) {
           // 下载头像

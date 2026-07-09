@@ -143,6 +143,16 @@ function parsePositionFromHtml(html) {
   return position;
 }
 
+/** 从选手详情页 HTML 提取当前所属队伍（有则非空，无则为空字符串） */
+function parseTeamFromHtml(html) {
+  const $ = cheerio.load(html);
+  const teamEl = $('.playerTeam a[itemprop="text"]').first();
+  if (teamEl.length > 0) {
+    return teamEl.text().trim();
+  }
+  return '';
+}
+
 async function evaluateRatioAndCorrect(htmlPosition) {
   try {
     const ratioValue = await page.evaluate(() => {
@@ -164,18 +174,39 @@ async function checkPlayerPosition(player) {
     const result = await evaluateRatioAndCorrect(htmlPosition);
     const oldPosition = player.position;
     const newPosition = result.position;
-    const changed = oldPosition !== newPosition;
+    const positionChanged = oldPosition !== newPosition;
 
-    if (changed) {
+    // --- 复出检测 ---
+    const team = parseTeamFromHtml(html);
+    let newStatus = player.status || 'unknown';
+    if (player.status === 'retired') {
+      if (htmlPosition === '教练') {
+        newStatus = 'coach';
+      } else if (team) {
+        newStatus = 'active';
+      }
+    }
+    const statusChanged = newStatus !== player.status;
+
+    if (positionChanged) {
       console.log(`  ✏ ${player.name}: "${oldPosition}" → "${newPosition}" (ratio: ${result.ratioValue})`);
     } else {
       console.log(`  ✓ ${player.name}: "${oldPosition}" 正确`);
     }
+    if (statusChanged) {
+      console.log(`  🔄 ${player.name}: 复出! status "${player.status}" → "${newStatus}" (team="${team}")`);
+    }
 
-    return { ...player, position: newPosition, _positionChanged: changed };
+    return {
+      ...player,
+      position: newPosition,
+      status: newStatus,
+      _positionChanged: positionChanged,
+      _statusChanged: statusChanged
+    };
   } catch (err) {
     console.error(`  ✗ 检查 ${player.name} 失败: ${err.message}`);
-    return { ...player, _positionChanged: false };
+    return { ...player, _positionChanged: false, _statusChanged: false };
   }
 }
 
@@ -215,7 +246,7 @@ async function getDbConnection() {
   const host = process.env.DB_HOST || process.env.MYSQLHOST || 'hayabusa.proxy.rlwy.net';
   const port = parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '16612', 10);
   const user = process.env.DB_USER || process.env.MYSQLUSER || 'root';
-  const password = process.env.DB_PASS || process.env.MYSQLPASSWORD || 'ojfZTZhWxfsJgcnKswraKulftkRjbOLG';
+  const password = process.env.DB_PASS || process.env.MYSQLPASSWORD || '';
   const database = process.env.DB_NAME || process.env.MYSQLDATABASE || 'railway';
   if (!password) { console.warn('\n⚠ 未设置数据库密码'); return null; }
   try {
@@ -240,6 +271,17 @@ async function syncPositionToDb(conn, playerId, name, position) {
     );
     if (result.affectedRows > 0) console.log(`  DB ✓ ${name} → "${position}" (${result.affectedRows} 行)`);
   } catch (err) { console.error(`  DB ✗ ${name}: ${err.message}`); }
+}
+
+async function syncStatusToDb(conn, playerId, name, status) {
+  if (!conn) return;
+  try {
+    const [result] = await conn.execute(
+      'UPDATE player SET status = ? WHERE game_id = ? OR name = ?',
+      [status, playerId, name]
+    );
+    if (result.affectedRows > 0) console.log(`  DB ✓ ${name} status → "${status}" (${result.affectedRows} 行)`);
+  } catch (err) { console.error(`  DB ✗ ${name} status: ${err.message}`); }
 }
 
 // ======================== 主流程 ========================
@@ -288,18 +330,27 @@ async function checkAllPositions() {
   const pendingDbSync = [];
   let dbConn = null;
 
+  // 统一冲刷待写入数据
+  async function flushPendingDbSync() {
+    if (pendingDbSync.length === 0 || !dbConn) return;
+    console.log(`  ── 写入 MySQL ${pendingDbSync.length} 条变更...`);
+    for (const item of pendingDbSync) {
+      if (item.type === 'position') {
+        try { await syncPositionToDb(dbConn, item.id, item.name, item.value); } catch (_) {}
+      } else {
+        try { await syncStatusToDb(dbConn, item.id, item.name, item.value); } catch (_) {}
+      }
+    }
+    pendingDbSync.length = 0;
+  }
+
   // === 信号处理：外力终止时把当前批次未写入的变动刷进 DB ===
   let signalReceived = false;
   async function flushOnSignal(signal) {
     if (signalReceived) return;
     signalReceived = true;
     console.log(`\n⚠ 收到 ${signal} 信号，正在刷新 ${pendingDbSync.length} 条待写入数据...`);
-    if (pendingDbSync.length > 0 && dbConn) {
-      for (const item of pendingDbSync) {
-        try { await syncPositionToDb(dbConn, item.id, item.name, item.position); } catch (_) {}
-      }
-      pendingDbSync.length = 0;
-    }
+    await flushPendingDbSync();
     saveProgress(startIndex, players.length);
     await closeBrowser();
     if (dbPool) { try { await dbPool.end(); } catch {} }
@@ -310,6 +361,7 @@ async function checkAllPositions() {
 
   try {
     let correctedCount = 0;
+    let comebackCount = 0;
     const enableDb = useDb || quickMode;
     if (enableDb) dbConn = await getDbConnection();
 
@@ -325,18 +377,18 @@ async function checkAllPositions() {
 
       if (result._positionChanged) {
         correctedCount++;
-        pendingDbSync.push({ id: result._id, name: result.name, position: result.position });
+        pendingDbSync.push({ type: 'position', id: result._id, name: result.name, value: result.position });
+      }
+      if (result._statusChanged) {
+        comebackCount++;
+        pendingDbSync.push({ type: 'status', id: result._id, name: result.name, value: result.status });
       }
 
       await delay(DELAY_BETWEEN_REQUESTS);
 
       // 每 100 个：写入 MySQL + 重启浏览器
       if ((i + 1) % BATCH_SIZE === 0 && i < players.length - 1) {
-        if (pendingDbSync.length > 0 && dbConn) {
-          console.log(`  ── 写入 MySQL ${pendingDbSync.length} 条位置变更...`);
-          for (const item of pendingDbSync) await syncPositionToDb(dbConn, item.id, item.name, item.position);
-          pendingDbSync.length = 0;
-        }
+        await flushPendingDbSync();
         saveProgress(i + 1, players.length);
         console.log(`\n--- 已检查 ${i + 1}/${players.length}，重启浏览器 ---\n`);
         await closeBrowser();
@@ -344,24 +396,18 @@ async function checkAllPositions() {
     }
 
     // 最终写入
-    if (pendingDbSync.length > 0 && dbConn) {
-      console.log(`  ── 写入 MySQL ${pendingDbSync.length} 条位置变更...`);
-      for (const item of pendingDbSync) await syncPositionToDb(dbConn, item.id, item.name, item.position);
-    }
+    await flushPendingDbSync();
     clearProgress();
 
     console.log('\n========================================');
     console.log('检查完成！');
     console.log(`总计检查: ${players.length} 个选手`);
     console.log(`位置修正: ${correctedCount} 个`);
+    console.log(`复出标记: ${comebackCount} 个`);
     console.log('========================================');
   } catch (error) {
     console.error('\n检查过程中出错:', error.message);
-    if (dbPool && pendingDbSync && pendingDbSync.length > 0) {
-      for (const item of pendingDbSync) {
-        try { await syncPositionToDb(dbPool, item.id, item.name, item.position); } catch (_) {}
-      }
-    }
+    await flushPendingDbSync();
     saveProgress(startIndex > 0 ? startIndex : 0, players.length);
     console.log('进度已保存');
   } finally {

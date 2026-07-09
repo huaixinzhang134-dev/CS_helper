@@ -26,15 +26,18 @@ CREATE TABLE player (
   region          ENUM('Europe','Americas','Asia','Other') NOT NULL DEFAULT 'Other',
   major_appearances INT UNSIGNED  NOT NULL DEFAULT 0,
   position        VARCHAR(32)     NOT NULL DEFAULT '',
+  status          ENUM('active','retired','coach','free_agent','unknown') NOT NULL DEFAULT 'unknown' COMMENT '职业状态',
   avatar          VARCHAR(512)    NULL,
   rating          DECIMAL(5,2)    NOT NULL DEFAULT 0.00,
+  sniping         DECIMAL(5,1)    NOT NULL DEFAULT 0.0,
   updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
                                     ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_player_game_id (game_id),
   KEY idx_player_region (region),
   KEY idx_player_current_team (current_team),
-  KEY idx_player_country_code (country_code)
+  KEY idx_player_country_code (country_code),
+  KEY idx_player_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='选手信息表';
 

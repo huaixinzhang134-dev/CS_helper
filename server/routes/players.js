@@ -21,6 +21,7 @@ function toPlayerDTO(row) {
     region: row.region,
     majorAppearances: row.major_appearances || 0,
     position: row.position,
+    status: row.status || 'unknown',
     rating: Number(row.rating) || 0,
     avatar: row.avatar || ''
   };
@@ -65,10 +66,10 @@ router.get('/', async (req, res, next) => {
 /**
  * GET /api/players/pool?difficulty=trivial|easy|hard|hell
  * 根据难度返回选手池（用于猜一猜游戏，避免前端全量加载）
- *   trivial：选手现役队伍在世界排名前30的战队中
- *   easy：current_team 在 team_ranking 表中的选手（世界排名前60）
- *   hard：有现役队伍的选手（含无排名战队）
- *   hell：所有选手（含自由人、退役选手等）
+ *   trivial：status IN ('active','coach') 且队伍在 top30
+ *   easy：   status IN ('active','coach') 且队伍在 team_ranking
+ *   hard：   status IN ('active','coach','free_agent')（排除退役）
+ *   hell：   所有选手（无 status 限制）
  */
 router.get('/pool', async (req, res, next) => {
   try {
@@ -76,17 +77,19 @@ router.get('/pool', async (req, res, next) => {
     let sql;
     if (difficulty === 'trivial') {
       sql = `SELECT p.* FROM player p
-             WHERE p.current_team IN (
-               SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY \`rank\` ASC LIMIT 30) AS top30
-             )
+             WHERE p.status IN ('active','coach')
+               AND p.current_team IN (
+                 SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY \`rank\` ASC LIMIT 30) AS top30
+               )
              ORDER BY p.id ASC`;
     } else if (difficulty === 'easy') {
       sql = `SELECT p.* FROM player p
              INNER JOIN team_ranking r ON r.team_name = p.current_team
+             WHERE p.status IN ('active','coach')
              ORDER BY p.id ASC`;
     } else if (difficulty === 'hard') {
       sql = `SELECT * FROM player
-             WHERE current_team IS NOT NULL AND current_team != ''
+             WHERE status IN ('active','coach','free_agent')
              ORDER BY id ASC`;
     } else {
       sql = 'SELECT * FROM player ORDER BY id ASC';
@@ -138,10 +141,10 @@ router.get('/random', async (req, res, next) => {
 /**
  * GET /api/players/random-by-difficulty?difficulty=trivial|easy|hard|hell
  * 根据难度随机选一个目标选手（单人模式和PK模式共用同一套难度逻辑）
- *   trivial：选手现役队伍在世界排名前30的战队中
- *   easy：选手现役队伍在 team_ranking 表中（世界排名前60）
- *   hard：有现役队伍即可（含无排名战队）
- *   hell：所有选手（含自由人/退役）
+ *   trivial：status IN ('active','coach') 且队伍在 top30
+ *   easy：   status IN ('active','coach') 且队伍在 team_ranking
+ *   hard：   status IN ('active','coach','free_agent')（排除退役）
+ *   hell：   所有选手（含退役）
  */
 router.get('/random-by-difficulty', async (req, res, next) => {
   try {
@@ -149,17 +152,19 @@ router.get('/random-by-difficulty', async (req, res, next) => {
     let sql;
     if (difficulty === 'trivial') {
       sql = `SELECT p.* FROM player p
-             WHERE p.current_team IN (
-               SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY \`rank\` ASC LIMIT 30) AS top30
-             )
+             WHERE p.status IN ('active','coach')
+               AND p.current_team IN (
+                 SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY \`rank\` ASC LIMIT 30) AS top30
+               )
              ORDER BY RAND() LIMIT 1`;
     } else if (difficulty === 'easy') {
       sql = `SELECT p.* FROM player p
              INNER JOIN team_ranking r ON r.team_name = p.current_team
+             WHERE p.status IN ('active','coach')
              ORDER BY RAND() LIMIT 1`;
     } else if (difficulty === 'hard') {
       sql = `SELECT * FROM player
-             WHERE current_team IS NOT NULL AND current_team != ''
+             WHERE status IN ('active','coach','free_agent')
              ORDER BY RAND() LIMIT 1`;
     } else {
       sql = 'SELECT * FROM player ORDER BY RAND() LIMIT 1';
@@ -233,7 +238,7 @@ router.get('/:playerId', async (req, res, next) => {
 /**
  * POST /api/players
  * Body: { game_id, name, real_name, country, country_code, age, current_team,
- *        former_teams, region, major_appearances, position, rating, avatar }
+ *        former_teams, region, major_appearances, position, status, rating, avatar }
  */
 router.post('/', async (req, res, next) => {
   try {
@@ -244,8 +249,8 @@ router.post('/', async (req, res, next) => {
     const [result] = await query(
       `INSERT INTO player
        (game_id, name, real_name, age, country, country_code, current_team,
-        former_teams, region, major_appearances, position, rating, avatar)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        former_teams, region, major_appearances, position, status, rating, avatar)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         p.game_id,
         p.name || '',
@@ -258,6 +263,7 @@ router.post('/', async (req, res, next) => {
         p.region || 'Other',
         parseInt(p.majorAppearances || p.major_appearances || 0, 10),
         p.position || '',
+        p.status || 'unknown',
         parseFloat(p.rating || 0),
         p.avatar || ''
       ]
@@ -300,6 +306,7 @@ router.put('/:playerId', async (req, res, next) => {
           ? parseInt(p.major_appearances, 10)
           : undefined,
       position: p.position,
+      status: p.status,
       rating: p.rating !== undefined ? parseFloat(p.rating) : undefined,
       avatar: p.avatar
     };

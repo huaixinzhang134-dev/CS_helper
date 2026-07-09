@@ -42,6 +42,72 @@
   padding: 4rpx 12rpx;
   border-radius: 8rpx;
   color: var(--text-primary);
+  margin-right: 12rpx;
+}
+
+.status-badge {
+  font-size: 24rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  color: var(--text-primary);
+}
+
+.status-active {
+  background-color: rgba(76, 175, 80, 0.25);
+}
+
+.status-retired {
+  background-color: rgba(244, 67, 54, 0.2);
+}
+
+.status-coach {
+  background-color: rgba(33, 150, 243, 0.25);
+}
+
+.status-free_agent {
+  background-color: rgba(255, 152, 0, 0.25);
+}
+
+.status-unknown {
+  background-color: rgba(127, 127, 127, 0.2);
+}
+
+/* 状态颜色图例 */
+.status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+  margin-bottom: 18rpx;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  font-size: 20rpx;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  margin-right: 6rpx;
+}
+
+.dot-active {
+  background-color: rgba(76, 175, 80, 0.7);
+}
+
+.dot-coach {
+  background-color: rgba(33, 150, 243, 0.7);
+}
+
+.dot-free_agent {
+  background-color: rgba(255, 152, 0, 0.7);
+}
+
+.dot-retired {
+  background-color: rgba(244, 67, 54, 0.5);
 }
 
 .real-name {
