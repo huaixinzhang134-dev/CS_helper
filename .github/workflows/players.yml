@@ -92,9 +92,8 @@ jobs:
             console.log('合并完成: ' + unique.length + ' 个选手');
           "
 
-      - name: 安装服务端依赖
-        run: npm install
-        working-directory: server
+      - name: 安装 MySQL 驱动
+        run: npm install        # root package.json 仅含 mysql2
 
       - name: 覆盖导入到 Railway MySQL
         run: node scripts/import-players.js
