@@ -62,6 +62,17 @@ async function resolveTeamId(teamName, logoUrl) {
 /**
  * 构建统一 Match DTO（与 matches.js toMatchDTO 对齐）
  */
+function fmtTime(t) {
+  if (t instanceof Date && !isNaN(t)) {
+    const off = 8 * 60 * 60 * 1000;
+    const d = new Date(t.getTime() + off);
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  }
+  const s = String(t).trim();
+  if (/^\d{2}:\d{2}/.test(s)) return s.slice(0, 5);
+  return s;
+}
+
 function proxyLogo(url) {
   if (!url) return '';
   return url;
@@ -84,7 +95,7 @@ function toMatchDTO(row) {
       score: row.team2_score || 0
     },
     time: row.match_date && row.match_time
-      ? `${fmtDate(row.match_date)}T${row.match_time}`
+      ? `${fmtDate(row.match_date)}T${fmtTime(row.match_time)}`
       : '',
     roundScores: row.round_scores
       ? (typeof row.round_scores === 'string' ? JSON.parse(row.round_scores) : row.round_scores)
