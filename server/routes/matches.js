@@ -19,13 +19,20 @@ function fmtDate(d) {
     const day = String(t.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   }
-  // 兜底：string 或数字直接取前 10 位
   return String(d).slice(0, 10);
 }
 
-/**
- * 队标 URL 处理（数据库已存储正确 CDN URL，直接使用）
- */
+function fmtTime(t) {
+  if (t instanceof Date && !isNaN(t)) {
+    const off = 8 * 60 * 60 * 1000;
+    const d = new Date(t.getTime() + off);
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+  }
+  const s = String(t).trim();
+  if (/^\d{2}:\d{2}/.test(s)) return s.slice(0, 5);
+  return s;
+}
+
 function logoToPng(url, baseUrl) {
   if (!url) return '';
   return url;
@@ -53,7 +60,7 @@ function toMatchDTO(row, baseUrl) {
       score: row.team2_score || 0
     },
     time: row.match_date && row.match_time
-      ? `${fmtDate(row.match_date)}T${row.match_time}`
+      ? `${fmtDate(row.match_date)}T${fmtTime(row.match_time)}`
       : ''
   };
   // 附加局分数据（用于详情页展示小分）

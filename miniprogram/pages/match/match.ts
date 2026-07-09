@@ -63,6 +63,9 @@ Page({
 
     const now = new Date().getTime();
 
+    // 给每个比赛加上格式化后的显示时间
+    matches.forEach(m => { m.displayTime = this.formatTime(m.time); });
+
     // 分离 Live / 已完成 / 未开始
     const live = matches.filter(m => m.status === 'Live');
     const finished = matches.filter(m => m.status === 'Finished');

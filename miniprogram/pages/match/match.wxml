@@ -56,7 +56,7 @@
         <view class="score-board flex-col align-center">
           <block wx:if="{{item.status === 'Upcoming'}}">
             <text class="vs-text">VS</text>
-            <text class="match-time">{{item.time}}</text>
+            <text class="match-time">{{item.displayTime || item.time}}</text>
           </block>
           <block wx:elif="{{item.status === 'Live'}}">
             <view class="score-text score-live">
@@ -71,7 +71,7 @@
               <text class="divider"> : </text>
               <text class="{{item.teamB.score > item.teamA.score ? 'winner' : ''}}">{{item.teamB.score}}</text>
             </view>
-            <text class="match-time finished-time">{{item.time}}</text>
+            <text class="match-time finished-time">{{item.displayTime || item.time}}</text>
           </block>
         </view>
 
