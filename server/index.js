@@ -25,7 +25,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // 中间件
 app.use(corsMiddleware);
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 

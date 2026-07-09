@@ -98,26 +98,44 @@ async function syncCycle() {
       return;
     }
 
-    const pushResp = await axios.post(
-      `${API_BASE}/api/matches/sync`,
-      { matches: filtered },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SYNC_TOKEN}`
-        },
-        timeout: 10000
+    // 分批推送，避免 413 Request Entity Too Large
+    const BATCH_SIZE = 20;
+    let totalChecked = 0;
+    let totalUpdated = 0;
+
+    for (let i = 0; i < filtered.length; i += BATCH_SIZE) {
+      const batch = filtered.slice(i, i + BATCH_SIZE);
+      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(filtered.length / BATCH_SIZE);
+
+      const pushResp = await axios.post(
+        `${API_BASE}/api/matches/sync`,
+        { matches: batch },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SYNC_TOKEN}`
+          },
+          timeout: 30000
+        }
+      );
+
+      const result = pushResp.data?.data || {};
+      totalChecked += (result.checked || 0);
+      totalUpdated += (result.updated || 0);
+
+      if (totalBatches > 1) {
+        console.log(`[crawler]   批次 ${batchNum}/${totalBatches}: 推送=${batch.length} 检查=${result.checked || 0} 更新=${result.updated || 0}`);
       }
-    );
+    }
 
     const elapsed = Date.now() - startTime;
-    const result = pushResp.data?.data || {};
     console.log(
       `[crawler] ✅ ${elapsed}ms | ` +
       `源=${source} | ` +
       `推送=${filtered.length} | ` +
-      `检查=${result.checked || 0} | ` +
-      `更新=${result.updated || 0}`
+      `检查=${totalChecked} | ` +
+      `更新=${totalUpdated}`
     );
   } catch (err) {
     if (err.code === 'ECONNREFUSED') {
