@@ -40,6 +40,7 @@ function toMatchDTO(row, baseUrl) {
   const dto = {
     _id: String(row.id),
     event: row.event_name || '',
+    roundName: row.tab || '',
     status: row.status || 'Upcoming',
     teamA: {
       name: teamAName,

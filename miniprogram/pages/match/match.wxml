@@ -36,7 +36,7 @@
     >
       <!-- Event Header -->
       <view class="card-header flex-row justify-between">
-        <text class="event-name">{{item.event}}</text>
+        <text class="event-name">{{item.roundName || item.event}}</text>
         <view class="status-badge {{item.status === 'Live' ? 'live' : ''}}">
           {{item.status}}
         </view>

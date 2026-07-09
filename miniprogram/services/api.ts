@@ -26,6 +26,7 @@ export interface Player {
 export interface Match {
   _id: string;
   event: string;
+  roundName?: string;
   status: 'Live' | 'Upcoming' | 'Finished';
   teamA: { name: string; logo: string; score: number };
   teamB: { name: string; logo: string; score: number };

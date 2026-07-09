@@ -242,7 +242,7 @@ function prepareMatchFields(m, team1Id, team2Id) {
     round_scores: roundScoresJson,
     event_name: (m.eventName || '').slice(0, 256),
     status: mapStatus(m.status),
-    tab: m.tab || 'schedule'
+    tab: m.roundName || ''
   };
 }
 

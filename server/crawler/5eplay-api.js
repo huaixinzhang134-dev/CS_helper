@@ -285,11 +285,13 @@ function normalizeMatch(raw) {
     const team1Logo = t1.logo || '';
     const team2Logo = t2.logo || '';
 
-    // 赛事名称（优先取 tt_info.disp_name，即真正的赛事/系列赛名，而非 round_name 回合名）
+    // 赛事名称（优先取 tt_info.disp_name，即真正的赛事/系列赛名）
     const ttInfo = raw.tt_info || {};
     let eventName = ttInfo.disp_name || raw.tournament || raw.series || raw.event || '';
-    // 兜底：只有完全没有赛事名时，才用 round_name
     if (!eventName && info.round_name) eventName = info.round_name;
+
+    // 回合名（如「总决赛」「半决赛」「八强」），独立存储用于二级展示
+    const roundName = info.round_name || '';
 
     // state（结果 API 返回的比赛状态）
     const st = raw.state || {};
@@ -299,14 +301,10 @@ function normalizeMatch(raw) {
     let status = raw.status || 'upcoming';
     if (display === '2' || display === '3') status = 'Live';
     if (display === '4') status = 'Finished';
-    // 结果 API 的 matches 有 state.bout_states 但 display=1，强制标记为 Finished
-    // 只在 state.status 不为 '0' 且有实际局分时标记为已完成
     if (st.bout_states && Array.isArray(st.bout_states) && st.bout_states.length > 0) {
       status = 'Finished';
     }
-    // CDN API 的 state.t1_score='0' 只是默认值，不应用作已结束判断
     const stateHasScore = st.status && st.status !== '0' && st.t1_score && st.t2_score;
-    const tab = (status === 'Finished' || status === 'finished') ? 'results' : 'schedule';
 
     let team1Score = null;
     let team2Score = null;
@@ -388,8 +386,8 @@ function normalizeMatch(raw) {
       team1Score: team1Score != null ? Number(team1Score) : null,
       team2Score: team2Score != null ? Number(team2Score) : null,
       eventName: String(eventName).trim(),
-      status: normalizeStatus(status, team1Score, team2Score),
-      tab
+      roundName: roundName,
+      status: normalizeStatus(status, team1Score, team2Score)
     };
 
     if (eplayId) result.eplayId = eplayId;

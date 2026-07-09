@@ -2,7 +2,7 @@
 
   <!-- ====== 比赛头部卡片 ====== -->
   <view class="match-hero" wx:if="{{match}}">
-    <view class="hero-event">{{match.event}}</view>
+    <view class="hero-event">{{match.roundName || match.event}}</view>
     <view class="hero-matchup">
       <view class="hero-team">
         <view class="hero-logo-wrap">
