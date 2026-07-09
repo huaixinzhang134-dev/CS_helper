@@ -160,9 +160,16 @@ Page({
   /**
    * 格式化时间显示
    */
-  formatTime(isoString: string) {
-    const date = new Date(isoString);
-    return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+  formatTime(raw: string) {
+    if (!raw) return '';
+    // 兜底：如果后端返回 ISO 格式（含毫秒+Z），前端也能正确解析
+    const date = new Date(raw);
+    if (isNaN(date.getTime())) return raw;
+    const m = date.getMonth() + 1;
+    const d = date.getDate();
+    const h = date.getHours().toString().padStart(2, '0');
+    const min = date.getMinutes().toString().padStart(2, '0');
+    return `${m}/${d} ${h}:${min}`;
   },
 
   /**
