@@ -413,9 +413,13 @@ async function fetchMatchDetail(matchId) {
   // 从 csgo_mc_2394988 中提取纯数字 ID
   const numericId = matchId.replace(/^csgo_mc_/i, '');
 
-  // 备选 API 端点（按成功率排序，已移除永久 404 的端点）
+  // 积累所有端点的最优数据（不再提前 return）
+  let bestRoundScores = [];
+  let bestPlayerStats = [];
+
+  // 备选 API 端点（按成功率排序）
   const endpoints = [
-    // 1. esports CDN 详情（主数据源）
+    // 1. esports CDN 详情（主数据源，通常有局分但不一定有选手数据）
     `https://esports-data.5eplaycdn.com/v1/api/csgo/matches/${numericId}/data`,
     `https://esports-data.5eplaycdn.com/v1/api/csgo/matches/${matchId}/data`,
     // 2. event.5eplay.com 新版 API
@@ -438,33 +442,53 @@ async function fetchMatchDetail(matchId) {
       });
 
       const detailData = parseDetailApiResponse(resp.data);
-      if (detailData && (detailData.roundScores.length > 0 || detailData.playerStats.length > 0)) {
-        console.log(`[5eplay] 详情 API 成功: ${url}`);
-        return detailData;
+      if (detailData) {
+        // 取最全的局分
+        if (detailData.roundScores.length > bestRoundScores.length) {
+          bestRoundScores = detailData.roundScores;
+        }
+        // 取最全的选手数据
+        if (detailData.playerStats.length > bestPlayerStats.length) {
+          bestPlayerStats = detailData.playerStats;
+          console.log(`[5eplay]   → 获得 ${bestPlayerStats.length} 名选手数据 (来自 ${url.split('?')[0].split('/').slice(-1)[0]})`);
+        }
+        // 两种数据都齐了就停止
+        if (bestRoundScores.length > 0 && bestPlayerStats.length > 0) break;
       }
     } catch (err) {
-      // 只对非 404 错误打日志（404 太常见，不值一行）
+      // 只对非 404 错误打日志
       if (err.response?.status !== 404) {
         console.log(`[5eplay] 详情 API ${matchId} 失败: ${err.message}`);
       }
     }
   }
 
-  // 最后尝试 HTML 详情页（Vue SSR，解析可能失败）
-  console.log(`[5eplay] 尝试 HTML 详情页: event.5eplay.com/csgo/matches/${matchId}`);
-  try {
-    const resp = await axios.get(`https://event.5eplay.com/csgo/matches/${matchId}`, {
-      headers: { 'User-Agent': UA, 'Referer': 'https://event.5eplay.com/', 'Accept': 'text/html,application/xhtml+xml' },
-      timeout: TIMEOUT * 2,  // HTML 页面可能需要更长时间
-    });
-    const parsed = parseDetailPage(resp.data);
-    if (parsed && (parsed.roundScores.length > 0 || parsed.playerStats.length > 0)) {
-      return parsed;
+  // 如果 JSON API 没拿到选手数据，再尝试 HTML 详情页
+  if (bestPlayerStats.length === 0) {
+    console.log(`[5eplay] 尝试 HTML 详情页补充选手数据: event.5eplay.com/csgo/matches/${matchId}`);
+    try {
+      const resp = await axios.get(`https://event.5eplay.com/csgo/matches/${matchId}`, {
+        headers: { 'User-Agent': UA, 'Referer': 'https://event.5eplay.com/', 'Accept': 'text/html,application/xhtml+xml' },
+        timeout: TIMEOUT * 2,
+      });
+      const parsed = parseDetailPage(resp.data);
+      if (parsed) {
+        if (parsed.roundScores.length > bestRoundScores.length) {
+          bestRoundScores = parsed.roundScores;
+        }
+        if (parsed.playerStats.length > bestPlayerStats.length) {
+          bestPlayerStats = parsed.playerStats;
+          console.log(`[5eplay]   → HTML 页获得 ${bestPlayerStats.length} 名选手数据`);
+        }
+      }
+    } catch (err) {
+      console.log(`[5eplay] HTML 详情页失败: ${err.message}`);
     }
-  } catch (err) {
-    console.log(`[5eplay] HTML 详情页失败: ${err.message}`);
   }
 
+  if (bestRoundScores.length > 0 || bestPlayerStats.length > 0) {
+    return { roundScores: bestRoundScores, playerStats: bestPlayerStats };
+  }
   return null;
 }
 
