@@ -38,14 +38,16 @@ const DELAY_MAX = 2000;
 // 实际 URL 示例: /players/archive/active?filter=N&page=2
 const ALL_CATEGORIES = ['numbers', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 
-// 分片映射：7 个并发 job，每个爬取指定首字母（job7 负责 Y/Z/数字符号）
+// 分片映射：9 个并发 job，每个爬取 3 个首字母（job8 负责 Y/Z/数字符号）
 const CHUNK_MAP = [
-  ['A', 'B', 'C', 'D'],
-  ['E', 'F', 'G', 'H'],
-  ['I', 'J', 'K', 'L'],
-  ['M', 'N', 'O', 'P'],
-  ['Q', 'R', 'S', 'T'],
-  ['U', 'V', 'W', 'X'],
+  ['A', 'B', 'C'],
+  ['D', 'E', 'F'],
+  ['G', 'H', 'I'],
+  ['J', 'K', 'L'],
+  ['M', 'N', 'O'],
+  ['P', 'Q', 'R'],
+  ['S', 'T', 'U'],
+  ['V', 'W', 'X'],
   ['Y', 'Z', 'numbers'],
 ];
 
