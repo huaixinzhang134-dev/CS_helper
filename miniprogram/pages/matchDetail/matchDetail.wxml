@@ -138,7 +138,6 @@
       placeholder-class="ph"
       value="{{draftContent}}" bindinput="onInputChange"
       disabled="{{!selectedPlayer}}" maxlength="500"
-      auto-height="{{true}}"
     />
     <text class="char-count">{{draftContent.length}}/500</text>
     <button class="send-btn {{sending || !selectedPlayer || !draftContent ? 'disabled' : ''}}"
