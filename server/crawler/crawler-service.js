@@ -26,7 +26,7 @@ const { fetchFrom5eplay, fetchMatchDetail } = require('./5eplay-api');
 // ======================== 配置 ========================
 
 const API_BASE = process.env.API_BASE || 'http://127.0.0.1:3000';
-const SYNC_TOKEN = process.env.SYNC_TOKEN || 'cs-match-sync-token';
+const SYNC_TOKEN = process.env.SYNC_TOKEN || '';
 const INTERVAL = parseInt(process.env.CRAWLER_INTERVAL || '30000', 10);
 const DRY_RUN = process.env.CRAWLER_DRY_RUN === 'true';
 

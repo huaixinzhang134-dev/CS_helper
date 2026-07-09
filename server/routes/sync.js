@@ -333,7 +333,7 @@ router.post('/', async (req, res, next) => {
   try {
     // 简单鉴权
     const auth = req.headers.authorization;
-    const expectedToken = process.env.SYNC_TOKEN || 'cs-match-sync-token';
+    const expectedToken = process.env.SYNC_TOKEN || '';
     if (!auth || auth !== `Bearer ${expectedToken}`) {
       return res.status(401).json({ code: 401, message: 'unauthorized', data: null });
     }
