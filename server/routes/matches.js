@@ -99,7 +99,8 @@ router.get('/events', async (req, res, next) => {
       `SELECT event_name AS name, COUNT(*) AS matchCount, MAX(match_date) AS latestDate
        FROM matches GROUP BY event_name ORDER BY latestDate DESC`
     );
-    const filtered = rows.filter(r => !isRoundName(r.name));
+    const filtered = rows.filter(r => !isRoundName(r.name))
+      .map(r => ({ ...r, latestDate: fmtDate(r.latestDate) }));
     res.json({ code: 0, message: '', data: filtered });
   } catch (err) {
     next(err);
