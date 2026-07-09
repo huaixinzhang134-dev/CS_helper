@@ -285,10 +285,11 @@ function normalizeMatch(raw) {
     const team1Logo = t1.logo || '';
     const team2Logo = t2.logo || '';
 
-    // 赛事名称
-    let eventName = raw.eventName || raw.event_name || raw.tournament || raw.series || raw.event || '';
-    if (info.round_name && !eventName) eventName = info.round_name;
-    if (info.grade) eventName = (eventName ? eventName + ' ' : '') + 'G' + info.grade;
+    // 赛事名称（优先取 tt_info.disp_name，即真正的赛事/系列赛名，而非 round_name 回合名）
+    const ttInfo = raw.tt_info || {};
+    let eventName = ttInfo.disp_name || raw.tournament || raw.series || raw.event || '';
+    // 兜底：只有完全没有赛事名时，才用 round_name
+    if (!eventName && info.round_name) eventName = info.round_name;
 
     // state（结果 API 返回的比赛状态）
     const st = raw.state || {};
