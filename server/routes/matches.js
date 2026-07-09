@@ -67,10 +67,22 @@ function toMatchDTO(row, baseUrl) {
   return dto;
 }
 
+// 回合名关键词（用于 events 接口过滤，仅展示真正的赛事分类）
+const ROUND_KEYWORDS = /(决赛|半决赛|季军赛|八强|四强|十六强|十二强|首轮|小组赛|淘汰赛|排位赛|瑞士轮|胜者组|败者组|入围赛|附加赛|升降级赛|复活赛|第[一二三四五六七八九十\d]+轮)/;
+
+function isRoundName(name) {
+  if (!name) return false;
+  // 去除末尾 G+数字后缀（"八强 G4" → "八强"），再匹配关键词
+  const cleaned = name.replace(/\s*G\d+$/, '').trim();
+  // 纯等级编号（"G4"、"G5"）也视为回合名
+  if (/^G\d+$/.test(cleaned)) return true;
+  return ROUND_KEYWORDS.test(cleaned);
+}
+
 /**
  * GET /api/matches/events
  * 返回所有赛事名称（去重），含比赛场次数和最近日期
- * 注意：必须放在 /:id 路由之前，否则 Express 会把 "events" 当 id
+ * 自动过滤「八强 G4」「首轮 G5」「决赛」等回合名，仅保留真正的赛事分类
  */
 router.get('/events', async (req, res, next) => {
   try {
@@ -78,7 +90,8 @@ router.get('/events', async (req, res, next) => {
       `SELECT event_name AS name, COUNT(*) AS matchCount, MAX(match_date) AS latestDate
        FROM matches GROUP BY event_name ORDER BY latestDate DESC`
     );
-    res.json({ code: 0, message: '', data: rows });
+    const filtered = rows.filter(r => !isRoundName(r.name));
+    res.json({ code: 0, message: '', data: filtered });
   } catch (err) {
     next(err);
   }
