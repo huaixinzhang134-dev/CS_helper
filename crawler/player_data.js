@@ -331,15 +331,11 @@ async function fetchPlayerDetails(playerUrl, playerId, playerName, archiveType) 
           }
         }
 
-        // 查找 Sniping 数据（在 .player-stat-top 中，显示为百分比）
-        // HTML 结构: div.player-stat-top > span > p > b (百分比数字)
-        const statTopEl = document.querySelector('.playerpage-container-attributes .player-stat-top');
-        if (statTopEl) {
-          const snipingText = statTopEl.textContent?.trim() || '';
-          const snipingMatch = snipingText.match(/(\d+[\.\d]*)%/);
-          if (snipingMatch) {
-            result.sniping = parseFloat(snipingMatch[1]);
-          }
+        // 查找 Sniping 数据（与 player_check.js 选择器一致，已验证可用）
+        // HTML: #infoBox > ... > div.player-stat-top > span > p > b (百分比数字)
+        const sniperEl = document.querySelector('#infoBox > div.g-grid.stats-matches > div:nth-child(1) > div.playerpage-container.playerpage-container-attributes > div:nth-child(7) > div.player-stat-top > span > p > b');
+        if (sniperEl) {
+          result.sniping = parseFloat(sniperEl.textContent.trim());
         }
 
         return result;
