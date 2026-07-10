@@ -180,11 +180,14 @@ async function checkPlayerPosition(player) {
     // --- 复出检测 ---
     const team = parseTeamFromHtml(html);
     let newStatus = player.status || 'unknown';
+    let comeBackDetected = false;  // 标记是否真的触发了复出/教练检测
     if (player.status === 'retired') {
       if (htmlPosition === '教练') {
         newStatus = 'coach';
+        comeBackDetected = true;
       } else if (team) {
         newStatus = 'active';
+        comeBackDetected = true;
       }
     }
     const statusChanged = newStatus !== player.status;
@@ -195,7 +198,11 @@ async function checkPlayerPosition(player) {
       console.log(`  ✓ ${player.name}: "${oldPosition}" 正确`);
     }
     if (statusChanged) {
-      console.log(`  🔄 ${player.name}: 复出! status "${player.status}" → "${newStatus}" (team="${team}")`);
+      if (comeBackDetected) {
+        console.log(`  🔄 ${player.name}: 复出! status "${player.status}" → "${newStatus}" (team="${team}")`);
+      } else {
+        console.log(`  📋 ${player.name}: 状态补齐 "${player.status}" → "${newStatus}"`);
+      }
     }
 
     return {
