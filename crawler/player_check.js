@@ -144,16 +144,6 @@ function parsePositionFromHtml(html) {
   return position;
 }
 
-/** 从选手详情页 HTML 提取当前所属队伍（有则非空，无则为空字符串） */
-function parseTeamFromHtml(html) {
-  const $ = cheerio.load(html);
-  const teamEl = $('.playerTeam a[itemprop="text"]').first();
-  if (teamEl.length > 0) {
-    return teamEl.text().trim();
-  }
-  return '';
-}
-
 async function evaluateRatioAndCorrect(htmlPosition) {
   try {
     const ratioValue = await page.evaluate(() => {
@@ -177,44 +167,20 @@ async function checkPlayerPosition(player) {
     const newPosition = result.position;
     const positionChanged = oldPosition !== newPosition;
 
-    // --- 复出检测 ---
-    const team = parseTeamFromHtml(html);
-    let newStatus = player.status || 'unknown';
-    let comeBackDetected = false;  // 标记是否真的触发了复出/教练检测
-    if (player.status === 'retired') {
-      if (htmlPosition === '教练') {
-        newStatus = 'coach';
-        comeBackDetected = true;
-      } else if (team) {
-        newStatus = 'active';
-        comeBackDetected = true;
-      }
-    }
-    const statusChanged = newStatus !== player.status;
-
     if (positionChanged) {
       console.log(`  ✏ ${player.name}: "${oldPosition}" → "${newPosition}" (ratio: ${result.ratioValue})`);
     } else {
       console.log(`  ✓ ${player.name}: "${oldPosition}" 正确`);
     }
-    if (statusChanged) {
-      if (comeBackDetected) {
-        console.log(`  🔄 ${player.name}: 复出! status "${player.status}" → "${newStatus}" (team="${team}")`);
-      } else {
-        console.log(`  📋 ${player.name}: 状态补齐 "${player.status}" → "${newStatus}"`);
-      }
-    }
 
     return {
       ...player,
       position: newPosition,
-      status: newStatus,
-      _positionChanged: positionChanged,
-      _statusChanged: statusChanged
+      _positionChanged: positionChanged
     };
   } catch (err) {
     console.error(`  ✗ 检查 ${player.name} 失败: ${err.message}`);
-    return { ...player, _positionChanged: false, _statusChanged: false };
+    return { ...player, _positionChanged: false };
   }
 }
 
@@ -227,6 +193,15 @@ function loadPlayers() {
   }
   const lines = fs.readFileSync(DATA_FILE, 'utf8').split('\n').filter(l => l.trim());
   return lines.map(l => JSON.parse(l));
+}
+
+/** 从 MySQL 加载选手数据（含正确的 status 字段，替代 JSON 文件） */
+async function loadPlayersFromDb(conn) {
+  const [rows] = await conn.execute(
+    'SELECT game_id AS _id, name, position, status FROM player'
+  );
+  console.log(`数据库加载 ${rows.length} 个选手`);
+  return rows;
 }
 
 // ======================== 进度管理 ========================
@@ -279,17 +254,6 @@ async function syncPositionToDb(conn, playerId, name, position) {
     );
     if (result.affectedRows > 0) console.log(`  DB ✓ ${name} → "${position}" (${result.affectedRows} 行)`);
   } catch (err) { console.error(`  DB ✗ ${name}: ${err.message}`); }
-}
-
-async function syncStatusToDb(conn, playerId, name, status) {
-  if (!conn) return;
-  try {
-    const [result] = await conn.execute(
-      'UPDATE player SET status = ? WHERE game_id = ? OR name = ?',
-      [status, playerId, name]
-    );
-    if (result.affectedRows > 0) console.log(`  DB ✓ ${name} status → "${status}" (${result.affectedRows} 行)`);
-  } catch (err) { console.error(`  DB ✗ ${name} status: ${err.message}`); }
 }
 
 // ======================== 主流程 ========================
@@ -345,8 +309,6 @@ async function checkAllPositions() {
     for (const item of pendingDbSync) {
       if (item.type === 'position') {
         try { await syncPositionToDb(dbConn, item.id, item.name, item.value); } catch (_) {}
-      } else {
-        try { await syncStatusToDb(dbConn, item.id, item.name, item.value); } catch (_) {}
       }
     }
     pendingDbSync.length = 0;
@@ -369,7 +331,6 @@ async function checkAllPositions() {
 
   try {
     let correctedCount = 0;
-    let comebackCount = 0;
     const enableDb = useDb || quickMode;
     if (enableDb) dbConn = await getDbConnection();
 
@@ -386,10 +347,6 @@ async function checkAllPositions() {
       if (result._positionChanged) {
         correctedCount++;
         pendingDbSync.push({ type: 'position', id: result._id, name: result.name, value: result.position });
-      }
-      if (result._statusChanged) {
-        comebackCount++;
-        pendingDbSync.push({ type: 'status', id: result._id, name: result.name, value: result.status });
       }
 
       await delay(DELAY_BETWEEN_REQUESTS);
@@ -411,7 +368,6 @@ async function checkAllPositions() {
     console.log('检查完成！');
     console.log(`总计检查: ${players.length} 个选手`);
     console.log(`位置修正: ${correctedCount} 个`);
-    console.log(`复出标记: ${comebackCount} 个`);
     console.log('========================================');
   } catch (error) {
     console.error('\n检查过程中出错:', error.message);
