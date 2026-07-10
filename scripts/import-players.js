@@ -28,6 +28,76 @@ function inferRegion(countryCode) {
 }
 
 /**
+ * 国家英文名 → 中文 翻译映射
+ * 复制自 crawler/clean_playerbase_region.py，与本地清洗逻辑保持一致
+ */
+const COUNTRY_EN_TO_CN = {
+  // 欧洲
+  "United Kingdom": "英国", "UK": "英国", "Great Britain": "英国",
+  "England": "英格兰", "Scotland": "苏格兰", "Wales": "威尔士",
+  "Northern Ireland": "北爱尔兰", "Ireland": "爱尔兰", "Republic of Ireland": "爱尔兰",
+  "France": "法国", "Germany": "德国", "Spain": "西班牙", "Italy": "意大利",
+  "Portugal": "葡萄牙", "Netherlands": "荷兰", "Belgium": "比利时",
+  "Switzerland": "瑞士", "Austria": "奥地利", "Poland": "波兰",
+  "Czech Republic": "捷克", "Czechia": "捷克", "Slovakia": "斯洛伐克",
+  "Hungary": "匈牙利", "Romania": "罗马尼亚", "Bulgaria": "保加利亚", "Greece": "希腊",
+  "Croatia": "克罗地亚", "Serbia": "塞尔维亚", "Slovenia": "斯洛文尼亚",
+  "Bosnia and Herzegovina": "波黑",
+  "Montenegro": "黑山", "Albania": "阿尔巴尼亚",
+  "North Macedonia": "北马其顿", "Macedonia": "北马其顿", "Kosovo": "科索沃地区",
+  "Moldova": "摩尔多瓦", "Latvia": "拉脱维亚", "Lithuania": "立陶宛", "Estonia": "爱沙尼亚",
+  "Russia": "俄罗斯", "Russian Federation": "俄罗斯", "Ukraine": "乌克兰",
+  "Belarus": "白俄罗斯",
+  "Sweden": "瑞典", "Norway": "挪威", "Denmark": "丹麦",
+  "Finland": "芬兰", "Iceland": "冰岛", "Malta": "马耳他", "Cyprus": "塞浦路斯",
+  "Luxembourg": "卢森堡", "Liechtenstein": "列支敦士登", "Monaco": "摩纳哥",
+  "Andorra": "安道尔", "San Marino": "圣马力诺", "Vatican City": "梵蒂冈",
+  // 美洲
+  "United States": "美国", "USA": "美国", "U.S.A.": "美国",
+  "Canada": "加拿大", "Mexico": "墨西哥",
+  "Brazil": "巴西", "Argentina": "阿根廷", "Chile": "智利",
+  "Colombia": "哥伦比亚", "Peru": "秘鲁", "Venezuela": "委内瑞拉",
+  "Ecuador": "厄瓜多尔", "Bolivia": "玻利维亚", "Paraguay": "巴拉圭",
+  "Uruguay": "乌拉圭",
+  "Costa Rica": "哥斯达黎加", "Panama": "巴拿马", "Cuba": "古巴",
+  "Jamaica": "牙买加", "Dominican Republic": "多米尼加",
+  "Trinidad and Tobago": "特立尼达和多巴哥",
+  // 亚洲
+  "China": "中国", "People's Republic of China": "中国",
+  "Japan": "日本", "South Korea": "韩国", "Korea, Republic of": "韩国",
+  "North Korea": "朝鲜", "Mongolia": "蒙古", "Taiwan": "中国台湾",
+  "Hong Kong": "中国香港", "Macao": "中国澳门",
+  "Singapore": "新加坡", "Malaysia": "马来西亚", "Indonesia": "印度尼西亚",
+  "Thailand": "泰国", "Vietnam": "越南", "Philippines": "菲律宾",
+  "Myanmar": "缅甸", "Cambodia": "柬埔寨", "Laos": "老挝",
+  "India": "印度", "Pakistan": "巴基斯坦", "Bangladesh": "孟加拉国",
+  "Nepal": "尼泊尔", "Sri Lanka": "斯里兰卡", "Afghanistan": "阿富汗",
+  "Turkey": "土耳其", "Türkiye": "土耳其",
+  "Saudi Arabia": "沙特阿拉伯", "United Arab Emirates": "阿联酋", "Qatar": "卡塔尔",
+  "Kuwait": "科威特", "Bahrain": "巴林", "Oman": "阿曼", "Yemen": "也门",
+  "Jordan": "约旦", "Lebanon": "黎巴嫩", "Syria": "叙利亚", "Iraq": "伊拉克",
+  "Iran": "伊朗", "Israel": "以色列", "Palestine": "巴勒斯坦",
+  "Armenia": "亚美尼亚", "Azerbaijan": "阿塞拜疆", "Georgia": "格鲁吉亚",
+  "Kazakhstan": "哈萨克斯坦", "Uzbekistan": "乌兹别克斯坦",
+  "Turkmenistan": "土库曼斯坦", "Kyrgyzstan": "吉尔吉斯斯坦", "Tajikistan": "塔吉克斯坦",
+  "Australia": "澳大利亚", "New Zealand": "新西兰",
+  // 非洲
+  "South Africa": "南非", "Egypt": "埃及", "Morocco": "摩洛哥",
+  "Algeria": "阿尔及利亚", "Tunisia": "突尼斯", "Nigeria": "尼日利亚",
+  "Kenya": "肯尼亚",
+  // 补充（HLTV 数据中出现的特殊值）
+  "Unknown": "未知",
+};
+
+/**
+ * 将国家英文名翻译为中文，查不到时返回原文
+ */
+function translateCountry(countryEn) {
+  if (!countryEn) return '';
+  return COUNTRY_EN_TO_CN[countryEn.trim()] || countryEn;
+}
+
+/**
  * 安全解析数字，无法解析则返回默认值
  */
 function safeInt(value, defaultVal = 0) {
@@ -111,7 +181,7 @@ async function main() {
             p.name || '',
             p.realName || '',
             safeInt(p.age),
-            p.country || '',
+            translateCountry(p.country || ''),
             p.countryCode || '',
             p.team || '',
             JSON.stringify(p.formerTeams || []),
