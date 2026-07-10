@@ -103,7 +103,7 @@ def insert_players(cur, players: list):
     rows = []
     for p in players:
         rows.append((
-            p.get("name", ""),                                   # game_id
+            str(p.get("_id", "")),                                   # game_id（HLTV 数字 ID）
             p.get("name", ""),                                   # name（游戏昵称）
             p.get("realName", ""),
             safe_int(p.get("age")),

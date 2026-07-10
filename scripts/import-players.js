@@ -9,23 +9,99 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * 根据 country_code 推断地区
+ * 三大赛区国家代码集合（ISO 3166-1 alpha-2）
+ * 复制自 crawler/clean_playerbase_region.py，与本地清洗逻辑保持一致
  */
-function inferRegion(countryCode) {
-  const europe = ['GB','DE','FR','SE','DK','NO','FI','PL','UA','RU','NL','BE','CH',
-    'AT','IT','ES','PT','CZ','SK','HU','RO','BG','RS','HR','BA','LT','LV','EE',
-    'SI','AL','MK','ME','LU','MT','IS','IE','GR','TR','CY','GE','AM','AZ'];
-  const americas = ['US','CA','BR','AR','MX','CL','CO','PE','UY','BO','EC','VE',
-    'CR','PA','DO','JM','TT'];
-  const asia = ['CN','KR','JP','AU','NZ','SG','MY','ID','PH','TH','VN','IN',
-    'MN','KZ','UZ','KG','HK','TW','MO','QA','SA','AE','IL','JO','LB'];
+const EUROPE_CODES = new Set([
+  "FR","DE","NL","BE","LU","AT","CH","IE","GB","UK",
+  "SE","NO","DK","FI","IS",
+  "IT","ES","PT","GR","MT","CY","AD","MC","SM","VA",
+  "PL","CZ","SK","HU","SI","HR","BA","RS","ME","MK","AL","XK",
+  "RU","UA","BY","MD","EE","LV","LT",
+  "BG","RO","LI","FO","SJ","AX","GI",
+]);
 
-  const code = countryCode.toUpperCase();
-  if (europe.includes(code)) return 'Europe';
-  if (americas.includes(code)) return 'Americas';
-  if (asia.includes(code)) return 'Asia';
+const AMERICAS_CODES = new Set([
+  "US","CA","MX",
+  "GT","BZ","HN","SV","NI","CR","PA",
+  "CU","JM","HT","DO","PR","BS","BB","TT","LC","GD","VC","DM",
+  "AG","KN","AI","MS","TC","VG","VI","KY","BM","AW","CW",
+  "SX","BQ","MQ","GP","RE","YT","PM","GL",
+  "BR","AR","CL","CO","PE","VE","EC","BO","PY","UY","GY","SR","GF","FK",
+]);
+
+const ASIA_CODES = new Set([
+  "CN","JP","KR","KP","MN","TW","HK","MO",
+  "SG","MY","ID","TH","VN","PH","MM","KH","LA","BN","TL",
+  "IN","PK","BD","NP","BT","LK","MV","AF",
+  "TR","SA","AE","QA","KW","BH","OM","YE","JO","LB","SY","IQ","IR","IL","PS","AM","AZ","GE",
+  "KZ","UZ","TM","KG","TJ",
+  "AU","NZ","PG","FJ","WS","TO","VU","SB","KI","NR","TV","PW","MH","FM","CK","NU","TK","WF","PF","NC","GU","MP","AS",
+]);
+
+// 国家名称 → 赛区 兜底映射（处理无 countryCode 的情况）
+const COUNTRY_NAME_REGION = {
+  "United Kingdom": "Europe", "UK": "Europe", "Great Britain": "Europe",
+  "England": "Europe", "Scotland": "Europe", "Wales": "Europe",
+  "Northern Ireland": "Europe", "Ireland": "Europe", "Republic of Ireland": "Europe",
+  "France": "Europe", "Germany": "Europe", "Spain": "Europe", "Italy": "Europe",
+  "Portugal": "Europe", "Netherlands": "Europe", "Belgium": "Europe",
+  "Switzerland": "Europe", "Austria": "Europe", "Poland": "Europe",
+  "Czech Republic": "Europe", "Czechia": "Europe", "Slovakia": "Europe",
+  "Hungary": "Europe", "Romania": "Europe", "Bulgaria": "Europe", "Greece": "Europe",
+  "Croatia": "Europe", "Serbia": "Europe", "Slovenia": "Europe",
+  "Bosnia and Herzegovina": "Europe", "Montenegro": "Europe", "Albania": "Europe",
+  "North Macedonia": "Europe", "Macedonia": "Europe", "Kosovo": "Europe",
+  "Moldova": "Europe", "Latvia": "Europe", "Lithuania": "Europe", "Estonia": "Europe",
+  "Russia": "Europe", "Russian Federation": "Europe", "Ukraine": "Europe",
+  "Belarus": "Europe", "Sweden": "Europe", "Norway": "Europe", "Denmark": "Europe",
+  "Finland": "Europe", "Iceland": "Europe", "Malta": "Europe", "Cyprus": "Europe",
+  "Luxembourg": "Europe", "Liechtenstein": "Europe", "Monaco": "Europe",
+  "Andorra": "Europe", "San Marino": "Europe", "Vatican City": "Europe",
+  "United States": "Americas", "USA": "Americas", "U.S.A.": "Americas",
+  "Canada": "Americas", "Mexico": "Americas", "Brazil": "Americas",
+  "Argentina": "Americas", "Chile": "Americas", "Colombia": "Americas",
+  "Peru": "Americas", "Venezuela": "Americas", "Ecuador": "Americas",
+  "Bolivia": "Americas", "Paraguay": "Americas", "Uruguay": "Americas",
+  "China": "Asia", "People's Republic of China": "Asia",
+  "Japan": "Asia", "South Korea": "Asia", "Korea, Republic of": "Asia",
+  "North Korea": "Asia", "Mongolia": "Asia", "Taiwan": "Asia",
+  "Hong Kong": "Asia", "Macao": "Asia",
+  "Singapore": "Asia", "Malaysia": "Asia", "Indonesia": "Asia",
+  "Thailand": "Asia", "Vietnam": "Asia", "Philippines": "Asia",
+  "India": "Asia", "Pakistan": "Asia", "Bangladesh": "Asia",
+  "Nepal": "Asia", "Sri Lanka": "Asia", "Afghanistan": "Asia",
+  "Turkey": "Asia", "Türkiye": "Asia",
+  "Saudi Arabia": "Asia", "United Arab Emirates": "Asia", "Qatar": "Asia",
+  "Kuwait": "Asia", "Bahrain": "Asia", "Oman": "Asia", "Yemen": "Asia",
+  "Jordan": "Asia", "Lebanon": "Asia", "Syria": "Asia", "Iraq": "Asia",
+  "Iran": "Asia", "Israel": "Asia", "Palestine": "Asia",
+  "Armenia": "Asia", "Azerbaijan": "Asia", "Georgia": "Asia",
+  "Kazakhstan": "Asia", "Uzbekistan": "Asia", "Turkmenistan": "Asia",
+  "Kyrgyzstan": "Asia", "Tajikistan": "Asia",
+  "Australia": "Asia", "New Zealand": "Asia",
+};
+
+/**
+ * 根据 countryCode 和 country 推断赛区
+ * 优先 countryCode，兜底 country 名称；均无法识别则返回 "Other"
+ */
+function determineRegion(countryCode, country) {
+  if (countryCode) {
+    const code = countryCode.trim().toUpperCase();
+    if (EUROPE_CODES.has(code)) return 'Europe';
+    if (AMERICAS_CODES.has(code)) return 'Americas';
+    if (ASIA_CODES.has(code)) return 'Asia';
+  }
+  if (country) {
+    const mapped = COUNTRY_NAME_REGION[country.trim()];
+    if (mapped) return mapped;
+  }
   return 'Other';
 }
+
+// 导入前需要删除的无意义统计字段（爬虫原始数据中这些值均为 0）
+const DROP_FIELDS = ['roundSwing', 'dpr', 'kast', 'multiKill', 'adr', 'kpr', 'firepower'];
 
 /**
  * 国家英文名 → 中文 翻译映射
@@ -154,6 +230,14 @@ async function main() {
         const gameId = p._id || '';
         if (!gameId) { skipped++; continue; }
 
+        // 删除无意义的统计字段（与本地清洗脚本 clean_playerbase_region.py 一致）
+        for (const field of DROP_FIELDS) {
+          delete p[field];
+        }
+
+        // 推断赛区（优先 countryCode，兜底 country 名称）
+        const region = determineRegion(p.countryCode, p.country);
+
         const [result] = await conn.execute(
           `INSERT INTO player (
             game_id, name, real_name, age, country, country_code,
@@ -185,7 +269,7 @@ async function main() {
             p.countryCode || '',
             p.team || '',
             JSON.stringify(p.formerTeams || []),
-            inferRegion(p.countryCode || ''),
+            region,
             safeInt(p.majorAppearances),
             p.position || '',
             p.status || 'unknown',
