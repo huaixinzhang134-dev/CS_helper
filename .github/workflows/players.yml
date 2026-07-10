@@ -47,6 +47,27 @@ jobs:
         env:
           NODE_ENV: production
 
+      - name: 分片后处理（位置修正 + 状态修正）
+        run: |
+          node -e "
+            const fs = require('fs');
+            const file = 'playerbase_chunk${{ matrix.chunk }}.json';
+            if (!fs.existsSync(file)) { console.log('无文件跳过'); process.exit(0); }
+            const lines = fs.readFileSync(file,'utf8').split('\n').filter(l=>l.trim());
+            let fixed = 0;
+            const out = lines.map(line => {
+              const p = JSON.parse(line);
+              const sn = parseFloat(p.sniping);
+              if (sn > 65 && p.position !== '教练') { p.position = '狙击手'; fixed++; }
+              if (p.position === '教练' && p.status !== 'coach') { p.status = 'coach'; fixed++; }
+              if (p.status === 'retired' && p.team && p.position !== '教练') { p.status = 'active'; fixed++; }
+              return JSON.stringify(p);
+            });
+            fs.writeFileSync(file, out.join('\n'), 'utf8');
+            console.log('修正 ' + fixed + '/' + lines.length + ' 条');
+          "
+        working-directory: crawler
+
       - name: 上传分片产物
         uses: actions/upload-artifact@v4
         with:
