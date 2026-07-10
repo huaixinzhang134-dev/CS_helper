@@ -820,6 +820,29 @@ async function crawlAllPages() {
       }
     }
 
+    // ---- 位置 + 状态修正（基于已爬取的 sniping 数据） ----
+    let posFixed = 0, statusFixed = 0;
+    for (const p of allPlayers) {
+      const sn = parseFloat(p.sniping);
+      if (sn > 65 && p.position !== '教练') {
+        p.position = '狙击手';
+        posFixed++;
+      }
+      if (p.position === '教练' && p.status !== 'coach') {
+        p.status = 'coach';
+        statusFixed++;
+      }
+      if (p.status === 'retired' && p.team && p.position !== '教练') {
+        p.status = 'active';
+        statusFixed++;
+      }
+    }
+    if (posFixed || statusFixed) {
+      console.log(`\n--- 修正统计 ---`);
+      console.log(`  位置修正: ${posFixed} 人`);
+      console.log(`  状态修正: ${statusFixed} 人`);
+    }
+
     // 最终保存
     saveData();
 
