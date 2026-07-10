@@ -2,7 +2,7 @@ name: 选手位置检测
 
 on:
   schedule:
-    - cron: '0 5 */3 * *'   # 每 3 天凌晨 5 点
+    - cron: '11 11 1 * *'   # 每月 1 日 11:11
   workflow_dispatch:
 
 jobs:

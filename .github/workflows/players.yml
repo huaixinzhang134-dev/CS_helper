@@ -2,7 +2,7 @@ name: 选手信息爬虫
 
 on:
   schedule:
-    - cron: '0 5 1 * *'   # 每月 1 日凌晨 5 点
+    - cron: '28 3 1 * *'   # 每月 1 日 3:28
   workflow_dispatch:
 
 jobs:
