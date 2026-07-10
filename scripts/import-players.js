@@ -201,6 +201,14 @@ async function main() {
     charset: 'utf8mb4',
   });
 
+  // 清理旧数据：删除 game_id 不是纯数字的行（历史遗留的 nickname 型 game_id 脏数据）
+  const [cleanResult] = await conn.execute(
+    `DELETE FROM player WHERE game_id NOT REGEXP '^[0-9]+$'`
+  );
+  if (cleanResult.affectedRows > 0) {
+    console.log(`🧹 已清理 ${cleanResult.affectedRows} 条旧数据（game_id 为昵称格式）\n`);
+  }
+
   // 读取 playerbase.json（从 crawler 目录）
   const filePath = path.join(__dirname, '..', 'crawler', 'playerbase.json');
   if (!fs.existsSync(filePath)) {
