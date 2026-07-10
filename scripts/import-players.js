@@ -246,6 +246,21 @@ async function main() {
         // 推断赛区（优先 countryCode，兜底 country 名称）
         const region = determineRegion(p.countryCode, p.country);
 
+        // ---- 选手位置重判断（与 player_check.js 逻辑一致） ----
+        // 基于 sniping 值：高于 65 判定为狙击手
+        const snipingNum = safeFloat(p.sniping);
+        if (snipingNum > 65 && p.position !== '教练') {
+          p.position = '狙击手';
+        }
+        // 状态修正：教练 → status=coach
+        if (p.position === '教练' && p.status !== 'coach') {
+          p.status = 'coach';
+        }
+        // 状态修正：retired 但有队伍 → active（复出检测）
+        if (p.status === 'retired' && p.team && p.position !== '教练') {
+          p.status = 'active';
+        }
+
         const [result] = await conn.execute(
           `INSERT INTO player (
             game_id, name, real_name, age, country, country_code,

@@ -499,7 +499,7 @@ function parsePlayerProfile(html, playerId, fallbackName, archiveType) {
     majorAppearances: majorAppearances,
     position: position,
     status: status,
-    sniping: 'unknown',
+    sniping: 0,
     firepower: 'unknown',
     rating: 'unknown',
     avatar: avatar
