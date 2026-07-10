@@ -48,6 +48,7 @@ async function initBrowser() {
   browser = await puppeteer.launch({
     headless: 'new',
     executablePath: chromePath,
+    protocolTimeout: 120000,  // 协议超时从默认 30s 提升到 120s，避免 CI 环境慢导致崩溃
     args: [
       '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
       '--disable-accelerated-2d-canvas', '--no-first-run', '--no-zygote',
