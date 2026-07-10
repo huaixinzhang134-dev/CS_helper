@@ -92,8 +92,32 @@ jobs:
             console.log('合并完成: ' + unique.length + ' 个选手');
           "
 
-      - name: 安装 MySQL 驱动
-        run: npm install        # root package.json 仅含 mysql2
+      - name: 安装 MySQL 驱动 + mysqldump
+        run: |
+          sudo apt-get install -y mysql-client 2>/dev/null || true
+          npm install        # root package.json 仅含 mysql2
+
+      - name: 备份当前选手数据（导入前）
+        run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          mysqldump -h ${{ secrets.DB_HOST }} \
+            -P ${{ secrets.DB_PORT }} \
+            -u ${{ secrets.DB_USER }} \
+            -p${{ secrets.DB_PASS }} \
+            --single-transaction --quick \
+            ${{ secrets.DB_NAME }} player \
+            | gzip > player_backup_${TIMESTAMP}.sql.gz
+          echo "✅ 备份: player_backup_${TIMESTAMP}.sql.gz ($(du -h player_backup_${TIMESTAMP}.sql.gz | cut -f1))"
+        env:
+          MYSQL_PWD: ${{ secrets.DB_PASS }}
+
+      - name: 上传备份文件到产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: player-db-backup
+          path: player_backup_*.sql.gz
+          retention-days: 30
+          if-no-files-found: warn
 
       - name: 覆盖导入到 Railway MySQL
         run: node scripts/import-players.js
