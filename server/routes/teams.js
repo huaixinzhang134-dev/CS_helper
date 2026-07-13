@@ -53,13 +53,17 @@ router.get('/ranking', async (req, res, next) => {
     const total = countRows[0].total;
 
     const [rows] = await query(
-      `SELECT r.team_name, r.points, r.logo_url, r.\`rank\`,
-              t.region, t.logo_url AS team_logo_url
+      `SELECT r.team_name,
+              MAX(r.points) AS points,
+              MAX(r.logo_url) AS logo_url,
+              MIN(r.\`rank\`) AS \`rank\`,
+              MAX(t.region) AS region,
+              MAX(t.logo_url) AS team_logo_url
        FROM team_ranking r
        LEFT JOIN team t ON t.name = r.team_name
        ${whereSql}
        GROUP BY r.team_name
-       ORDER BY r.\`rank\` ASC
+       ORDER BY \`rank\` ASC
        LIMIT ${pageSize} OFFSET ${offset}`,
       params
     );
