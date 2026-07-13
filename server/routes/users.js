@@ -78,28 +78,6 @@ router.get('/migrate', async (req, res, next) => {
 });
 
 // ============================================================
-// GET /api/users/clear-data
-// 清空 users 表所有数据（仅保留表结构），用于旧数据无法分类 gameMode 时重置
-// ============================================================
-router.get('/clear-data', async (req, res, next) => {
-  try {
-    // 先确保迁移列存在
-    const [cols] = await query("SHOW COLUMNS FROM users LIKE 'pk_win_count'");
-    if (cols.length === 0) {
-      await query(`ALTER TABLE users
-        ADD COLUMN pk_win_count     INT UNSIGNED NOT NULL DEFAULT 0 AFTER win_rate,
-        ADD COLUMN pk_total_games   INT UNSIGNED NOT NULL DEFAULT 0 AFTER pk_win_count,
-        ADD COLUMN pk_win_rate      DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER pk_total_games,
-        ADD COLUMN solo_win_count   INT UNSIGNED NOT NULL DEFAULT 0 AFTER pk_win_rate,
-        ADD COLUMN solo_total_games INT UNSIGNED NOT NULL DEFAULT 0 AFTER solo_win_count,
-        ADD COLUMN solo_win_rate    DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER solo_total_games`);
-    }
-    await query('TRUNCATE TABLE users');
-    res.json({ code: 0, message: '用户数据已清空，表结构保留' });
-  } catch (err) { next(err); }
-});
-
-// ============================================================
 // POST /api/users/login
 // ============================================================
 router.post('/login', async (req, res, next) => {
