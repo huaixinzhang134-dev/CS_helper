@@ -119,6 +119,39 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
+      - name: 清空旧数据（覆盖导入）
+        run: |
+          mysql -h ${{ secrets.DB_HOST }} \
+            -P ${{ secrets.DB_PORT }} \
+            -u ${{ secrets.DB_USER }} \
+            -p${{ secrets.DB_PASS }} \
+            ${{ secrets.DB_NAME }} \
+            -e "TRUNCATE TABLE player;"
+          echo "✅ 已清空 player 表，准备导入全新数据"
+        env:
+          MYSQL_PWD: ${{ secrets.DB_PASS }}
+
+      - name: 保存版本信息（用于回滚追溯）
+        run: |
+          TS=$(date +%Y%m%d_%H%M%S)
+          cat > player_version_info.json <<EOF
+          {
+            "updatedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "source": "HLTV crawl",
+            "workflowRun": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "backupArtifact": "player-db-backup",
+            "backupFile": "player_backup_${TS}.sql.gz",
+            "playerCount": $(node -e "try{const fs=require('fs');console.log(fs.readFileSync('crawler/playerbase.json','utf8').split('\n').filter(l=>l.trim()).length)}catch(e){console.log(0)}" 2>/dev/null || echo 0)
+          }
+          EOF
+          echo "版本信息: $(cat player_version_info.json)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: player-version-info
+          path: player_version_info.json
+          retention-days: 30
+
       - name: 覆盖导入到 Railway MySQL
         run: node scripts/import-players.js
         env:
