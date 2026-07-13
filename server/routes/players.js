@@ -121,6 +121,35 @@ router.get('/count', async (req, res, next) => {
 });
 
 /**
+ * GET /api/players/ranking?page=0&pageSize=20
+ * 选手排行：按 rating 从高到低，排除 rating=0 的选手
+ */
+router.get('/ranking', async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page || '0', 10), 0);
+    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
+    const offset = page * pageSize;
+
+    const [countRows] = await query('SELECT COUNT(*) AS total FROM player WHERE rating > 0');
+    const total = countRows[0].total;
+
+    const [rows] = await query(
+      `SELECT * FROM player WHERE rating > 0 ORDER BY rating DESC LIMIT ${pageSize} OFFSET ${offset}`
+    );
+
+    res.json({
+      code: 0,
+      message: '',
+      data: rows.map(toPlayerDTO),
+      hasMore: offset + pageSize < total,
+      total
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * GET /api/players/random
  */
 router.get('/random', async (req, res, next) => {

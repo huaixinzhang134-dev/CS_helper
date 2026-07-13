@@ -55,6 +55,36 @@
     </view>
   </view>
 
+  <!-- ====== 封神榜弹窗 ====== -->
+  <view class="modal-mask" wx:if="{{showRanking}}" bindtap="onCloseRanking">
+    <view class="modal-content ranking-modal" catchtap="">
+      <view class="ranking-tab">
+        <view class="ranking-tab-item {{rankingMode === 'pk' ? 'ranking-tab-active' : ''}}" bindtap="onSwitchRanking" data-mode="pk">好友对战</view>
+        <view class="ranking-tab-item {{rankingMode === 'solo' ? 'ranking-tab-active' : ''}}" bindtap="onSwitchRanking" data-mode="solo">单人挑战</view>
+      </view>
+      <scroll-view scroll-y class="ranking-list" bindscrolltolower="onRankingScrollToLower">
+        <view class="ranking-empty" wx:if="{{rankingList.length === 0 && !rankingLoading}}">
+          <text>暂无数据</text>
+        </view>
+        <view class="ranking-item" wx:for="{{rankingList}}" wx:key="openid">
+          <text class="ranking-num {{index < 3 ? 'ranking-top' : ''}}">{{index + 1}}</text>
+          <image class="ranking-avatar" src="{{item.avatarUrl || '/assets/icons/game.png'}}" mode="aspectFill"></image>
+          <view class="ranking-info">
+            <text class="ranking-name">{{item.nickname}}</text>
+          </view>
+          <view class="ranking-stats">
+            <text class="ranking-rate">{{item.winRate}}%</text>
+            <text class="ranking-detail">{{item.winCount}}胜/{{item.totalGames}}局</text>
+          </view>
+        </view>
+        <view class="ranking-loading" wx:if="{{rankingLoading}}">加载中...</view>
+      </scroll-view>
+      <view class="modal-footer">
+        <button class="btn-primary" bindtap="onCloseRanking">关闭</button>
+      </view>
+    </view>
+  </view>
+
   <!-- ====== 头部：用户信息 / 登录入口 ====== -->
   <view class="header">
     <block wx:if="{{userInfo}}">
@@ -102,6 +132,10 @@
   <view class="menu-list">
     <view class="menu-item" bindtap="onOpenGuessRecords">
       <text class="menu-text">我的竞猜记录</text>
+      <text class="arrow">></text>
+    </view>
+    <view class="menu-item" bindtap="onOpenRanking">
+      <text class="menu-text">查看封神榜</text>
       <text class="arrow">></text>
     </view>
     <view class="menu-spacer"></view>

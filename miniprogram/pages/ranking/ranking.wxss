@@ -1,0 +1,223 @@
+.ranking-page {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--bg-page);
+}
+
+/* 选项卡 */
+.tab-bar {
+  display: flex;
+  border-bottom: 2rpx solid var(--border-color);
+  background: var(--bg-card);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 24rpx 0;
+  font-size: 30rpx;
+  color: var(--text-secondary);
+  position: relative;
+}
+
+.tab-item.tab-active {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.tab-item.tab-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  width: 60%;
+  height: 4rpx;
+  background: #07c160;
+  border-radius: 2rpx;
+}
+
+/* 滚动区域 */
+.rank-scroll {
+  flex: 1;
+  height: calc(100vh - 100rpx);
+}
+
+/* 卡片列表 */
+.rank-list {
+  padding: 16rpx;
+}
+
+.rank-card {
+  display: flex;
+  align-items: center;
+  background: var(--bg-card);
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 12rpx;
+  border: 1rpx solid var(--border-color);
+}
+
+.rank-card:active {
+  background: var(--bg-hover);
+}
+
+.rank-num {
+  width: 50rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.rank-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 12rpx;
+  margin: 0 20rpx;
+  flex-shrink: 0;
+  background: var(--bg-input);
+}
+
+.team-logo {
+  width: 64rpx;
+  height: 64rpx;
+  margin: 0 20rpx;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.rank-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.rank-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.rank-country {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.rank-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rank-team {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rank-rating {
+  text-align: right;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.rating-num {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #07c160;
+  display: block;
+}
+
+.rating-label {
+  font-size: 20rpx;
+  color: var(--text-muted);
+  display: block;
+}
+
+/* 赛区筛选 */
+.region-filter {
+  position: relative;
+  padding: 16rpx;
+  background: var(--bg-card);
+  border-bottom: 1rpx solid var(--border-color);
+  z-index: 9;
+}
+
+.region-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 12rpx 24rpx;
+  border: 1rpx solid var(--border-color);
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  color: var(--text-primary);
+  background: var(--bg-input);
+}
+
+.arrow-down {
+  font-size: 20rpx;
+  color: var(--text-muted);
+}
+
+.region-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 16rpx;
+  right: 16rpx;
+  background: var(--bg-card);
+  border: 1rpx solid var(--border-color);
+  border-radius: 12rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.1);
+  z-index: 99;
+}
+
+.region-option {
+  padding: 20rpx 24rpx;
+  font-size: 26rpx;
+  color: var(--text-primary);
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.region-option:last-child {
+  border-bottom: none;
+}
+
+.region-option:active {
+  background: var(--bg-hover);
+}
+
+.region-option-active {
+  color: #07c160;
+  font-weight: 600;
+}
+
+/* 通用 */
+.load-more {
+  text-align: center;
+  padding: 24rpx 0;
+  color: var(--text-muted);
+  font-size: 24rpx;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 100rpx 0;
+  color: var(--text-muted);
+  font-size: 28rpx;
+}

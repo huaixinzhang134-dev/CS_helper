@@ -1,11 +1,13 @@
 /**
- * 用户路由 —— 微信登录、个人信息、竞猜记录
+ * 用户路由 —— 微信登录、个人信息、竞猜记录、排行榜
  *
- * POST   /api/users/login         微信登录 (code → openid)
- * GET    /api/users/profile       获取个人信息（需 Bearer token）
- * PUT    /api/users/profile       更新昵称/头像（需 Bearer token）
- * POST   /api/users/guess/record  记录猜一猜结果（需 Bearer token）
- * GET    /api/users/guess/records 获取竞猜记录列表（需 Bearer token）
+ * POST   /api/users/login              微信登录 (code → openid)
+ * GET    /api/users/profile             获取个人信息（需 Bearer token）
+ * PUT    /api/users/profile             更新昵称/头像（需 Bearer token）
+ * POST   /api/users/guess/record        记录猜一猜结果（需 Bearer token）
+ * GET    /api/users/guess/records       获取竞猜记录列表（需 Bearer token）
+ * GET    /api/users/ranking?mode=pk     获取排行榜（需 Bearer token）
+ * GET    /api/users/migrate             迁移：添加 PK/Solo 分离列（管理员）
  */
 const express = require('express');
 const router = express.Router();
@@ -18,7 +20,6 @@ const WX_APPID = process.env.WX_APPID || '';
 const WX_SECRET = process.env.WX_SECRET || '';
 const WX_LOGIN_URL = 'https://api.weixin.qq.com/sns/jscode2session';
 
-// 简单的 URL 拼接（避免额外依赖）
 function buildWxUrl(code) {
   const p = new URLSearchParams({
     appid: WX_APPID,
@@ -32,7 +33,7 @@ function buildWxUrl(code) {
 // ---------- 工具函数 ----------
 
 function userToDTO(row) {
-  return {
+  const dto = {
     id: String(row.id),
     openid: row.openid,
     nickname: row.nickname,
@@ -44,12 +45,42 @@ function userToDTO(row) {
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+  // 如果已迁移（有 pk_win_count 等列），补充 PK/Solo 数据
+  if (row.pk_win_count !== undefined) {
+    dto.pkWinCount = row.pk_win_count;
+    dto.pkTotalGames = row.pk_total_games;
+    dto.pkWinRate = parseFloat(row.pk_win_rate || '0');
+    dto.soloWinCount = row.solo_win_count;
+    dto.soloTotalGames = row.solo_total_games;
+    dto.soloWinRate = parseFloat(row.solo_win_rate || '0');
+  }
+  return dto;
 }
 
 // ============================================================
+// GET /api/users/migrate
+// 迁移：为 users 表新增 PK/Solo 分离统计列
+// ============================================================
+router.get('/migrate', async (req, res, next) => {
+  try {
+    // 检测是否已有列
+    const [cols] = await query("SHOW COLUMNS FROM users LIKE 'pk_win_count'");
+    if (cols.length > 0) {
+      return res.json({ code: 0, message: '已迁移，无需操作' });
+    }
+    await query(`ALTER TABLE users
+      ADD COLUMN pk_win_count     INT UNSIGNED NOT NULL DEFAULT 0 AFTER win_rate,
+      ADD COLUMN pk_total_games   INT UNSIGNED NOT NULL DEFAULT 0 AFTER pk_win_count,
+      ADD COLUMN pk_win_rate      DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER pk_total_games,
+      ADD COLUMN solo_win_count   INT UNSIGNED NOT NULL DEFAULT 0 AFTER pk_win_rate,
+      ADD COLUMN solo_total_games INT UNSIGNED NOT NULL DEFAULT 0 AFTER solo_win_count,
+      ADD COLUMN solo_win_rate    DECIMAL(5,2) NOT NULL DEFAULT 0.00 AFTER solo_total_games`);
+    res.json({ code: 0, message: '迁移完成' });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
 // POST /api/users/login
-// Body: { code: string }
-// 流程：wx.login() → code → 后端 → code2session → openid
 // ============================================================
 router.post('/login', async (req, res, next) => {
   try {
@@ -61,23 +92,18 @@ router.post('/login', async (req, res, next) => {
     let openid;
 
     if (WX_APPID && WX_SECRET) {
-      // 生产环境：调用微信 API 换取 openid
       const resp = await fetch(buildWxUrl(code));
       const wxData = await resp.json();
-
       if (wxData.errcode) {
         console.error('[wx login error]', wxData);
         return res.status(400).json({ code: 400, message: wxData.errmsg || '微信登录失败', data: null });
       }
-
       openid = wxData.openid;
     } else {
-      // 开发/测试环境：用 code 模拟 openid
       console.warn('[wx login] WX_APPID/WX_SECRET 未配置，使用模拟 openid');
       openid = 'dev_' + crypto.createHash('md5').update(code).digest('hex').slice(0, 12);
     }
 
-    // 查找或创建用户
     const [existing] = await query('SELECT * FROM users WHERE openid = ? LIMIT 1', [openid]);
     let user;
     if (existing[0]) {
@@ -91,38 +117,24 @@ router.post('/login', async (req, res, next) => {
       user = rows[0];
     }
 
-    // 生成 token
     const token = generateToken(openid);
-
-    res.json({
-      code: 0,
-      message: '登录成功',
-      data: {
-        token,
-        user: userToDTO(user)
-      }
-    });
+    res.json({ code: 0, message: '登录成功', data: { token, user: userToDTO(user) } });
   } catch (err) { next(err); }
 });
 
 // ============================================================
 // GET /api/users/profile
-// 需 Bearer token
 // ============================================================
 router.get('/profile', authMiddleware, async (req, res, next) => {
   try {
     const [rows] = await query('SELECT * FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
-    if (!rows[0]) {
-      return res.status(404).json({ code: 404, message: '用户不存在', data: null });
-    }
+    if (!rows[0]) return res.status(404).json({ code: 404, message: '用户不存在', data: null });
     res.json({ code: 0, message: '', data: userToDTO(rows[0]) });
   } catch (err) { next(err); }
 });
 
 // ============================================================
 // PUT /api/users/profile
-// Body: { nickname?: string, avatarUrl?: string }
-// 需 Bearer token
 // ============================================================
 router.put('/profile', authMiddleware, async (req, res, next) => {
   try {
@@ -132,10 +144,7 @@ router.put('/profile', authMiddleware, async (req, res, next) => {
 
     if (nickname !== undefined) {
       const trimmed = String(nickname).trim().slice(0, 64);
-      if (trimmed) {
-        updates.push('nickname = ?');
-        params.push(trimmed);
-      }
+      if (trimmed) { updates.push('nickname = ?'); params.push(trimmed); }
     }
     if (avatarUrl !== undefined) {
       updates.push('avatar_url = ?');
@@ -147,10 +156,7 @@ router.put('/profile', authMiddleware, async (req, res, next) => {
     }
 
     params.push(req.userOpenid);
-    await query(
-      `UPDATE users SET ${updates.join(', ')} WHERE openid = ?`,
-      params
-    );
+    await query(`UPDATE users SET ${updates.join(', ')} WHERE openid = ?`, params);
 
     const [rows] = await query('SELECT * FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
     res.json({ code: 0, message: '更新成功', data: userToDTO(rows[0]) });
@@ -159,25 +165,24 @@ router.put('/profile', authMiddleware, async (req, res, next) => {
 
 // ============================================================
 // POST /api/users/guess/record
-// Body: { won: boolean, attempts: number, difficulty: string, targetPlayerId: string, targetPlayerName: string }
-// 需 Bearer token
+// Body: { won, attempts, difficulty, targetPlayerId, targetPlayerName, gameMode }
+//   gameMode: 'personal' | 'friend'（可选，默认 'personal'）
 // ============================================================
 router.post('/guess/record', authMiddleware, async (req, res, next) => {
   try {
-    const { won, attempts, difficulty, targetPlayerId, targetPlayerName } = req.body || {};
-
+    const { won, attempts, difficulty, targetPlayerId, targetPlayerName, gameMode } = req.body || {};
     if (won === undefined) {
       return res.status(400).json({ code: 400, message: 'won 必填', data: null });
     }
 
+    const mode = (gameMode === 'friend') ? 'friend' : 'personal';
+
     const [rows] = await query('SELECT * FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
-    if (!rows[0]) {
-      return res.status(404).json({ code: 404, message: '用户不存在', data: null });
-    }
+    if (!rows[0]) return res.status(404).json({ code: 404, message: '用户不存在', data: null });
 
     const user = rows[0];
 
-    // 更新胜场 / 总局数
+    // 更新整体胜场 / 总局数
     const newTotal = (user.total_games || 0) + 1;
     const newWins = (user.win_count || 0) + (won ? 1 : 0);
     const newRate = newTotal > 0 ? ((newWins / newTotal) * 100).toFixed(2) : '0.00';
@@ -194,17 +199,36 @@ router.post('/guess/record', authMiddleware, async (req, res, next) => {
       difficulty: difficulty || '',
       targetPlayerId: targetPlayerId || '',
       targetPlayerName: targetPlayerName || '',
+      gameMode: mode,
       playedAt: new Date().toISOString()
     };
 
     const newRecords = [newRecord, ...oldRecords].slice(0, 100);
 
-    await query(
-      `UPDATE users SET win_count = ?, total_games = ?, win_rate = ?, guess_records = ? WHERE openid = ?`,
-      [newWins, newTotal, newRate, JSON.stringify(newRecords), req.userOpenid]
-    );
+    // 判断是否已迁移（有 pk_win_count 列则更新 PK/Solo 分离数据）
+    let updateSQL = `UPDATE users SET win_count = ?, total_games = ?, win_rate = ?, guess_records = ? WHERE openid = ?`;
+    let updateParams = [newWins, newTotal, newRate, JSON.stringify(newRecords), req.userOpenid];
 
-    // 重新读取
+    if (user.pk_win_count !== undefined) {
+      const pkTotal = (user.pk_total_games || 0) + (mode === 'friend' ? 1 : 0);
+      const pkWins = (user.pk_win_count || 0) + (mode === 'friend' && won ? 1 : 0);
+      const pkRate = pkTotal > 0 ? ((pkWins / pkTotal) * 100).toFixed(2) : '0.00';
+
+      const soloTotal = (user.solo_total_games || 0) + (mode === 'personal' ? 1 : 0);
+      const soloWins = (user.solo_win_count || 0) + (mode === 'personal' && won ? 1 : 0);
+      const soloRate = soloTotal > 0 ? ((soloWins / soloTotal) * 100).toFixed(2) : '0.00';
+
+      updateSQL = `UPDATE users SET
+        win_count = ?, total_games = ?, win_rate = ?,
+        pk_win_count = ?, pk_total_games = ?, pk_win_rate = ?,
+        solo_win_count = ?, solo_total_games = ?, solo_win_rate = ?,
+        guess_records = ? WHERE openid = ?`;
+      updateParams = [newWins, newTotal, newRate, pkWins, pkTotal, pkRate,
+                      soloWins, soloTotal, soloRate, JSON.stringify(newRecords), req.userOpenid];
+    }
+
+    await query(updateSQL, updateParams);
+
     const [updated] = await query('SELECT * FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
     res.json({ code: 0, message: won ? '胜利记录已保存' : '记录已保存', data: userToDTO(updated[0]) });
   } catch (err) { next(err); }
@@ -212,16 +236,11 @@ router.post('/guess/record', authMiddleware, async (req, res, next) => {
 
 // ============================================================
 // GET /api/users/guess/records
-// Query: ?page=0&pageSize=20
-// 需 Bearer token
-// 返回用户竞猜记录（分页）
 // ============================================================
 router.get('/guess/records', authMiddleware, async (req, res, next) => {
   try {
     const [rows] = await query('SELECT * FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
-    if (!rows[0]) {
-      return res.status(404).json({ code: 404, message: '用户不存在', data: null });
-    }
+    if (!rows[0]) return res.status(404).json({ code: 404, message: '用户不存在', data: null });
 
     const records = rows[0].guess_records
       ? (typeof rows[0].guess_records === 'string' ? JSON.parse(rows[0].guess_records) : rows[0].guess_records)
@@ -234,15 +253,45 @@ router.get('/guess/records', authMiddleware, async (req, res, next) => {
     const paged = records.slice(start, start + pageSize);
 
     res.json({
-      code: 0,
-      message: '',
-      data: {
-        list: paged,
-        total,
-        page,
-        pageSize,
-        hasMore: start + pageSize < total
-      }
+      code: 0, message: '',
+      data: { list: paged, total, page, pageSize, hasMore: start + pageSize < total }
+    });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// GET /api/users/ranking?mode=pk|solo
+// 返回所有用户的胜率排行榜（需迁移后生效）
+// ============================================================
+router.get('/ranking', async (req, res, next) => {
+  try {
+    const mode = req.query.mode === 'solo' ? 'solo' : 'pk';
+    const winCol = mode === 'pk' ? 'pk_win_count' : 'solo_win_count';
+    const totalCol = mode === 'pk' ? 'pk_total_games' : 'solo_total_games';
+    const rateCol = mode === 'pk' ? 'pk_win_rate' : 'solo_win_rate';
+
+    // 先检测列是否存在
+    const [cols] = await query("SHOW COLUMNS FROM users LIKE '" + winCol + "'");
+    if (cols.length === 0) {
+      return res.json({ code: 0, message: '', data: [] });
+    }
+
+    const [rows] = await query(
+      `SELECT openid, nickname, avatar_url, ${winCol} AS win_count, ${totalCol} AS total_games, ${rateCol} AS win_rate
+       FROM users WHERE ${totalCol} > 0
+       ORDER BY ${rateCol} DESC LIMIT 100`
+    );
+
+    res.json({
+      code: 0, message: '',
+      data: rows.map(r => ({
+        openid: r.openid,
+        nickname: r.nickname,
+        avatarUrl: r.avatar_url,
+        winCount: r.win_count,
+        totalGames: r.total_games,
+        winRate: parseFloat(r.win_rate || '0')
+      }))
     });
   } catch (err) { next(err); }
 });

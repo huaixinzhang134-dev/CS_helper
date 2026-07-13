@@ -12,7 +12,7 @@
  *   用户可修改昵称，从微信选择头像
  *   调用 PUT /api/users/profile 保存到后端
  */
-import { loginWithWeChat, fetchUserProfile, updateUserProfile, UserInfo, fetchGuessRecords, GuessRecordItem } from '../../services/api';
+import { loginWithWeChat, fetchUserProfile, updateUserProfile, UserInfo, fetchGuessRecords, fetchRanking, GuessRecordItem, RankingUser } from '../../services/api';
 
 Page({
   data: {
@@ -31,7 +31,12 @@ Page({
       hard: '困难',
       hell: '地狱',
       personal: '个人'
-    }
+    },
+    // 封神榜
+    showRanking: false,
+    rankingMode: 'pk' as 'pk' | 'solo',
+    rankingList: [] as RankingUser[],
+    rankingLoading: false
   },
 
   onShow() {
@@ -277,5 +282,42 @@ Page({
       content: '云雪CS助手 - 为CS玩家提供赛事查询、选手资料、竞猜互动等服务。',
       showCancel: false
     });
+  },
+
+  // ============ 封神榜 ============
+
+  async onOpenRanking() {
+    if (!this.data.userInfo) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    this.setData({
+      showRanking: true,
+      rankingMode: 'pk',
+      rankingList: [],
+      rankingLoading: true
+    });
+    await this.loadRanking('pk');
+  },
+
+  async onSwitchRanking(e: any) {
+    const mode = e.currentTarget.dataset.mode as 'pk' | 'solo';
+    this.setData({ rankingMode: mode, rankingList: [], rankingLoading: true });
+    await this.loadRanking(mode);
+  },
+
+  async loadRanking(mode: 'pk' | 'solo') {
+    const res = await fetchRanking(mode);
+    if (res.success) {
+      this.setData({ rankingList: res.data, rankingLoading: false });
+    } else {
+      this.setData({ rankingLoading: false });
+    }
+  },
+
+  onRankingScrollToLower() {},
+
+  onCloseRanking() {
+    this.setData({ showRanking: false });
   }
 });

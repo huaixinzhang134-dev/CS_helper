@@ -86,6 +86,18 @@ Page({
     hintUsed: false,         // 本局是否已用过提示
     showHintModal: false,    // 提示弹窗
     hintContent: '',         // 提示内容（完整文本）
+
+    // 玩法说明
+    showRulesModal: false,
+    rulesContent: `猜选手游戏：点击搜索框输入选手ID（无大小写区分），选择你要猜测的选手，根据下方的信息提示猜出正确选手吧！
+
+绿色：该选手的此项信息正确
+黄色：该选手的此项信息接近正确（战队黄色→目标选手在该战队待过；国籍黄色→同V社赛区；年龄/Major差≤3）
+无色：该选手的此项信息不正确
+
+数值信息的上下箭头表示更大/更小
+战队栏为空则表明该选手现在无战队
+选手位置包括：步枪手、狙击手、教练`,
   },
 
   onLoad(options: any) {
@@ -937,7 +949,8 @@ Page({
         attempts,
         difficulty: this.data.difficulty,
         targetPlayerId: target.playerId || target._id || '',
-        targetPlayerName: target.name || ''
+        targetPlayerName: target.name || '',
+        gameMode: this.data.gameMode || 'personal'
       });
     } catch (err) {
       console.error('submitGuessRecord failed', err);
@@ -997,4 +1010,20 @@ Page({
 
   /** 阻止事件冒泡到 mask */
   onHintContentTap() {},
+
+  // ============ 玩法说明 ============
+
+  onShowRules() {
+    this.setData({ showRulesModal: true });
+  },
+
+  onRulesMaskTap() {
+    this.setData({ showRulesModal: false });
+  },
+
+  onRulesContentTap() {},
+
+  onRulesClose() {
+    this.setData({ showRulesModal: false });
+  },
 });

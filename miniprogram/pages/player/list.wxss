@@ -9,6 +9,24 @@
   padding-left: 10rpx;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.leaderboard-btn {
+  font-size: 26rpx;
+  color: #07c160;
+  padding: 8rpx 16rpx;
+  border: 1rpx solid #07c160;
+  border-radius: 8rpx;
+}
+
+.leaderboard-btn:active {
+  background: rgba(7, 193, 96, 0.1);
+}
+
 .subtitle {
   color: var(--text-secondary);
   font-size: 24rpx;

@@ -558,14 +558,40 @@ export const updateUserProfile = async (
 /**
  * 记录猜一猜结果
  */
+/**
+ * 排行榜用户条目
+ */
+export interface RankingUser {
+  openid: string;
+  nickname: string;
+  avatarUrl: string;
+  winCount: number;
+  totalGames: number;
+  winRate: number;
+}
+
+/**
+ * 记录猜一猜结果
+ */
 export const submitGuessRecord = async (data: {
   won: boolean;
   attempts: number;
   difficulty: string;
   targetPlayerId: string;
   targetPlayerName: string;
+  gameMode?: 'personal' | 'friend';
 }): Promise<{ success: boolean; data: UserInfo | null; message?: string }> => {
   return await postAuth<UserInfo>('/users/guess/record', data);
+};
+
+/**
+ * 获取排行榜（PK 或 Solo 胜率）
+ */
+export const fetchRanking = async (
+  mode: 'pk' | 'solo'
+): Promise<{ success: boolean; data: RankingUser[] }> => {
+  const res = await getAuth<RankingUser[]>(`/users/ranking?mode=${mode}`);
+  return { success: res.success, data: res.data ?? [] };
 };
 
 /**

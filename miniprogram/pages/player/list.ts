@@ -327,5 +327,9 @@ Page({
     wx.navigateTo({
       url: `/pages/player/detail?id=${id}`
     });
+  },
+
+  goToLeaderboard() {
+    wx.navigateTo({ url: '/pages/ranking/ranking' });
   }
 });

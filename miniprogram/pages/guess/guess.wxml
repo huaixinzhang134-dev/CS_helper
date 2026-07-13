@@ -120,9 +120,7 @@
   <view class="game-board">
     <!-- Legend -->
     <view class="legend">
-      <text class="legend-item green">【绿色】正确</text>
-      <text class="legend-item yellow">【黄色】接近</text>
-      <text class="legend-item grey">【无色】不正确</text>
+      <view class="rule-btn" bindtap="onShowRules">玩法说明</view>
     </view>
 
     <!-- Search Input -->
@@ -268,6 +266,18 @@
     </view>
   </view>
 
+  <!-- 玩法说明弹窗 -->
+  <view class="modal-mask" wx:if="{{showRulesModal}}" bindtap="onRulesMaskTap">
+    <view class="modal-content" catchtap="onRulesContentTap">
+      <view class="modal-title">玩法说明</view>
+      <view class="modal-body rules-body">
+        <text class="rules-text">{{rulesContent}}</text>
+      </view>
+      <view class="modal-footer">
+        <button class="btn-primary" bindtap="onRulesClose">知道了</button>
+      </view>
+    </view>
+  </view>
   <!-- Ad Modal (预留) 暂时注释掉，广告是很之后的事 -->
   <!-- <view class="modal-mask" wx:if="{{showAdModal}}">
     <view class="modal-content">

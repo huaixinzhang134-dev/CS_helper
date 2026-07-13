@@ -1,6 +1,9 @@
 <view class="container player-list-page">
   <view class="header">
-    <view class="h1">选手资料库</view>
+    <view class="header-top">
+      <view class="h1">选手资料库</view>
+      <view class="leaderboard-btn" bindtap="goToLeaderboard">排行榜 ></view>
+    </view>
     <view class="subtitle">CS 职业选手数据查询</view>
   </view>
 

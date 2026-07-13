@@ -274,6 +274,19 @@ page {
   width: 100%;
 }
 
+/* Rules Modal */
+.rules-body {
+  text-align: left;
+  max-height: 600rpx;
+  overflow-y: auto;
+}
+.rules-text {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  white-space: pre-line;
+}
+
 .subtitle {
   font-size: 24rpx;
   color: var(--text-secondary);
@@ -293,21 +306,24 @@ page {
   transform: translateZ(0);
 }
 
-/* Legend */
+/* Legend - 仅玩法说明按钮 */
 .legend {
   display: flex;
   justify-content: center;
-  gap: 20rpx;
   margin-bottom: 30rpx;
 }
 
-.legend-item {
-  font-size: 32rpx;
+.rule-btn {
+  padding: 12rpx 40rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.25);
+  border-radius: 30rpx;
+  color: var(--text-secondary);
+  font-size: 26rpx;
 }
 
-.legend-item.green { color: var(--success-color); }
-.legend-item.yellow { color: var(--secondary-color); }
-.legend-item.grey { color: var(--text-muted); }
+.rule-btn:active {
+  background-color: rgba(255, 255, 255, 0.08);
+}
 
 /* Search Section - 提升合成层减少重绘 */
 .search-section {

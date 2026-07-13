@@ -6,8 +6,7 @@ const { query } = require('../db/pool');
 
 /**
  * GET /api/teams/ranked
- * 返回 team_ranking 表中所有队伍的名称列表（前 60 名）
- * 用于猜选手游戏的"简单"模式筛选
+ * 返回 team_ranking 表中所有队伍的名称列表
  */
 router.get('/ranked', async (req, res, next) => {
   try {
@@ -19,6 +18,64 @@ router.get('/ranked', async (req, res, next) => {
       code: 0,
       message: '',
       data: teamNames
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/teams/ranking?region=all&page=0&pageSize=20
+ * 队伍排行：从 team_ranking JOIN team 获取 region
+ * region 可选：all / Europe / Asia / Americas
+ */
+router.get('/ranking', async (req, res, next) => {
+  try {
+    const region = (req.query.region || 'all').trim();
+    const page = Math.max(parseInt(req.query.page || '0', 10), 0);
+    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
+    const offset = page * pageSize;
+
+    let whereSql = '';
+    const params = [];
+    if (region && region !== 'all') {
+      whereSql = 'WHERE t.region = ?';
+      params.push(region);
+    }
+
+    const [countRows] = await query(
+      `SELECT COUNT(DISTINCT r.team_name) AS total
+       FROM team_ranking r
+       LEFT JOIN team t ON t.name = r.team_name
+       ${whereSql}`,
+      params
+    );
+    const total = countRows[0].total;
+
+    const [rows] = await query(
+      `SELECT r.team_name, r.points, r.logo_url, r.\`rank\`,
+              t.region, t.logo_url AS team_logo_url
+       FROM team_ranking r
+       LEFT JOIN team t ON t.name = r.team_name
+       ${whereSql}
+       GROUP BY r.team_name
+       ORDER BY r.\`rank\` ASC
+       LIMIT ${pageSize} OFFSET ${offset}`,
+      params
+    );
+
+    res.json({
+      code: 0,
+      message: '',
+      data: rows.map(r => ({
+        teamName: r.team_name,
+        rank: r.rank,
+        points: r.points,
+        logoUrl: r.team_logo_url || r.logo_url || '',
+        region: r.region || 'Other'
+      })),
+      hasMore: offset + pageSize < total,
+      total
     });
   } catch (err) {
     next(err);

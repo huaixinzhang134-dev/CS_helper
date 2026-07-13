@@ -1,0 +1,71 @@
+<view class="container ranking-page">
+  <!-- 顶部选项卡 -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'player' ? 'tab-active' : ''}}" bindtap="switchTab" data-tab="player">
+      <text>选手排行</text>
+    </view>
+    <view class="tab-item {{activeTab === 'team' ? 'tab-active' : ''}}" bindtap="switchTab" data-tab="team">
+      <text>队伍排行</text>
+    </view>
+  </view>
+
+  <!-- ====== 选手排行 ====== -->
+  <scroll-view wx:if="{{activeTab === 'player'}}" scroll-y class="rank-scroll" bindscrolltolower="onPlayerScrollToLower" lower-threshold="100">
+    <view class="rank-list">
+      <view class="rank-card" wx:for="{{playerList}}" wx:key="playerId" bindtap="goToPlayerDetail" data-id="{{item.playerId}}">
+        <view class="rank-num">{{index + 1}}</view>
+        <image class="rank-avatar" src="{{item.avatarUrl}}" mode="aspectFill"></image>
+        <view class="rank-info">
+          <view class="rank-name-row">
+            <text class="rank-country">{{item.country}}</text>
+            <text class="rank-name">{{item.name}}</text>
+          </view>
+          <text class="rank-team">{{item.team}}</text>
+        </view>
+        <view class="rank-rating">
+          <text class="rating-num">{{item.rating}}</text>
+          <text class="rating-label">Rating</text>
+        </view>
+      </view>
+    </view>
+    <view class="load-more" wx:if="{{playerLoading}}">加载中...</view>
+    <view class="load-more" wx:if="{{!playerHasMore && playerList.length > 0}}">共 {{playerTotal}} 名选手</view>
+    <view class="empty-state" wx:if="{{!playerLoading && playerList.length === 0}}">暂无数据</view>
+  </scroll-view>
+
+  <!-- ====== 队伍排行 ====== -->
+  <view wx:if="{{activeTab === 'team'}}">
+    <!-- 赛区筛选 -->
+    <view class="region-filter">
+      <view class="region-picker" bindtap="toggleRegionPicker">
+        <text>{{getRegionLabel(regionFilter)}}</text>
+        <text class="arrow-down">{{showRegionPicker ? '▲' : '▼'}}</text>
+      </view>
+      <view class="region-dropdown" wx:if="{{showRegionPicker}}">
+        <view class="region-option {{regionFilter === item.value ? 'region-option-active' : ''}}" wx:for="{{regionOptions}}" wx:key="value" bindtap="selectRegion" data-value="{{item.value}}">
+          {{item.label}}
+        </view>
+      </view>
+    </view>
+
+    <scroll-view scroll-y class="rank-scroll" bindscrolltolower="onTeamScrollToLower" lower-threshold="100">
+      <view class="rank-list">
+        <view class="rank-card rank-card-team" wx:for="{{teamList}}" wx:key="teamName">
+          <view class="rank-num">{{index + 1}}</view>
+          <image class="team-logo" src="{{item.logoUrl || '/assets/icons/game.png'}}" mode="aspectFit"></image>
+          <view class="rank-info">
+            <text class="rank-name">{{item.teamName}}</text>
+            <text class="rank-team">{{item.region === 'Europe' ? '欧洲赛区' : item.region === 'Asia' ? '亚洲赛区' : item.region === 'Americas' ? '美洲赛区' : '其他'}}</text>
+          </view>
+          <view class="rank-rating">
+            <text class="rating-num">{{item.points}}</text>
+            <text class="rating-label">V社积分</text>
+          </view>
+        </view>
+      </view>
+      <view class="load-more" wx:if="{{teamLoading}}">加载中...</view>
+      <view class="load-more" wx:if="{{!teamHasMore && teamList.length > 0}}">共 {{teamTotal}} 支队伍</view>
+      <view class="empty-state" wx:if="{{!teamLoading && teamList.length === 0}}">暂无数据</view>
+    </scroll-view>
+  </view>
+</view>

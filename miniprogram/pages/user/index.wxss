@@ -381,3 +381,120 @@
   font-size: 24rpx;
   padding: 20rpx 0;
 }
+
+/* ====== 封神榜 ====== */
+.ranking-modal {
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ranking-tab {
+  display: flex;
+  border-bottom: 2rpx solid var(--border-color);
+  margin-bottom: 20rpx;
+}
+
+.ranking-tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  font-size: 28rpx;
+  color: var(--text-secondary);
+  position: relative;
+}
+
+.ranking-tab-item.ranking-tab-active {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.ranking-tab-item.ranking-tab-active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 20%;
+  width: 60%;
+  height: 4rpx;
+  background: #07c160;
+  border-radius: 2rpx;
+}
+
+.ranking-list {
+  max-height: 500rpx;
+  overflow-y: auto;
+}
+
+.ranking-item {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid var(--border-color);
+}
+
+.ranking-empty {
+  text-align: center;
+  padding: 60rpx 0;
+  color: var(--text-muted);
+  font-size: 26rpx;
+}
+
+.ranking-num {
+  width: 50rpx;
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.ranking-num.ranking-top {
+  color: #ff6b35;
+  font-weight: 700;
+}
+
+.ranking-avatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  margin: 0 16rpx;
+  flex-shrink: 0;
+  background: var(--bg-input);
+}
+
+.ranking-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ranking-name {
+  font-size: 28rpx;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ranking-stats {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.ranking-rate {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #07c160;
+  display: block;
+}
+
+.ranking-detail {
+  font-size: 20rpx;
+  color: var(--text-muted);
+  display: block;
+}
+
+.ranking-loading {
+  text-align: center;
+  padding: 20rpx 0;
+  color: var(--text-muted);
+  font-size: 24rpx;
+}
