@@ -452,15 +452,6 @@
   font-weight: 700;
 }
 
-.ranking-avatar {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 50%;
-  margin: 0 16rpx;
-  flex-shrink: 0;
-  background: var(--bg-input);
-}
-
 .ranking-info {
   flex: 1;
   min-width: 0;

@@ -68,7 +68,6 @@
         </view>
         <view class="ranking-item" wx:for="{{rankingList}}" wx:key="openid">
           <text class="ranking-num {{index < 3 ? 'ranking-top' : ''}}">{{index + 1}}</text>
-          <image class="ranking-avatar" src="{{item.avatarUrl || '/assets/icons/game.png'}}" mode="aspectFill"></image>
           <view class="ranking-info">
             <text class="ranking-name">{{item.nickname}}</text>
           </view>
