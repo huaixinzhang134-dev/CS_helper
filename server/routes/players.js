@@ -304,6 +304,22 @@ router.get('/search', async (req, res, next) => {
 });
 
 /**
+ * GET /api/players/debug/dup
+ * 调试：查重
+ */
+router.get('/debug/dup', async (req, res, next) => {
+  try {
+    const [dup] = await query("SELECT game_id, COUNT(*) AS cnt, MIN(id) AS min_id, MAX(id) AS max_id FROM player GROUP BY game_id HAVING cnt > 1 ORDER BY cnt DESC LIMIT 20");
+    const [distinct] = await query("SELECT COUNT(DISTINCT game_id) AS cnt FROM player");
+    const [total] = await query("SELECT COUNT(*) AS cnt FROM player");
+    const [trivialUnique] = await query("SELECT COUNT(DISTINCT p.game_id) AS cnt FROM player p INNER JOIN team_ranking r ON r.team_name = p.current_team WHERE p.status IN ('active','coach') AND r.`rank` <= 30");
+    res.json({ code: 0, data: { duplicateExamples: dup, distinctGameIds: distinct[0].cnt, totalRows: total[0].cnt, trivialUniquePlayers: trivialUnique[0].cnt } });
+  } catch (err) {
+    res.json({ code: 1, message: err.message });
+  }
+});
+
+/**
  * GET /api/players/:playerId
  * 按业务 ID（game_id）查选手
  */
