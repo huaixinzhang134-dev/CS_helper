@@ -1,6 +1,7 @@
 import {
   fetchPlayerListPaginated,
   searchPlayers,
+  advancedSearchPlayers,
   fetchPlayerCount,
   Player
 } from '../../services/api';
@@ -12,10 +13,7 @@ const SILHOUETTE_URLS = [
   'https://www.hltv.org/img/static/player/player_silhouette_fe.png'
 ];
 
-// 头像 URL 归一化：
-//   - 空 / 未知 / silhouette → 兜底本地默认头像
-//   - /static/... 后端相对路径 → 拼 STATIC_BASE
-//   - 其他完整 URL（http(s)://）→ 直接用
+// 头像 URL 归一化
 function normalizeAvatarUrl(avatar: string): string {
   if (!avatar) return '/assets/icons/user.png';
   if (SILHOUETTE_URLS.indexOf(avatar) >= 0) return '/assets/icons/user.png';
@@ -28,17 +26,32 @@ function normalizeAvatarUrl(avatar: string): string {
   return '/assets/icons/user.png';
 }
 
-const PAGE_SIZE = 20; // 每页加载50条
+const PAGE_SIZE = 20;
 
 Page({
   data: {
     loading: true,
     loadingMore: false,
     displayPlayers: [] as (Player & { avatarUrl?: string })[],
-    searchQuery: '',
     hasMore: true,
     page: 0,
-    totalCount: 0
+    totalCount: 0,
+    searchTotal: 0,          // 搜索结果总数
+
+    // 简单搜索
+    searchQuery: '',
+    searchPage: 0,
+    searchHasMore: false,
+
+    // 高级搜索
+    showAdvanced: false,
+    advName: '',
+    advAgeMin: '',
+    advAgeMax: '',
+    advCountry: '',
+    advTeam: '',
+    advFormerTeam: '',
+    isAdvancedSearch: false   // 当前是否处于高级搜索模式
   },
 
   onLoad() {
@@ -46,13 +59,11 @@ Page({
   },
 
   async loadPlayers() {
-    this.setData({ loading: true });
+    this.setData({ loading: true, isAdvancedSearch: false });
     try {
-      // 先获取总数
       const countRes = await fetchPlayerCount();
       const totalCount = countRes.success && countRes.data ? countRes.data.total : 0;
 
-      // 加载第一页数据
       const res = await fetchPlayerListPaginated(0, PAGE_SIZE);
       if (res.success) {
         const playersWithAvatar = res.data.map(player => ({
@@ -60,17 +71,16 @@ Page({
           avatarUrl: normalizeAvatarUrl(player.avatar)
         }));
 
-        // 计算 hasMore：返回数据大于0且总数大于当前数量
         const newCount = res.data.length;
         const hasMore = newCount > 0 && newCount < totalCount;
 
         this.setData({
           displayPlayers: playersWithAvatar,
-          hasMore: hasMore,
+          hasMore,
           page: 0,
-          totalCount
+          totalCount,
+          searchTotal: 0
         });
-        console.log(`数据库共 ${totalCount} 条，已加载 ${newCount} 条，hasMore: ${hasMore}`);
       }
     } catch (err) {
       console.error('Fetch players failed', err);
@@ -80,15 +90,64 @@ Page({
   },
 
   async loadMorePlayers() {
-    if (this.data.loadingMore || !this.data.hasMore || this.data.searchQuery) {
-      console.log('跳过加载:', { loadingMore: this.data.loadingMore, hasMore: this.data.hasMore, searchQuery: this.data.searchQuery });
+    if (this.data.loadingMore || !this.data.hasMore) return;
+
+    this.setData({ loadingMore: true });
+
+    if (this.data.isAdvancedSearch) {
+      // 高级搜索加载更多（带上搜索框关键词 q）
+      const nextPage = this.data.searchPage + 1;
+      try {
+        const filters = this.getAdvancedFilters();
+        const keyword = this.data.searchQuery.trim();
+        const res = await advancedSearchPlayers({ q: keyword || undefined, ...filters, page: nextPage, pageSize: PAGE_SIZE });
+        if (res.success) {
+          const newPlayersWithAvatar = res.data.map(player => ({
+            ...player,
+            avatarUrl: normalizeAvatarUrl(player.avatar)
+          }));
+          this.setData({
+            displayPlayers: [...this.data.displayPlayers, ...newPlayersWithAvatar],
+            searchHasMore: res.hasMore,
+            hasMore: res.hasMore,
+            searchPage: nextPage
+          });
+        }
+      } catch (err) {
+        console.error('Load more advanced search failed', err);
+      } finally {
+        this.setData({ loadingMore: false });
+      }
       return;
     }
 
-    this.setData({ loadingMore: true });
-    const nextPage = this.data.page + 1;
-    console.log(`开始加载第 ${nextPage} 页...`);
+    if (this.data.searchQuery) {
+      // 简单搜索加载更多
+      const nextPage = this.data.searchPage + 1;
+      try {
+        const res = await searchPlayers(this.data.searchQuery, nextPage, PAGE_SIZE);
+        if (res.success) {
+          const newPlayersWithAvatar = res.data.map(player => ({
+            ...player,
+            avatarUrl: normalizeAvatarUrl(player.avatar)
+          }));
+          this.setData({
+            displayPlayers: [...this.data.displayPlayers, ...newPlayersWithAvatar],
+            searchHasMore: res.hasMore,
+            hasMore: res.hasMore,
+            searchPage: nextPage
+          });
+        }
+      } catch (err) {
+        console.error('Load more search failed', err);
+      } finally {
+        this.setData({ loadingMore: false });
+      }
+      return;
+    }
 
+    // 浏览模式加载更多
+    const nextPage = this.data.page + 1;
     try {
       const res = await fetchPlayerListPaginated(nextPage, PAGE_SIZE);
       if (res.success) {
@@ -98,15 +157,13 @@ Page({
         }));
         const currentCount = this.data.displayPlayers.length;
         const newCount = res.data.length;
-        // 安全检查：如果返回0条或已加载完所有数据，则没有更多了
         const hasMore = newCount > 0 && currentCount + newCount < this.data.totalCount;
 
         this.setData({
           displayPlayers: [...this.data.displayPlayers, ...newPlayersWithAvatar],
-          hasMore: hasMore,
+          hasMore,
           page: nextPage
         });
-        console.log(`第 ${nextPage + 1} 页加载完成，本页 ${newCount} 条，累计 ${currentCount + newCount} 条，总共 ${this.data.totalCount} 条，hasMore: ${hasMore}`);
       }
     } catch (err) {
       console.error('Load more players failed', err);
@@ -115,36 +172,153 @@ Page({
     }
   },
 
+  // ============ 简单搜索 ============
+
   onSearchInput(e: WechatMiniprogram.Input) {
     const query = e.detail.value.trim();
     this.setData({ searchQuery: query });
 
+    // 高级模式下，搜索框仅提供关键词输入，不自动搜索
+    if (this.data.isAdvancedSearch) return;
+
     if (!query) {
-      // 清空搜索时重新加载第一页
-      this.setData({ page: 0, hasMore: true });
+      this.setData({ page: 0, hasMore: true, searchTotal: 0 });
       this.loadPlayers();
       return;
     }
 
-    // 使用云数据库模糊搜索（不区分大小写）
-    searchPlayers(query).then(res => {
+    searchPlayers(query, 0, PAGE_SIZE).then(res => {
       if (res.success) {
         const playersWithAvatar = res.data.map(player => ({
           ...player,
           avatarUrl: normalizeAvatarUrl(player.avatar)
         }));
-        this.setData({ displayPlayers: playersWithAvatar, hasMore: false });
-        wx.showToast({ title: `找到 ${res.data.length} 个结果`, icon: 'none' });
+        this.setData({
+          displayPlayers: playersWithAvatar,
+          searchHasMore: res.hasMore,
+          hasMore: res.hasMore,
+          searchPage: 0,
+          searchTotal: res.data.length
+        });
+        if (res.data.length > 0) {
+          wx.showToast({ title: `找到 ${res.data.length} 个结果${res.hasMore ? '+' : ''}`, icon: 'none' });
+        }
       }
     });
   },
 
-  // 页面滑动到底部事件
-  onReachBottom() {
-    console.log('页面触底，当前页:', this.data.page, 'hasMore:', this.data.hasMore, 'totalCount:', this.data.totalCount, 'displayPlayers.length:', this.data.displayPlayers.length);
-    if (!this.data.searchQuery) {
-      this.loadMorePlayers();
+  // ============ 模式切换 ============
+
+  toggleSearchMode() {
+    const switchingToAdvanced = !this.data.isAdvancedSearch;
+    if (switchingToAdvanced) {
+      // 切换到高级模式：隐藏普通搜索结果，显示高级搜索面板
+      this.setData({
+        isAdvancedSearch: true,
+        searchQuery: ''
+      });
+    } else {
+      // 切换回普通模式：隐藏高级面板，恢复全部选手列表
+      this.setData({
+        isAdvancedSearch: false,
+        advName: '',
+        advAgeMin: '',
+        advAgeMax: '',
+        advCountry: '',
+        advTeam: '',
+        advFormerTeam: '',
+        searchTotal: 0
+      });
+      this.loadPlayers();
     }
+  },
+
+  // ============ 高级搜索 ============
+
+  onAdvNameInput(e: WechatMiniprogram.Input) { this.setData({ advName: e.detail.value }); },
+  onAdvAgeMinInput(e: WechatMiniprogram.Input) { this.setData({ advAgeMin: e.detail.value }); },
+  onAdvAgeMaxInput(e: WechatMiniprogram.Input) { this.setData({ advAgeMax: e.detail.value }); },
+  onAdvCountryInput(e: WechatMiniprogram.Input) { this.setData({ advCountry: e.detail.value }); },
+  onAdvTeamInput(e: WechatMiniprogram.Input) { this.setData({ advTeam: e.detail.value }); },
+  onAdvFormerTeamInput(e: WechatMiniprogram.Input) { this.setData({ advFormerTeam: e.detail.value }); },
+
+  getAdvancedFilters() {
+    return {
+      name: this.data.advName,
+      ageMin: this.data.advAgeMin,
+      ageMax: this.data.advAgeMax,
+      country: this.data.advCountry,
+      team: this.data.advTeam,
+      formerTeam: this.data.advFormerTeam
+    };
+  },
+
+  /**
+   * 执行高级搜索（将搜索框关键词作为 q 参数传入后端）
+   */
+  doAdvancedSearch() {
+    const filters = this.getAdvancedFilters();
+    const keyword = this.data.searchQuery.trim();
+    const hasAny = keyword || filters.name || filters.ageMin || filters.ageMax || filters.country || filters.team || filters.formerTeam;
+    if (!hasAny) {
+      wx.showToast({ title: '请至少填写一个搜索条件', icon: 'none' });
+      return;
+    }
+
+    this.setData({ loading: true, isAdvancedSearch: true });
+
+    advancedSearchPlayers({ q: keyword || undefined, ...filters, page: 0, pageSize: PAGE_SIZE }).then(res => {
+      if (res.success) {
+        const playersWithAvatar = res.data.map(player => ({
+          ...player,
+          avatarUrl: normalizeAvatarUrl(player.avatar)
+        }));
+        const total = res.total ?? res.data.length;
+        this.setData({
+          displayPlayers: playersWithAvatar,
+          searchHasMore: res.hasMore,
+          hasMore: res.hasMore,
+          searchPage: 0,
+          searchTotal: total
+        });
+        wx.showToast({ title: `共找到 ${total} 个结果${res.hasMore ? '+' : ''}`, icon: 'none' });
+      }
+    }).catch(err => {
+      console.error('Advanced search failed', err);
+    }).finally(() => {
+      this.setData({ loading: false });
+    });
+  },
+
+  // 高级面板中的"搜索"按钮
+  onAdvancedSearch() {
+    this.doAdvancedSearch();
+  },
+
+  // 搜索框右侧的"搜索"按钮（高级模式）
+  onAdvancedSearchFromBar() {
+    this.doAdvancedSearch();
+  },
+
+  onAdvancedClear() {
+    this.setData({
+      advName: '',
+      advAgeMin: '',
+      advAgeMax: '',
+      advCountry: '',
+      advTeam: '',
+      advFormerTeam: '',
+      isAdvancedSearch: false,
+      showAdvanced: false
+    });
+    this.loadPlayers();
+  },
+
+  // ============ 通用 ============
+
+  onReachBottom() {
+    if (this.data.loadingMore || !this.data.hasMore) return;
+    this.loadMorePlayers();
   },
 
   goToDetail(e: WechatMiniprogram.TouchEvent) {

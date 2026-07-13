@@ -244,6 +244,52 @@ export const searchPlayers = async (
 };
 
 /**
+ * 高级搜索选手（支持多个筛选条件组合）
+ * 可选条件：name, ageMin, ageMax, country, team, formerTeam
+ */
+export interface AdvancedSearchParams {
+  q?: string;          // 关键词（可选，与 name 不同：q 搜索 name/real_name/game_id）
+  name?: string;       // 游戏 ID 模糊搜索
+  ageMin?: number | string;
+  ageMax?: number | string;
+  country?: string;
+  team?: string;
+  formerTeam?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export const advancedSearchPlayers = async (
+  params: AdvancedSearchParams
+): Promise<{ success: boolean; data: Player[]; hasMore: boolean; total?: number }> => {
+  // 手动请求以获取响应根层级的 hasMore / total 字段（get 封装会丢失它们）
+  return new Promise((resolve) => {
+    const qs = queryString(params as any);
+    wx.request({
+      url: `${API_BASE}/players/search${qs}`,
+      method: 'GET',
+      header: { 'content-type': 'application/json' },
+      success: (res: any) => {
+        const body = res.data;
+        if (body && body.code === 0) {
+          resolve({
+            success: true,
+            data: body.data ?? [],
+            hasMore: !!body.hasMore,
+            total: body.total
+          });
+        } else {
+          resolve({ success: false, data: [], hasMore: false, total: 0 });
+        }
+      },
+      fail: () => {
+        resolve({ success: false, data: [], hasMore: false, total: 0 });
+      }
+    });
+  });
+};
+
+/**
  * 随机一个选手
  */
 export const getRandomPlayer = async (): Promise<{ success: boolean; data: Player | null }> => {

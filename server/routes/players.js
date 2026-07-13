@@ -181,32 +181,92 @@ router.get('/random-by-difficulty', async (req, res, next) => {
 
 /**
  * GET /api/players/search?q=&page=0&pageSize=20
- * 前缀匹配 name / real_name / game_id（与原 NoSQL 行为一致）
+ * 前缀匹配 name / real_name / game_id
+ *
+ * 高级搜索参数（可选，与 q 可同时使用）：
+ *   name       — 游戏 ID 精确匹配
+ *   ageMin     — 最小年龄
+ *   ageMax     — 最大年龄
+ *   country    — 国家（模糊匹配）
+ *   team       — 所属战队（模糊匹配）
+ *   formerTeam — 历史战队（搜索 former_teams JSON 数组）
+ *   当 q 和高级参数都未提供时返回空数组
  */
 router.get('/search', async (req, res, next) => {
   try {
     const q = (req.query.q || '').trim();
+    const name = (req.query.name || '').trim();
+    const ageMin = req.query.ageMin;
+    const ageMax = req.query.ageMax;
+    const country = (req.query.country || '').trim();
+    const team = (req.query.team || '').trim();
+    const formerTeam = (req.query.formerTeam || '').trim();
+
     const page = Math.max(parseInt(req.query.page || '0', 10), 0);
     const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
 
-    if (!q) {
+    const hasAnyFilter = q || name || ageMin !== undefined || ageMax !== undefined || country || team || formerTeam;
+    if (!hasAnyFilter) {
       return res.json({ code: 0, message: '', data: [], hasMore: false });
     }
 
-    const like = `${q}%`;
+    // 动态构建 WHERE
+    const conditions = [];
+    const params = [];
+
+    if (q) {
+      const like = `${q}%`;
+      conditions.push('(name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
+      params.push(like, like, like);
+    }
+    if (name) {
+      // 模糊匹配游戏 ID（name 字段实际存的是游戏昵称）
+      conditions.push('name LIKE ?');
+      params.push(`%${name}%`);
+    }
+    if (ageMin !== undefined) {
+      conditions.push('age >= ?');
+      params.push(parseInt(ageMin, 10));
+    }
+    if (ageMax !== undefined) {
+      conditions.push('age <= ?');
+      params.push(parseInt(ageMax, 10));
+    }
+    if (country) {
+      conditions.push('country LIKE ?');
+      params.push(`%${country}%`);
+    }
+    if (team) {
+      conditions.push('current_team LIKE ?');
+      params.push(`%${team}%`);
+    }
+    if (formerTeam) {
+      conditions.push('former_teams IS NOT NULL AND JSON_SEARCH(former_teams, \'one\', ?) IS NOT NULL');
+      params.push(formerTeam);
+    }
+
+    const whereClause = conditions.join(' AND ');
     const offset = page * pageSize;
+
+    // 先查总数
+    const [countRows] = await query(
+      `SELECT COUNT(*) AS total FROM player WHERE ${whereClause}`,
+      params
+    );
+    const total = countRows[0].total;
+
+    // 再查分页
     const [rows] = await query(
-      `SELECT * FROM player
-       WHERE name LIKE ? OR real_name LIKE ? OR game_id LIKE ?
-       ORDER BY id ASC LIMIT ${pageSize} OFFSET ${offset}`,
-      [like, like, like]
+      `SELECT * FROM player WHERE ${whereClause} ORDER BY id ASC LIMIT ${pageSize} OFFSET ${offset}`,
+      params
     );
 
     res.json({
       code: 0,
       message: '',
       data: rows.map(toPlayerDTO),
-      hasMore: rows.length === pageSize
+      hasMore: offset + pageSize < total,
+      total    // 返回总数，前端可展示"共 N 个结果"
     });
   } catch (err) {
     next(err);

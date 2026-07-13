@@ -6,13 +6,58 @@
 
   <!-- Search Bar -->
   <view class="search-box">
+    <view class="mode-btn {{isAdvancedSearch ? 'mode-active' : ''}}" bindtap="toggleSearchMode">
+      <text>{{isAdvancedSearch ? '高级' : '普通'}}</text>
+    </view>
     <icon type="search" size="18" color="#aaa" />
     <input
-      class="search-input"
-      placeholder="搜索选手 ID / 战队..."
+      class="search-input {{isAdvancedSearch ? 'search-input-adv' : ''}}"
+      placeholder="{{isAdvancedSearch ? '搜索关键词（可选）...' : '搜索选手 ID / 战队...'}}"
       placeholder-class="placeholder"
+      value="{{searchQuery}}"
       bindinput="onSearchInput"
     />
+    <view class="search-btn-adv {{isAdvancedSearch ? '' : 'hidden'}}" bindtap="onAdvancedSearchFromBar">
+      <text>搜索</text>
+    </view>
+  </view>
+
+  <!-- Advanced Search Panel -->
+  <view class="advanced-panel" wx:if="{{isAdvancedSearch}}">
+    <view class="adv-row">
+      <view class="adv-field">
+        <text class="adv-label">游戏 ID</text>
+        <input class="adv-input" placeholder="选手昵称" value="{{advName}}" bindinput="onAdvNameInput" />
+      </view>
+      <view class="adv-field adv-field-half">
+        <text class="adv-label">年龄</text>
+        <view class="adv-range">
+          <input class="adv-input adv-input-sm" placeholder="最小" value="{{advAgeMin}}" bindinput="onAdvAgeMinInput" />
+          <text class="adv-sep">—</text>
+          <input class="adv-input adv-input-sm" placeholder="最大" value="{{advAgeMax}}" bindinput="onAdvAgeMaxInput" />
+        </view>
+      </view>
+    </view>
+    <view class="adv-row">
+      <view class="adv-field">
+        <text class="adv-label">国家</text>
+        <input class="adv-input" placeholder="如: China, Denmark" value="{{advCountry}}" bindinput="onAdvCountryInput" />
+      </view>
+      <view class="adv-field">
+        <text class="adv-label">所属战队</text>
+        <input class="adv-input" placeholder="当前效力的战队" value="{{advTeam}}" bindinput="onAdvTeamInput" />
+      </view>
+    </view>
+    <view class="adv-row">
+      <view class="adv-field">
+        <text class="adv-label">历史战队</text>
+        <input class="adv-input" placeholder="曾效力过的战队" value="{{advFormerTeam}}" bindinput="onAdvFormerTeamInput" />
+      </view>
+    </view>
+    <view class="adv-actions">
+      <button class="adv-btn adv-btn-search" bindtap="onAdvancedSearch">搜索</button>
+      <button class="adv-btn adv-btn-clear" bindtap="onAdvancedClear">清空</button>
+    </view>
   </view>
 
   <!-- Player List -->
@@ -29,13 +74,18 @@
       </view>
     </view>
 
+    <!-- Search Result Count -->
+    <view class="search-summary" wx:if="{{searchTotal > 0 && (searchQuery || isAdvancedSearch)}}">
+      <text>共找到 {{searchTotal}} 个结果</text>
+    </view>
+
     <!-- Loading More Indicator -->
     <view class="loading-more" wx:if="{{loadingMore && hasMore}}">
       <text>加载中...</text>
     </view>
 
     <!-- No More Data Indicator -->
-    <view class="no-more" wx:if="{{!hasMore && displayPlayers.length > 0 && !searchQuery}}">
+    <view class="no-more" wx:if="{{!hasMore && displayPlayers.length > 0 && !searchQuery && !isAdvancedSearch}}">
       <text>已加载 {{displayPlayers.length}}/{{totalCount}} 名选手</text>
     </view>
 
