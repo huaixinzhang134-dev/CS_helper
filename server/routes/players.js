@@ -306,6 +306,35 @@ router.get('/search', async (req, res, next) => {
 });
 
 /**
+ * GET /api/players/debug/trivial
+ * 调试：检查 trivial 模式的子查询和各数据
+ */
+router.get('/debug/trivial', async (req, res, next) => {
+  try {
+    // 1. top30 战队
+    const [top30] = await query("SELECT team_name, `rank` FROM team_ranking ORDER BY `rank` ASC LIMIT 30");
+    // 2. top30 战队选手数（直接 JOIN）
+    const [joinCount] = await query("SELECT COUNT(*) AS cnt FROM player p INNER JOIN team_ranking r ON r.team_name = p.current_team WHERE p.status IN ('active','coach') AND r.`rank` <= 30");
+    // 3. top30 子查询选手数
+    const [subCount] = await query("SELECT COUNT(*) AS cnt FROM player p WHERE p.status IN ('active','coach') AND p.current_team IN (SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY `rank` ASC LIMIT 30) AS top30)");
+    // 4. 活跃选手 top30 各队人数
+    const [byTeam] = await query("SELECT p.current_team, COUNT(*) AS cnt FROM player p INNER JOIN team_ranking r ON r.team_name = p.current_team WHERE p.status IN ('active','coach') AND r.`rank` <= 30 GROUP BY p.current_team ORDER BY r.`rank` ASC");
+
+    res.json({
+      code: 0,
+      data: {
+        top30: top30.map(r => ({ name: r.team_name, rank: r.rank })),
+        joinCount: joinCount[0].cnt,
+        subCount: subCount[0].cnt,
+        byTeam: byTeam.map(r => ({ team: r.current_team, count: r.cnt }))
+      }
+    });
+  } catch (err) {
+    res.json({ code: 1, message: err.message, data: null });
+  }
+});
+
+/**
  * GET /api/players/:playerId
  * 按业务 ID（game_id）查选手
  */
