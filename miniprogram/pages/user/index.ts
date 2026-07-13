@@ -317,6 +317,9 @@ Page({
 
   onRankingScrollToLower() {},
 
+  /** 阻止冒泡到蒙层 */
+  preventBubble() {},
+
   onCloseRanking() {
     this.setData({ showRanking: false });
   }

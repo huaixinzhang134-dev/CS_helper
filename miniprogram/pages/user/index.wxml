@@ -57,7 +57,7 @@
 
   <!-- ====== 封神榜弹窗 ====== -->
   <view class="modal-mask" wx:if="{{showRanking}}" bindtap="onCloseRanking">
-    <view class="modal-content ranking-modal" catchtap="">
+    <view class="modal-content ranking-modal" catchtap="preventBubble">
       <view class="ranking-tab">
         <view class="ranking-tab-item {{rankingMode === 'pk' ? 'ranking-tab-active' : ''}}" bindtap="onSwitchRanking" data-mode="pk">好友对战</view>
         <view class="ranking-tab-item {{rankingMode === 'solo' ? 'ranking-tab-active' : ''}}" bindtap="onSwitchRanking" data-mode="solo">单人挑战</view>

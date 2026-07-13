@@ -15,7 +15,7 @@
     <icon type="search" size="18" color="#aaa" />
     <input
       class="search-input {{isAdvancedSearch ? 'search-input-adv' : ''}}"
-      placeholder="{{isAdvancedSearch ? '搜索关键词（可选）...' : '搜索选手 ID / 战队...'}}"
+      placeholder="{{isAdvancedSearch ? '搜索关键词（可选）...' : '搜索选手 ID...'}}"
       placeholder-class="placeholder"
       value="{{searchQuery}}"
       bindinput="onSearchInput"

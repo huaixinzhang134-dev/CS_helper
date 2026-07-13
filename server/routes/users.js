@@ -261,7 +261,8 @@ router.get('/guess/records', authMiddleware, async (req, res, next) => {
 
 // ============================================================
 // GET /api/users/ranking?mode=pk|solo
-// 返回所有用户的胜率排行榜（需迁移后生效）
+// 返回所有用户的胜率排行榜
+// 优先使用迁移后的分模式统计列，无数据时回退到总胜率
 // ============================================================
 router.get('/ranking', async (req, res, next) => {
   try {
@@ -270,17 +271,27 @@ router.get('/ranking', async (req, res, next) => {
     const totalCol = mode === 'pk' ? 'pk_total_games' : 'solo_total_games';
     const rateCol = mode === 'pk' ? 'pk_win_rate' : 'solo_win_rate';
 
-    // 先检测列是否存在
+    // 检测列是否存在
     const [cols] = await query("SHOW COLUMNS FROM users LIKE '" + winCol + "'");
-    if (cols.length === 0) {
-      return res.json({ code: 0, message: '', data: [] });
+    const hasMigrated = cols.length > 0;
+
+    let sql;
+    if (hasMigrated) {
+      // 优先使用分模式统计列；无数据时回退到总胜率
+      sql = `SELECT openid, nickname, avatar_url,
+               CASE WHEN ${totalCol} > 0 THEN ${winCol} ELSE win_count END AS win_count,
+               CASE WHEN ${totalCol} > 0 THEN ${totalCol} ELSE total_games END AS total_games,
+               CASE WHEN ${totalCol} > 0 THEN ${rateCol} ELSE win_rate END AS win_rate
+             FROM users
+             WHERE ${totalCol} > 0 OR total_games > 0
+             ORDER BY win_rate DESC LIMIT 100`;
+    } else {
+      sql = `SELECT openid, nickname, avatar_url, win_count, total_games, win_rate
+             FROM users WHERE total_games > 0
+             ORDER BY win_rate DESC LIMIT 100`;
     }
 
-    const [rows] = await query(
-      `SELECT openid, nickname, avatar_url, ${winCol} AS win_count, ${totalCol} AS total_games, ${rateCol} AS win_rate
-       FROM users WHERE ${totalCol} > 0
-       ORDER BY ${rateCol} DESC LIMIT 100`
-    );
+    const [rows] = await query(sql);
 
     res.json({
       code: 0, message: '',
