@@ -193,15 +193,16 @@ Page({
           ...player,
           avatarUrl: normalizeAvatarUrl(player.avatar)
         }));
+        const total = res.total ?? res.data.length;
         this.setData({
           displayPlayers: playersWithAvatar,
           searchHasMore: res.hasMore,
           hasMore: res.hasMore,
           searchPage: 0,
-          searchTotal: res.data.length
+          searchTotal: total
         });
         if (res.data.length > 0) {
-          wx.showToast({ title: `找到 ${res.data.length} 个结果${res.hasMore ? '+' : ''}`, icon: 'none' });
+          wx.showToast({ title: `找到 ${total} 个结果${res.hasMore ? '+' : ''}`, icon: 'none' });
         }
       }
     });

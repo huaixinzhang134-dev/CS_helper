@@ -234,13 +234,35 @@ export const searchPlayers = async (
   keyword: string,
   page: number = 0,
   pageSize: number = 20
-): Promise<{ success: boolean; data: Player[]; hasMore: boolean }> => {
+): Promise<{ success: boolean; data: Player[]; hasMore: boolean; total?: number }> => {
   if (!keyword || !keyword.trim()) {
     return { success: true, data: [], hasMore: false };
   }
-  const res = await get<Player[]>('/players/search', { q: keyword, page, pageSize });
-  const data = res.data ?? [];
-  return { success: res.success, data, hasMore: data.length === pageSize };
+  // 手动请求以获取响应根层级的 total / hasMore（get 封装会丢失它们）
+  return new Promise((resolve) => {
+    const qs = queryString({ q: keyword, page, pageSize });
+    wx.request({
+      url: `${API_BASE}/players/search${qs}`,
+      method: 'GET',
+      header: { 'content-type': 'application/json' },
+      success: (res: any) => {
+        const body = res.data;
+        if (body && body.code === 0) {
+          resolve({
+            success: true,
+            data: body.data ?? [],
+            hasMore: !!body.hasMore,
+            total: body.total
+          });
+        } else {
+          resolve({ success: false, data: [], hasMore: false, total: 0 });
+        }
+      },
+      fail: () => {
+        resolve({ success: false, data: [], hasMore: false, total: 0 });
+      }
+    });
+  });
 };
 
 /**
