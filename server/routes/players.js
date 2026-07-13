@@ -233,8 +233,40 @@ router.get('/search', async (req, res, next) => {
       params.push(parseInt(ageMax, 10));
     }
     if (country) {
-      conditions.push('country LIKE ?');
-      params.push(`%${country}%`);
+      // 中英文国家名双向映射：数据库部分存中文（如"中国"）部分存英文（如"Korea"），
+      // 确保用户无论输中文还是英文都能搜到对应记录
+      const countryMap = {
+        '中国': 'China', '乌克兰': 'Ukraine', '俄罗斯': 'Russia',
+        '丹麦': 'Denmark', '法国': 'France', '瑞典': 'Sweden',
+        '芬兰': 'Finland', '挪威': 'Norway', '波兰': 'Poland',
+        '巴西': 'Brazil', '美国': 'United States', '加拿大': 'Canada',
+        '澳大利亚': 'Australia', '德国': 'Germany', '英国': 'United Kingdom',
+        '爱沙尼亚': 'Estonia', '拉脱维亚': 'Latvia', '立陶宛': 'Lithuania',
+        '斯洛伐克': 'Slovakia', '匈牙利': 'Hungary', '以色列': 'Israel',
+        '波黑': 'Bosnia', '罗马尼亚': 'Romania', '土耳其': 'Turkey',
+        '保加利亚': 'Bulgaria', '塞尔维亚': 'Serbia', '南非': 'South Africa',
+        '阿根廷': 'Argentina', '哈萨克斯坦': 'Kazakhstan', '新西兰': 'New Zealand',
+        '韩国': 'Korea', '日本': 'Japan', '蒙古': 'Mongolia',
+        '荷兰': 'Netherlands', '西班牙': 'Spain', '葡萄牙': 'Portugal',
+        '比利时': 'Belgium', '瑞士': 'Switzerland', '爱尔兰': 'Ireland',
+        '希腊': 'Greece', '奥地利': 'Austria', '捷克': 'Czechia',
+        '克罗地亚': 'Croatia', '新加坡': 'Singapore', '马来西亚': 'Malaysia',
+        '冰岛': 'Iceland', '墨西哥': 'Mexico', '哥伦比亚': 'Colombia'
+      };
+      const searchValues = [country];
+      // 正向查找：中文→英文
+      if (countryMap[country]) {
+        searchValues.push(countryMap[country]);
+      }
+      // 反向查找：英文→中文
+      for (const [cn, en] of Object.entries(countryMap)) {
+        if (en.toLowerCase() === country.toLowerCase() && !searchValues.includes(cn)) {
+          searchValues.push(cn);
+        }
+      }
+      const countryClauses = searchValues.map(() => 'country LIKE ?');
+      conditions.push(`(${countryClauses.join(' OR ')})`);
+      searchValues.forEach(v => params.push(`%${v}%`));
     }
     if (team) {
       conditions.push('current_team LIKE ?');
