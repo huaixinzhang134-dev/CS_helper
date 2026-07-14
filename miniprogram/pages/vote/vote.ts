@@ -40,7 +40,8 @@ Page({
 
   async loadAll() {
     wx.showLoading({ title: '加载中...' });
-    await Promise.all([this.loadMyVotes(), this.loadSlotConfig()]);
+    await this.loadMyVotes();      // 先初始化 slots 数组
+    await this.loadSlotConfig();   // 再读 slots 设置开关状态
     wx.hideLoading();
     this.setData({ loaded: true });
   },
