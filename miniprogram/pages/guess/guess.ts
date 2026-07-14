@@ -966,7 +966,7 @@ Page({
       }
       try {
         const res = await getPkRoom(this.data.pkRoomId);
-        if (!res.success || !res.data) continue;
+        if (!res.success || !res.data) return;
 
         const room = res.data;
         const myRole = this.data.isRoomOwner ? 'creator' : 'joiner';
