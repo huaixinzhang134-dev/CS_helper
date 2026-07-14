@@ -260,3 +260,48 @@
   color: var(--text-muted);
   font-size: 26rpx;
 }
+
+/* 高亮已选中的选手 */
+.search-item.active {
+  background: var(--primary-color);
+  border-radius: 8rpx;
+}
+.search-item.active .search-player-name,
+.search-item.active .search-player-team {
+  color: #fff;
+}
+
+/* 底部提交栏 */
+.submit-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 0 0;
+  border-top: 1rpx solid var(--border-color);
+  margin-top: 16rpx;
+}
+
+.selected-hint {
+  font-size: 26rpx;
+  color: var(--primary-color);
+  font-weight: 500;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-submit {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 10rpx;
+  padding: 14rpx 40rpx;
+  font-size: 28rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.btn-submit[disabled] {
+  opacity: 0.6;
+}

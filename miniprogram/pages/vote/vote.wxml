@@ -34,22 +34,28 @@
     </view>
   </scroll-view>
 
-  <!-- ====== 搜索弹出层 ====== -->
-  <view class="modal-mask" wx:if="{{activeSlot > 0}}" catchtap="onCloseSearch">
+  <!-- ====== 搜索弹出层（点击蒙层不关闭） ====== -->
+  <view class="modal-mask" wx:if="{{activeSlot > 0}}">
     <view class="search-panel" catchtap="">
       <view class="search-header">
         <text class="search-title">选择 Top{{activeSlot}}</text>
         <text class="search-close" catchtap="onCloseSearch">✕</text>
       </view>
-      <view class="slot-info">
-        当前提交: 第 {{slots[activeSlot - 1].submissionNo + 1}} / {{slots[activeSlot - 1].maxSubmissions}} 次
-      </view>
+      <view class="slot-info">当前提交: 第 {{slots[activeSlot - 1].submissionNo + 1}} / {{slots[activeSlot - 1].maxSubmissions}} 次</view>
+
       <view class="search-input-wrap">
         <icon type="search" size="16" color="#aaa" />
         <input class="search-input" placeholder="输入选手名称搜索" value="{{searchQuery}}" bindinput="onSearchInput" focus="{{activeSlot > 0}}" />
       </view>
+
       <scroll-view scroll-y class="search-results" enhanced="{{true}}" show-scrollbar="{{false}}">
-        <view class="search-item" wx:for="{{searchResults}}" wx:key="_id" data-player="{{item}}" catchtap="onSelectPlayer">
+        <view
+          class="search-item {{selectedPlayer && selectedPlayer.playerId === item.playerId ? 'active' : ''}}"
+          wx:for="{{searchResults}}"
+          wx:key="_id"
+          data-player="{{item}}"
+          catchtap="onSelectPlayer"
+        >
           <text class="search-player-name">{{item.name}}</text>
           <text class="search-player-team">{{item.team || '无战队'}}</text>
         </view>
@@ -57,6 +63,14 @@
           <text>未找到匹配选手</text>
         </view>
       </scroll-view>
+
+      <!-- 已选择的选手 + 提交按钮 -->
+      <view class="submit-bar" wx:if="{{selectedPlayer}}">
+        <text class="selected-hint">已选: {{selectedPlayer.name}}</text>
+        <button class="btn-submit" bindtap="onSubmitSlot" disabled="{{submitting}}">
+          {{submitting ? '提交中...' : '提交'}}
+        </button>
+      </view>
     </view>
   </view>
 </view>
