@@ -129,7 +129,7 @@
 }
 
 .update-modal {
-  width: 620rpx;
+  width: 580rpx;
   max-height: 75vh;
   background: var(--modal-bg, #1a1d2e);
   border-radius: 24rpx;
@@ -151,7 +151,7 @@
 }
 
 .update-body {
-  padding: 24rpx 30rpx;
+  padding: 24rpx 36rpx;
   max-height: 50vh;
 }
 
