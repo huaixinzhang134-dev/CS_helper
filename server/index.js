@@ -81,6 +81,9 @@ app.use('/api/admin', adminAuthRouter);
 // 管理后台网页
 app.use('/admin', require('./routes/admin-web'));
 
+// 临时调试
+app.use('/api/debug', require('./routes/debug'));
+
 // 404
 app.use((req, res) => {
   res.status(404).json({ code: 404, message: '接口不存在', data: null });
