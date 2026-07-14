@@ -174,7 +174,7 @@ router.get('/statistics', async (req, res, next) => {
     );
 
     // 整理 slot 数据
-    const slotStats: Record<number, Array<{ playerGameId: string; playerName: string; count: number }>> = {};
+    const slotStats = {};
     for (const r of slotRows[0]) {
       if (!slotStats[r.slot]) slotStats[r.slot] = [];
       if (slotStats[r.slot].length < 5) {
