@@ -275,7 +275,8 @@ router.get('/admin/check', async (req, res, next) => {
     );
 
     const allResults = [];
-    for (const user of users[0]) {
+    const userRows = users[0] || [];
+    for (const user of userRows) {
       const [items] = await query(
         'SELECT slot, player_game_id FROM player_vote_slots WHERE user_openid = ? AND year = ? ORDER BY slot ASC',
         [user.user_openid, year]
@@ -296,7 +297,7 @@ router.get('/admin/check', async (req, res, next) => {
     const filtered = matchThreshold > 0 ? allResults.filter(r => r.matchedCount >= matchThreshold) : allResults;
     const paged = filtered.slice(offset, offset + pageSize);
 
-    res.json({ code: 0, message: '', data: { list: paged, total: filtered.length, totalSubmissions: users[0].length, page, pageSize, hasMore: offset + pageSize < filtered.length, year } });
+    res.json({ code: 0, message: '', data: { list: paged, total: filtered.length, totalSubmissions: userRows.length, page, pageSize, hasMore: offset + pageSize < filtered.length, year } });
   } catch (err) { next(err); }
 });
 
