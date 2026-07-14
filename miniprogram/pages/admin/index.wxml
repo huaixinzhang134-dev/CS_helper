@@ -144,18 +144,16 @@
   <view wx:if="{{activeTab === 'votes'}}">
     <view class="h2">年度 Top30 设定（{{voteYear}}）</view>
     <scroll-view scroll-y class="admin-list">
-      <view class="admin-card" wx:for="{{30}}" wx:key="*this" wx:for-index="idx">
+      <view class="admin-card" wx:for="{{voteSlots}}" wx:key="slot">
         <view class="card-header">
-          <text class="card-title">Top{{idx + 1}}</text>
-          <text class="card-subtitle" wx:if="{{voteWinners.find(w => w.rank === idx + 1)}}">
-            {{voteWinners.find(w => w.rank === idx + 1).playerName}}
-          </text>
+          <text class="card-title">Top{{item.slot}}</text>
+          <text class="card-subtitle" wx:if="{{item.winnerName}}">{{item.winnerName}}</text>
         </view>
         <view class="card-actions">
-          <button size="mini" bindtap="onVoteSetWinner" data-slot="{{idx + 1}}">
-            {{voteWinners.find(w => w.rank === idx + 1) ? '更改' : '设置'}}
+          <button size="mini" bindtap="onVoteSetWinner" data-slot="{{item.slot}}">
+            {{item.winnerName ? '更改' : '设置'}}
           </button>
-          <button size="mini" type="warn" wx:if="{{voteWinners.find(w => w.rank === idx + 1)}}" bindtap="onVoteRemoveWinner" data-slot="{{idx + 1}}">移除</button>
+          <button size="mini" type="warn" wx:if="{{item.winnerName}}" bindtap="onVoteRemoveWinner" data-slot="{{item.slot}}">移除</button>
         </view>
       </view>
     </scroll-view>

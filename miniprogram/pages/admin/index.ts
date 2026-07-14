@@ -80,6 +80,7 @@ Page({
     // ====== 投票管理 ======
     voteYear: 2026,
     voteWinners: [] as { rank: number; playerGameId: string; playerName: string }[],
+    voteSlots: [] as { slot: number; winnerName: string }[], // 预处理后的显示数据
     showVoteSearch: false,
     voteSearchQuery: '',
     voteSearchResults: [] as Player[],
@@ -354,7 +355,13 @@ Page({
   async loadVoteWinners() {
     const res = await fetchVoteWinners(this.data.voteYear);
     if (res.success && res.data) {
-      this.setData({ voteWinners: res.data.winners || [] });
+      const winners: { rank: number; playerGameId: string; playerName: string }[] = res.data.winners || [];
+      // 预处理：生成 slot 1~30 显示数据
+      const voteSlots = Array.from({ length: 30 }, (_, i) => {
+        const w = winners.find(w => w.rank === i + 1);
+        return { slot: i + 1, winnerName: w ? w.playerName : '' };
+      });
+      this.setData({ voteWinners: winners, voteSlots });
     }
   },
 
@@ -386,12 +393,23 @@ Page({
       winners.push({ rank: slot, playerGameId: player.playerId, playerName: player.name });
     }
     winners.sort((a, b) => a.rank - b.rank);
-    this.setData({ voteWinners: winners, showVoteSearch: false });
+    this._updateVoteSlots(winners);
+    this.setData({ showVoteSearch: false });
   },
 
   onVoteRemoveWinner(e: WechatMiniprogram.TouchEvent) {
     const slot = e.currentTarget.dataset.slot;
-    this.setData({ voteWinners: this.data.voteWinners.filter(w => w.rank !== slot) });
+    const winners = this.data.voteWinners.filter(w => w.rank !== slot);
+    this._updateVoteSlots(winners);
+  },
+
+  /** 根据 winners 更新 voteSlots */
+  _updateVoteSlots(winners: { rank: number; playerGameId: string; playerName: string }[]) {
+    const voteSlots = Array.from({ length: 30 }, (_, i) => {
+      const w = winners.find(w => w.rank === i + 1);
+      return { slot: i + 1, winnerName: w ? w.playerName : '' };
+    });
+    this.setData({ voteWinners: winners, voteSlots });
   },
 
   async onSaveVoteWinners() {

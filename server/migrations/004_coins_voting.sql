@@ -89,7 +89,7 @@ DROP TABLE IF EXISTS vote_winners;
 CREATE TABLE vote_winners (
   id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
   year            YEAR            NOT NULL,
-  rank            TINYINT UNSIGNED NOT NULL COMMENT '排名 1-30',
+  `rank`          TINYINT UNSIGNED NOT NULL COMMENT '排名 1-30',
   player_game_id  VARCHAR(64)     NOT NULL DEFAULT '',
   player_name     VARCHAR(64)     NOT NULL DEFAULT '',
   set_by          VARCHAR(64)     NULL COMMENT '管理员openid',
