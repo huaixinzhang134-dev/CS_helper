@@ -204,6 +204,104 @@
   opacity: 0.7;
 }
 
+/* ====== Slot Toggle Grid ====== */
+.slot-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.slot-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: calc(20% - 10rpx);
+  padding: 12rpx 0;
+  border-radius: 10rpx;
+  border: 1rpx solid var(--border-color);
+  cursor: pointer;
+}
+
+.slot-toggle.on {
+  background: var(--bg-card);
+}
+
+.slot-toggle.off {
+  background: #3d1a1a;
+  border-color: #8b0000;
+  opacity: 0.7;
+}
+
+.slot-toggle-label {
+  font-size: 22rpx;
+  color: var(--text-primary);
+}
+
+.slot-toggle-status {
+  font-size: 18rpx;
+  margin-top: 4rpx;
+}
+
+.slot-toggle.on .slot-toggle-status {
+  color: #4CAF50;
+}
+
+.slot-toggle.off .slot-toggle-status {
+  color: #ff5252;
+}
+
+/* ====== Login Page ====== */
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 70vh;
+}
+
+.login-box {
+  width: 80%;
+  max-width: 500rpx;
+  padding: 60rpx 40rpx;
+  background: var(--bg-card);
+  border-radius: 20rpx;
+  border: 1rpx solid var(--border-color);
+}
+
+.login-title {
+  display: block;
+  text-align: center;
+  font-size: 36rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 40rpx;
+}
+
+.login-error {
+  display: block;
+  color: var(--error-color);
+  font-size: 24rpx;
+  margin-bottom: 16rpx;
+  text-align: center;
+}
+
+/* ====== Admin Topbar ====== */
+.admin-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+  padding: 16rpx;
+  background: var(--bg-card);
+  border-radius: 12rpx;
+}
+
+.admin-username {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 /* ====== Common ====== */
 .loading-text,
 .empty-text {

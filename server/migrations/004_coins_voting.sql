@@ -58,33 +58,63 @@ CREATE TABLE user_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='用户道具库存';
 
--- 6. 选手投票（问卷形式：每人3次覆盖提交，每次选top1~top30）
-DROP TABLE IF EXISTS player_vote_records;
-CREATE TABLE player_vote_records (
+-- 6. 选手投票（每位top独立提交，每slot最多3次覆盖式提交）
+DROP TABLE IF EXISTS player_vote_slots;
+CREATE TABLE player_vote_slots (
   id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_openid     VARCHAR(64)     NOT NULL,
-  year            YEAR            NOT NULL COMMENT '投票年份（如2026）',
-  submission_no   TINYINT UNSIGNED NOT NULL COMMENT '第几次提交(1-3)',
-  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_pvr_user_year (user_openid, year)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='选手投票提交记录';
-
-DROP TABLE IF EXISTS player_vote_items;
-CREATE TABLE player_vote_items (
-  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  record_id       BIGINT UNSIGNED NOT NULL COMMENT '关联vote_records.id',
-  slot            TINYINT UNSIGNED NOT NULL COMMENT 'top1~30 序号(1-30)',
+  year            YEAR            NOT NULL COMMENT '投票年份',
+  slot            TINYINT UNSIGNED NOT NULL COMMENT 'top1~30 序号',
+  submission_no   TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '当前第几次提交',
   player_game_id  VARCHAR(64)     NOT NULL DEFAULT '',
   player_name     VARCHAR(64)     NOT NULL DEFAULT '',
+  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_pvi_record (record_id),
-  KEY idx_pvi_player (player_game_id)
+  UNIQUE KEY uk_pvs_user_slot (user_openid, year, slot),
+  KEY idx_pvs_player (player_game_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='选手投票具体选项';
+  COMMENT='选手投票（每slot独立，覆盖式提交）';
 
--- 7. 管理员设定的年度官方Top30（用于核对发奖）
+-- 7. 投票提交开关（管理员控制每个top能否提交）
+DROP TABLE IF EXISTS vote_slot_config;
+CREATE TABLE vote_slot_config (
+  id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  year            YEAR            NOT NULL,
+  slot            TINYINT UNSIGNED NOT NULL COMMENT 'top1~30',
+  can_submit      TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '1=可提交 0=已关闭',
+  updated_by      VARCHAR(64)     NULL,
+  updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_vsc_year_slot (year, slot)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='投票提交开关（管理员控制）';
+
+-- 9. 管理员账户表（登录凭据存储在服务端）
+DROP TABLE IF EXISTS admin_users;
+CREATE TABLE admin_users (
+  id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  username        VARCHAR(64)     NOT NULL,
+  password_hash   VARCHAR(64)     NOT NULL COMMENT 'MD5(password)',
+  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_admin_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='管理员账户';
+
+-- 插入默认管理员 admin/7355608（MD5 哈希）
+INSERT IGNORE INTO admin_users (username, password_hash) VALUES ('admin', MD5('7355608'));
+
+-- 初始化当前年度的 slot 配置（默认全部可提交）
+INSERT IGNORE INTO vote_slot_config (year, slot, can_submit) VALUES
+(2026,1,1),(2026,2,1),(2026,3,1),(2026,4,1),(2026,5,1),
+(2026,6,1),(2026,7,1),(2026,8,1),(2026,9,1),(2026,10,1),
+(2026,11,1),(2026,12,1),(2026,13,1),(2026,14,1),(2026,15,1),
+(2026,16,1),(2026,17,1),(2026,18,1),(2026,19,1),(2026,20,1),
+(2026,21,1),(2026,22,1),(2026,23,1),(2026,24,1),(2026,25,1),
+(2026,26,1),(2026,27,1),(2026,28,1),(2026,29,1),(2026,30,1);
+
+-- 8. 管理员设定的年度官方Top30（用于核对发奖）
 DROP TABLE IF EXISTS vote_winners;
 CREATE TABLE vote_winners (
   id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,

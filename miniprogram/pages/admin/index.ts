@@ -23,8 +23,14 @@ import {
   adminSetVoteWinners,
   adminCheckVotes,
   adminAwardVotes,
+  adminSetVoteSlotConfig,
+  fetchVoteSlotConfig,
+  adminLogin,
+  adminVerifyToken,
   searchPlayers,
 } from '../../services/api';
+
+const ADMIN_TOKEN_KEY = 'adminToken';
 
 const TABS = [
   { key: 'users', label: '用户管理' },
@@ -36,6 +42,13 @@ const TABS = [
 
 Page({
   data: {
+    // 登录
+    loggedIn: false,
+    loginUsername: '',
+    loginPassword: '',
+    loginLoading: false,
+    loginError: '',
+
     tabs: TABS,
     activeTab: 'users',
 
@@ -88,10 +101,57 @@ Page({
     checkThreshold: 15,
     checkResults: null as any,
     awardResult: null as any,
+    // slot 提交开关
+    slotConfig: {} as Record<number, boolean>,
+    slotConfigDirty: false,
   },
 
   onLoad() {
-    this.loadUsers();
+    this.checkLogin();
+  },
+
+  /** 检查是否已登录 */
+  async checkLogin() {
+    const token = wx.getStorageSync(ADMIN_TOKEN_KEY);
+    if (!token) {
+      this.setData({ loggedIn: false });
+      return;
+    }
+    const res = await adminVerifyToken();
+    if (res.success && res.data) {
+      this.setData({ loggedIn: true });
+      this.loadUsers();
+    } else {
+      wx.removeStorageSync(ADMIN_TOKEN_KEY);
+      this.setData({ loggedIn: false });
+    }
+  },
+
+  onLoginInput(e: WechatMiniprogram.Input) {
+    const field = e.currentTarget.dataset.field;
+    this.setData({ [`login${field}`]: e.detail.value, loginError: '' } as any);
+  },
+
+  async onLogin() {
+    const { loginUsername: username, loginPassword: password } = this.data;
+    if (!username || !password) {
+      this.setData({ loginError: '请输入用户名和密码' });
+      return;
+    }
+    this.setData({ loginLoading: true, loginError: '' });
+    const res = await adminLogin(username, password);
+    if (res.success && res.data) {
+      wx.setStorageSync(ADMIN_TOKEN_KEY, res.data.token);
+      this.setData({ loggedIn: true, loginLoading: false });
+      this.loadUsers();
+    } else {
+      this.setData({ loginLoading: false, loginError: res.message || '登录失败' });
+    }
+  },
+
+  onLogout() {
+    wx.removeStorageSync(ADMIN_TOKEN_KEY);
+    this.setData({ loggedIn: false, loginUsername: '', loginPassword: '' });
   },
 
   switchTab(e: any) {
@@ -101,6 +161,7 @@ Page({
     else if (tab === 'players') this.loadPlayers();
     else if (tab === 'matches') this.loadMatches();
     else if (tab === 'comments') this.loadPendingComments();
+    else if (tab === 'votes') { this.loadSlotConfig(); this.loadVoteWinners(); }
   },
 
   // ==================== 用户管理 ====================
@@ -351,6 +412,33 @@ Page({
   },
 
   // ==================== 投票管理 ====================
+
+  /** 加载投票提交开关 */
+  async loadSlotConfig() {
+    const res = await fetchVoteSlotConfig(this.data.voteYear);
+    if (res.success && res.data) {
+      this.setData({ slotConfig: res.data.config, slotConfigDirty: false });
+    }
+  },
+
+  /** 切换某 top 的提交开关 */
+  onToggleSlot(e: WechatMiniprogram.TouchEvent) {
+    const slot = e.currentTarget.dataset.slot as number;
+    const config = { ...this.data.slotConfig };
+    config[slot] = !config[slot];
+    this.setData({ slotConfig: config, slotConfigDirty: true });
+  },
+
+  /** 保存提交开关配置 */
+  async onSaveSlotConfig() {
+    const res = await adminSetVoteSlotConfig(this.data.voteYear, this.data.slotConfig);
+    if (res.success) {
+      wx.showToast({ title: '配置已保存', icon: 'success' });
+      this.setData({ slotConfigDirty: false });
+    } else {
+      wx.showToast({ title: res.message || '保存失败', icon: 'none' });
+    }
+  },
 
   async loadVoteWinners() {
     const res = await fetchVoteWinners(this.data.voteYear);

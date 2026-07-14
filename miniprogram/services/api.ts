@@ -804,21 +804,23 @@ export interface VoteSelection {
 }
 
 /**
- * 提交投票（覆盖式）
+ * 提交单个 top 的选择（覆盖式）
  */
-export const submitVotes = async (
-  selections: VoteSelection[],
+export const submitVoteSlot = async (
+  slot: number,
+  playerGameId: string,
+  playerName: string,
   year: number = 2026
-): Promise<{ success: boolean; data: { submissionNo: number; count: number } | null; message?: string }> => {
-  return await postAuth<{ submissionNo: number; count: number }>('/votes/submit', { year, selections });
+): Promise<{ success: boolean; data: { slot: number; submissionNo: number; maxSubmissions: number } | null; message?: string }> => {
+  return await postAuth<{ slot: number; submissionNo: number; maxSubmissions: number }>('/votes/submit-slot', { year, slot, playerGameId, playerName });
 };
 
 /**
- * 查询我的投票
+ * 查询我的全部投票
  */
 export const fetchMyVotes = async (
   year: number = 2026
-): Promise<{ success: boolean; data: { hasVoted: boolean; submissionNo: number; selections: VoteSelection[] } | null }> => {
+): Promise<{ success: boolean; data: { hasVoted: boolean; selections: (VoteSelection & { submissionNo: number; maxSubmissions: number })[] } | null }> => {
   return await getAuth<any>(`/votes/my-votes?year=${year}`);
 };
 
@@ -829,6 +831,15 @@ export const fetchVoteStatistics = async (
   year: number = 2026
 ): Promise<{ success: boolean; data: any | null }> => {
   return await getAuth<any>(`/votes/statistics?year=${year}`);
+};
+
+/**
+ * 获取各 top 提交开关
+ */
+export const fetchVoteSlotConfig = async (
+  year: number = 2026
+): Promise<{ success: boolean; data: { year: number; config: Record<number, boolean> } | null }> => {
+  return await get<any>(`/votes/slot-config?year=${year}`);
 };
 
 // ============================================================
@@ -931,6 +942,35 @@ export const adminCheckVotes = async (
 /**
  * 发放投票奖励（管理员）
  */
+/**
+ * 设置投票提交开关（管理员）
+ */
+export const adminSetVoteSlotConfig = async (
+  year: number,
+  config: Record<number, boolean>
+): Promise<{ success: boolean; data: any; message?: string }> => {
+  return await postAuth<any>('/votes/admin/slot-config', { year, config });
+};
+
+/**
+ * 管理员登录
+ */
+export const adminLogin = async (
+  username: string,
+  password: string
+): Promise<{ success: boolean; data: { token: string; username: string } | null; message?: string }> => {
+  return await post<{ token: string; username: string }>('/admin/login', { username, password });
+};
+
+/**
+ * 验证管理员 token
+ */
+export const adminVerifyToken = async (): Promise<{ success: boolean; data: { username: string } | null }> => {
+  const token = wx.getStorageSync('adminToken');
+  if (!token) return { success: false, data: null };
+  return await getAuth<{ username: string }>('/admin/verify', token);
+};
+
 export const adminAwardVotes = async (
   year: number = 2026,
   matchThreshold: number = 15,

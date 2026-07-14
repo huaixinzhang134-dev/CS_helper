@@ -1,5 +1,24 @@
 <view class="container admin-page">
-  <!-- ====== Tab 导航 ====== -->
+  <!-- ====== 登录页 ====== -->
+  <view wx:if="{{!loggedIn}}" class="login-page">
+    <view class="login-box">
+      <text class="login-title">管理员登录</text>
+      <input class="input" placeholder="用户名" value="{{loginUsername}}" data-field="Username" bindinput="onLoginInput" />
+      <input class="input" type="password" placeholder="密码" value="{{loginPassword}}" data-field="Password" bindinput="onLoginInput" />
+      <text class="login-error" wx:if="{{loginError}}">{{loginError}}</text>
+      <button type="primary" bindtap="onLogin" loading="{{loginLoading}}" disabled="{{loginLoading}}">登录</button>
+    </view>
+  </view>
+
+  <!-- ====== 管理后台（登录后） ====== -->
+  <view wx:else>
+    <!-- 顶部栏 -->
+    <view class="admin-topbar">
+      <text class="admin-username">管理员</text>
+      <button size="mini" bindtap="onLogout">退出</button>
+    </view>
+
+    <!-- ====== Tab 导航 ====== -->
   <view class="admin-tabs">
     <view
       class="admin-tab {{activeTab === tab.key ? 'active' : ''}}"
@@ -142,6 +161,24 @@
 
   <!-- ==================== 投票管理 ==================== -->
   <view wx:if="{{activeTab === 'votes'}}">
+    <!-- 提交开关控制 -->
+    <view class="h2">提交开关控制</view>
+    <view class="slot-grid">
+      <view
+        class="slot-toggle {{slotConfig[item] === false ? 'off' : 'on'}}"
+        wx:for="{{30}}" wx:key="*this" wx:for-index="idx"
+        data-slot="{{idx + 1}}"
+        bindtap="onToggleSlot"
+      >
+        <text class="slot-toggle-label">Top{{idx + 1}}</text>
+        <text class="slot-toggle-status">{{slotConfig[idx + 1] === false ? '关闭' : '开启'}}</text>
+      </view>
+    </view>
+    <button class="btn-add" type="{{slotConfigDirty ? 'warn' : 'default'}}" bindtap="onSaveSlotConfig">
+      {{slotConfigDirty ? '有未保存更改，点击保存' : '保存开关配置'}}
+    </button>
+
+    <view class="section-gap"></view>
     <view class="h2">年度 Top30 设定（{{voteYear}}）</view>
     <scroll-view scroll-y class="admin-list">
       <view class="admin-card" wx:for="{{voteSlots}}" wx:key="slot">

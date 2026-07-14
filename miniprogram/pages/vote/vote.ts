@@ -1,86 +1,113 @@
 /**
- * 年度投票页面（问卷形式）
- * 设置 top1 ~ top30，每人最多提交3次
+ * 年度投票页面（每位 top 独立提交，覆盖式，每 slot 最多 3 次）
  */
-import { submitVotes, fetchMyVotes, searchPlayers, Player } from '../../services/api';
+import { submitVoteSlot, fetchMyVotes, fetchVoteSlotConfig, searchPlayers, Player } from '../../services/api';
 
 Page({
   data: {
     year: 2026,
-    // 30个选择框 slotData[0]~slotData[29] 对应 top1~top30
-    slots: Array.from({ length: 30 }, (_, i) => ({
-      slot: i + 1,
-      label: `Top${i + 1}`,
-      playerGameId: '',
-      playerName: '',
-    })),
-    // 当前正在搜索的 slot 索引（-1 表示无）
+    // 30 个 slot 数据
+    slots: [] as {
+      slot: number;
+      label: string;
+      playerGameId: string;
+      playerName: string;
+      submissionNo: number;
+      maxSubmissions: number;
+      canSubmit: boolean; // 管理员是否开启该位置
+    }[],
+    // 当前正在搜索的 slot（-1 表示无）
     activeSlot: -1,
     searchQuery: '',
     searchResults: [] as (Player & { avatarUrl: string })[],
     searchLoading: false,
     searchTimer: null as any,
-
-    // 已填写的数量
-    filledCount: 0,
-    submissionNo: 0, // 当前第几次提交
-    hasVoted: false,
     submitting: false,
-
-    // 提交次数提示
-    maxSubmissions: 3,
-    submissionHint: '',
+    loaded: false,
+    filledCount: 0,
   },
 
   onLoad() {
-    // 进入页面时弹出提示：仅三次投票机会
     wx.showModal({
       title: '投票须知',
-      content: '每位用户仅有 3 次提交机会，每次提交将覆盖上一次结果，请谨慎选择！',
+      content: '每位用户对每个 top 位置有 3 次独立提交机会，每次提交覆盖上一次结果，请谨慎选择！',
       confirmText: '我知道了',
       showCancel: false,
       success: () => {
-        this.loadMyVotes();
+        this.loadAll();
       },
     });
   },
 
-  /**
-   * 加载我的当前投票
-   */
+  async loadAll() {
+    wx.showLoading({ title: '加载中...' });
+    await Promise.all([this.loadMyVotes(), this.loadSlotConfig()]);
+    wx.hideLoading();
+    this.setData({ loaded: true });
+  },
+
+  /** 加载我的当前投票 */
   async loadMyVotes() {
     const res = await fetchMyVotes(this.data.year);
-    if (res.success && res.data?.hasVoted) {
-      const slots = [...this.data.slots];
+    const slots = Array.from({ length: 30 }, (_, i) => ({
+      slot: i + 1,
+      label: `Top${i + 1}`,
+      playerGameId: '',
+      playerName: '',
+      submissionNo: 0,
+      maxSubmissions: 3,
+      canSubmit: true,
+    }));
+
+    if (res.success && res.data?.selections) {
       for (const sel of res.data.selections) {
         if (sel.slot >= 1 && sel.slot <= 30) {
           slots[sel.slot - 1] = {
             ...slots[sel.slot - 1],
             playerGameId: sel.playerGameId,
             playerName: sel.playerName,
+            submissionNo: sel.submissionNo,
+            maxSubmissions: sel.maxSubmissions || 3,
           };
         }
       }
-      const filledCount = slots.filter(s => s.playerName).length;
-      this.setData({
-        slots,
-        filledCount,
-        hasVoted: true,
-        submissionNo: res.data.submissionNo,
-        submissionHint: `已提交 ${res.data.submissionNo}/3 次，再次提交将覆盖上次`,
-      });
-    } else {
-      this.setData({
-        submissionHint: `可提交最多 ${this.data.maxSubmissions} 次，每次覆盖上次`,
-      });
+    }
+    const filledCount = slots.filter(s => s.playerName).length;
+    this.setData({ slots, filledCount });
+  },
+
+  /** 加载各 top 提交开关 */
+  async loadSlotConfig() {
+    const res = await fetchVoteSlotConfig(this.data.year);
+    if (res.success && res.data?.config) {
+      const slots = [...this.data.slots];
+      for (let i = 0; i < 30; i++) {
+        const slotNum = i + 1;
+        if (res.data.config[slotNum] !== undefined) {
+          slots[i].canSubmit = res.data.config[slotNum];
+        }
+      }
+      this.setData({ slots });
     }
   },
 
-  /**
-   * 点击某个 slot 的搜索框
-   */
+  /** 点击某个 slot */
   onSlotTap(e: WechatMiniprogram.TouchEvent) {
-    const slot = e.currentTarget.dataset.slot;
+    const slot = parseInt(e.currentTarget.dataset.slot, 10);
+    const slotData = this.data.slots[slot - 1];
+
+    // 检查是否可提交
+    if (!slotData.canSubmit) {
+      wx.showToast({ title: '提交时间已过，不可提交', icon: 'none' });
+      return;
+    }
+
+    // 检查提交次数
+    if (slotData.submissionNo >= slotData.maxSubmissions) {
+      wx.showToast({ title: `Top${slot} 已达最大提交次数 ${slotData.maxSubmissions}`, icon: 'none' });
+      return;
+    }
+
     this.setData({
       activeSlot: slot,
       searchQuery: '',
@@ -88,139 +115,67 @@ Page({
     });
   },
 
-  /**
-   * 关闭搜索弹出层
-   */
   onCloseSearch() {
-    this.setData({
-      activeSlot: -1,
-      searchQuery: '',
-      searchResults: [],
-    });
+    this.setData({ activeSlot: -1, searchQuery: '', searchResults: [] });
   },
 
-  /**
-   * 搜索输入
-   */
   onSearchInput(e: WechatMiniprogram.Input) {
     const query = e.detail.value.trim();
     this.setData({ searchQuery: query });
-
     if ((this as any).searchTimer) clearTimeout((this as any).searchTimer);
-
-    if (!query) {
-      this.setData({ searchResults: [] });
-      return;
-    }
+    if (!query) { this.setData({ searchResults: [] }); return; }
 
     (this as any).searchTimer = setTimeout(async () => {
       this.setData({ searchLoading: true });
       const res = await searchPlayers(query, 0, 30);
       if (res.success && res.data) {
-        this.setData({
-          searchResults: res.data.map(p => ({
-            ...p,
-            avatarUrl: p.avatar || '',
-          })),
-          searchLoading: false,
-        });
+        this.setData({ searchResults: res.data.map(p => ({ ...p, avatarUrl: p.avatar || '' })), searchLoading: false });
       } else {
         this.setData({ searchResults: [], searchLoading: false });
       }
     }, 300);
   },
 
-  /**
-   * 选择搜索到的选手
-   */
-  onSelectPlayer(e: WechatMiniprogram.TouchEvent) {
+  /** 选择选手 → 立即提交该 slot */
+  async onSelectPlayer(e: WechatMiniprogram.TouchEvent) {
     const player = e.currentTarget.dataset.player as Player;
-    const activeSlot = this.data.activeSlot;
-    if (activeSlot < 1 || activeSlot > 30) return;
-
-    const slots = [...this.data.slots];
-    // 检查该选手是否已在其他 slot 被选
-    const existingSlot = slots.find(s => s.playerGameId === player.playerId && s.slot !== activeSlot);
-    if (existingSlot) {
-      wx.showToast({ title: `该选手已在 Top${existingSlot.slot}`, icon: 'none' });
-      return;
-    }
-
-    slots[activeSlot - 1] = {
-      slot: activeSlot,
-      label: `Top${activeSlot}`,
-      playerGameId: player.playerId,
-      playerName: player.name,
-    };
-
-    const filledCount = slots.filter(s => s.playerName).length;
-    this.setData({
-      slots,
-      filledCount,
-      activeSlot: -1,
-      searchQuery: '',
-      searchResults: [],
-    });
-  },
-
-  /**
-   * 清除某个 slot 的选择
-   */
-  onClearSlot(e: WechatMiniprogram.TouchEvent) {
-    const slot = e.currentTarget.dataset.slot;
+    const slot = this.data.activeSlot;
     if (slot < 1 || slot > 30) return;
 
-    const slots = [...this.data.slots];
-    slots[slot - 1] = {
-      slot,
-      label: `Top${slot}`,
-      playerGameId: '',
-      playerName: '',
-    };
+    // 检查是否在其他 slot 已选
+    const existing = this.data.slots.find(s => s.playerGameId === player.playerId && s.slot !== slot);
+    if (existing) {
+      wx.showToast({ title: `该选手已在 Top${existing.slot}`, icon: 'none' });
+      return;
+    }
 
-    const filledCount = slots.filter(s => s.playerName).length;
-    this.setData({ slots, filledCount });
+    this.setData({ submitting: true });
+
+    const result = await submitVoteSlot(slot, player.playerId, player.name, this.data.year);
+
+    if (result.success && result.data) {
+      wx.showToast({ title: `Top${slot} 第 ${result.data.submissionNo} 次提交成功`, icon: 'success' });
+      await this.loadMyVotes(); // 刷新
+    } else {
+      wx.showToast({ title: result.message || '提交失败', icon: 'none' });
+    }
+
+    this.setData({ submitting: false, activeSlot: -1, searchQuery: '', searchResults: [] });
   },
 
-  /**
-   * 提交投票
-   */
-  async onSubmit() {
-    const { slots, filledCount, submitting, hasVoted, submissionNo } = this.data;
-    if (submitting) return;
+  /** 清除某个 slot 的选择 */
+  async onClearSlot(e: WechatMiniprogram.TouchEvent) {
+    const slot = parseInt(e.currentTarget.dataset.slot, 10);
+    if (slot < 1 || slot > 30) return;
 
-    if (filledCount < 1) {
-      wx.showToast({ title: '请至少选择一名选手', icon: 'none' });
-      return;
+    // 清除：用空字符串覆盖
+    this.setData({ submitting: true });
+    const result = await submitVoteSlot(slot, '', '', this.data.year);
+    if (result.success) {
+      await this.loadMyVotes();
+    } else {
+      wx.showToast({ title: result.message || '清除失败', icon: 'none' });
     }
-
-    if (submissionNo >= this.data.maxSubmissions) {
-      wx.showToast({ title: `已达最大提交次数 ${this.data.maxSubmissions}`, icon: 'none' });
-      return;
-    }
-
-    wx.showModal({
-      title: hasVoted ? '确认覆盖' : '确认提交',
-      content: hasVoted
-        ? `这是第 ${submissionNo + 1} 次提交，将覆盖上次投票结果，确定提交吗？`
-        : `确定提交你选择的 ${filledCount} 名选手吗？提交后不可修改（但可再次提交覆盖）`,
-      success: async (res) => {
-        if (!res.confirm) return;
-
-        this.setData({ submitting: true });
-        const selections = slots
-          .filter(s => s.playerGameId)
-          .map(s => ({ slot: s.slot, playerGameId: s.playerGameId, playerName: s.playerName }));
-
-        const result = await submitVotes(selections, this.data.year);
-        if (result.success) {
-          wx.showToast({ title: `投票成功（第${result.data?.submissionNo}次）`, icon: 'success' });
-          await this.loadMyVotes();
-        } else {
-          wx.showToast({ title: result.message || '投票失败', icon: 'none' });
-        }
-        this.setData({ submitting: false });
-      },
-    });
+    this.setData({ submitting: false });
   },
 });

@@ -18,6 +18,7 @@ const logoRouter = require('./routes/logo');
 const usersRouter = require('./routes/users');
 const coinsRouter = require('./routes/coins');
 const votesRouter = require('./routes/votes');
+const adminAuthRouter = require('./routes/admin-auth').router;
 
 const { setupWebSocket } = require('./ws');
 
@@ -73,6 +74,9 @@ app.use('/api/coins', coinsRouter);
 
 // 年度投票
 app.use('/api/votes', votesRouter);
+
+// 管理员登录
+app.use('/api/admin', adminAuthRouter);
 
 // 404
 app.use((req, res) => {

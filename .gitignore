@@ -41,6 +41,9 @@ build/
 # === 日志 ===
 *.log
 
+# === 凭据（不上传 GitHub）===
+miniprogram/config/admin-credentials.ts
+
 # === 大文件 ===
 *.docx
 *.zip

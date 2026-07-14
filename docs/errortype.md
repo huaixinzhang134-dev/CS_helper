@@ -497,7 +497,35 @@ const config = {
 
 ---
 
-## 8. 工具链与开发环境错误
+## 8. 安全与凭据管理
+
+### 8.1 前端硬编码凭据
+
+**场景**：后台管理员密码直接写在前端代码中
+
+**风险**：前端代码（微信小程序）完全暴露给用户，可通过反编译获取硬编码的密码
+
+**正确做法**：
+1. 数据库建 `admin_users` 表存储密码哈希（MD5）
+2. 后端提供 `/api/admin/login` 接口验证身份
+3. 前端只发登录请求，不存储任何凭据源码
+4. 服务端返回 token 用于后续请求鉴权
+
+**迁移 SQL**：
+```sql
+CREATE TABLE admin_users (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  username VARCHAR(64) NOT NULL,
+  password_hash VARCHAR(64) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_admin_username (username)
+);
+INSERT INTO admin_users (username, password_hash) VALUES ('admin', MD5('7355608'));
+```
+
+---
+
+## 9. 工具链与开发环境错误
 
 ### 8.1 Git add 全量误操作
 
@@ -538,6 +566,28 @@ const config = {
 | 连不上 MySQL | 本地脚本 | 用 railway run 或隧道 |
 | 表不存在 | 新功能 | 执行数据库迁移 |
 | 小程序白屏/报错 | 新增页面 | 清除编译缓存 |
+
+---
+
+---
+
+### 3.7 wx:for 中 wx:if 配合复杂表达式失败
+
+**场景**：`wx:for="{{30}}"` 中使用 `wx:if="{{slotConfig[item] === false ? 'off' : 'on'}}"`
+
+**根因**：`wx:for="{{30}}"` 迭代数字时，`item` 是数字字面量，但在 WXML 的某些表达式上下文中可能被当成字符串，导致比较失败
+
+**解决**：使用 `wx:for-index="idx"` 配合 `{{idx + 1}}` 生成 slot 编号，或使用预计算的数据数组替代数字迭代
+
+---
+
+### 3.8 @import 样式重复定义
+
+**场景**：多个页面文件引用同一 WXSS 文件导致样式冲突
+
+**根因**：WXSS 的 `@import` 按编译顺序合并，同名类选择器后定义覆盖前定义
+
+**解决**：使用 BEM 命名或组件级样式隔离，避免全局类名冲突
 
 ---
 
