@@ -794,10 +794,10 @@ export const fetchUserItems = async (): Promise<{ success: boolean; data: UserIt
 };
 
 // ============================================================
-// 投票 API
+// 猜测 API
 // ============================================================
 
-export interface VoteSelection {
+export interface PickSelection {
   slot: number;
   playerGameId: string;
   playerName: string;
@@ -806,40 +806,40 @@ export interface VoteSelection {
 /**
  * 提交单个 top 的选择（覆盖式）
  */
-export const submitVoteSlot = async (
+export const submitPick = async (
   slot: number,
   playerGameId: string,
   playerName: string,
   year: number = 2026
 ): Promise<{ success: boolean; data: { slot: number; submissionNo: number; maxSubmissions: number } | null; message?: string }> => {
-  return await postAuth<{ slot: number; submissionNo: number; maxSubmissions: number }>('/votes/submit-slot', { year, slot, playerGameId, playerName });
+  return await postAuth<{ slot: number; submissionNo: number; maxSubmissions: number }>('/picks/submit-slot', { year, slot, playerGameId, playerName });
 };
 
 /**
- * 查询我的全部投票
+ * 查询我的全部票选
  */
-export const fetchMyVotes = async (
+export const fetchMyPicks = async (
   year: number = 2026
-): Promise<{ success: boolean; data: { hasVoted: boolean; selections: (VoteSelection & { submissionNo: number; maxSubmissions: number })[] } | null }> => {
-  return await getAuth<any>(`/votes/my-votes?year=${year}`);
+): Promise<{ success: boolean; data: { hasPicked: boolean; selections: (PickSelection & { submissionNo: number; maxSubmissions: number })[] } | null }> => {
+  return await getAuth<any>(`/picks/my-picks?year=${year}`);
 };
 
 /**
- * 查看投票统计
+ * 查看猜测统计
  */
-export const fetchVoteStatistics = async (
+export const fetchPickStatistics = async (
   year: number = 2026
 ): Promise<{ success: boolean; data: any | null }> => {
-  return await getAuth<any>(`/votes/statistics?year=${year}`);
+  return await getAuth<any>(`/picks/statistics?year=${year}`);
 };
 
 /**
  * 获取各 top 提交开关
  */
-export const fetchVoteSlotConfig = async (
+export const fetchPickConfig = async (
   year: number = 2026
 ): Promise<{ success: boolean; data: { year: number; config: Record<number, boolean> } | null }> => {
-  return await get<any>(`/votes/slot-config?year=${year}`);
+  return await get<any>(`/picks/config?year=${year}`);
 };
 
 // ============================================================
@@ -909,47 +909,44 @@ export const reviewComment = async (
 };
 
 /**
- * 获取投票管理数据
+ * 获取猜测管理数据
  */
-export const fetchVoteWinners = async (
+export const fetchOfficialTop30 = async (
   year: number = 2026
 ): Promise<{ success: boolean; data: any | null }> => {
-  return await get<any>(`/votes/admin/winners?year=${year}`);
+  return await get<any>(`/picks/admin/official?year=${year}`);
 };
 
 /**
  * 设定官方Top30（管理员）
  */
-export const adminSetVoteWinners = async (
+export const adminSetOfficialTop30 = async (
   year: number,
   winners: { rank: number; playerGameId: string; playerName: string }[],
   adminOpenid: string = 'admin'
 ): Promise<{ success: boolean; data: any; message?: string }> => {
-  return await post<any>('/votes/admin/winners', { year, winners, adminOpenid });
+  return await post<any>('/picks/admin/official', { year, winners, adminOpenid });
 };
 
 /**
- * 核对投票结果（管理员）
+ * 核对猜测结果（管理员）
  */
-export const adminCheckVotes = async (
+export const adminCheckPicks = async (
   year: number = 2026,
   matchThreshold: number = 0,
   page: number = 0
 ): Promise<{ success: boolean; data: any | null }> => {
-  return await get<any>(`/votes/admin/check?year=${year}&matchThreshold=${matchThreshold}&page=${page}`);
+  return await get<any>(`/picks/admin/check?year=${year}&matchThreshold=${matchThreshold}&page=${page}`);
 };
 
 /**
- * 发放投票奖励（管理员）
+ * 设置提交开关（管理员）
  */
-/**
- * 设置投票提交开关（管理员）
- */
-export const adminSetVoteSlotConfig = async (
+export const adminSetPickConfig = async (
   year: number,
   config: Record<number, boolean>
 ): Promise<{ success: boolean; data: any; message?: string }> => {
-  return await postAuth<any>('/votes/admin/slot-config', { year, config });
+  return await postAuth<any>('/picks/admin/config', { year, config });
 };
 
 /**
@@ -971,11 +968,11 @@ export const adminVerifyToken = async (): Promise<{ success: boolean; data: { us
   return await getAuth<{ username: string }>('/admin/verify', token);
 };
 
-export const adminAwardVotes = async (
+export const adminAwardPicks = async (
   year: number = 2026,
   matchThreshold: number = 15,
   coinsPerMatch: number = 10,
   adminOpenid: string = 'admin'
 ): Promise<{ success: boolean; data: any; message?: string }> => {
-  return await post<any>('/votes/admin/award', { year, matchThreshold, coinsPerMatch, adminOpenid });
+  return await post<any>('/picks/admin/award', { year, matchThreshold, coinsPerMatch, adminOpenid });
 };

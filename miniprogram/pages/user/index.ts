@@ -284,14 +284,14 @@ Page({
     });
   },
 
-  // ============ 年度投票 ============
+  // ============ 年度猜测 ============
 
-  onOpenVote() {
+  onOpenPick() {
     if (!this.data.userInfo) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
-    wx.navigateTo({ url: '/pages/vote/vote' });
+    wx.navigateTo({ url: '/pages/pick/pick' });
   },
 
   // ============ 道具商城 ============

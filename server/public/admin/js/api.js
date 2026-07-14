@@ -33,11 +33,11 @@ const API = {
   getPendingComments(page = 0, pageSize = 20) { return this.get(`/api/comments/admin/pending?page=${page}&pageSize=${pageSize}`); },
   reviewComment(id, status) { return this.post(`/api/comments/${id}/review`, { status, reviewer: 'admin' }); },
 
-  // 投票
-  getSlotConfig(year = 2026) { return this.get(`/api/votes/slot-config?year=${year}`); },
-  setSlotConfig(year, config) { return this.post('/api/votes/admin/slot-config', { year, config }); },
-  getWinners(year = 2026) { return this.get(`/api/votes/admin/winners?year=${year}`); },
-  setWinners(year, winners) { return this.post('/api/votes/admin/winners', { year, winners, adminOpenid: 'admin' }); },
-  checkVotes(year = 2026, threshold = 15, page = 0) { return this.get(`/api/votes/admin/check?year=${year}&matchThreshold=${threshold}&page=${page}`); },
-  awardVotes(year = 2026, threshold = 15, coinsPerMatch = 10) { return this.post('/api/votes/admin/award', { year, matchThreshold: threshold, coinsPerMatch, adminOpenid: 'admin' }); },
+  // 猜测
+  getPickConfig(year = 2026) { return this.get(`/api/picks/config?year=${year}`); },
+  setPickConfig(year, config) { return this.post('/api/picks/admin/config', { year, config }); },
+  getOfficialTop30(year = 2026) { return this.get(`/api/picks/admin/official?year=${year}`); },
+  setOfficialTop30(year, winners) { return this.post('/api/picks/admin/official', { year, winners, adminOpenid: 'admin' }); },
+  checkPicks(year = 2026, threshold = 15, page = 0) { return this.get(`/api/picks/admin/check?year=${year}&matchThreshold=${threshold}&page=${page}`); },
+  awardPicks(year = 2026, threshold = 15, coinsPerMatch = 10) { return this.post('/api/picks/admin/award', { year, matchThreshold: threshold, coinsPerMatch, adminOpenid: 'admin' }); },
 };

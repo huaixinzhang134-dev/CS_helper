@@ -152,8 +152,8 @@
       <text class="arrow">></text>
     </view>
     <view class="menu-spacer"></view>
-    <view class="menu-item" bindtap="onOpenVote">
-      <text class="menu-text">🏆 年度 Top30 投票</text>
+    <view class="menu-item" bindtap="onOpenPick">
+      <text class="menu-text">🏆 年度 Top30 猜测</text>
       <text class="arrow">></text>
     </view>
     <view class="menu-item" bindtap="onOpenShop">

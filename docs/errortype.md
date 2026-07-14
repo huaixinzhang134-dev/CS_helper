@@ -58,11 +58,11 @@ WHERE r.rank <= 30
 
 ### 1.3 MySQL 保留关键字冲突
 
-**场景**：创建 `vote_winners` 表时使用 `rank` 作为列名
+**场景**：创建 `official_top30` 表时使用 `rank` 作为列名
 
 **代码**：
 ```sql
-CREATE TABLE vote_winners (
+CREATE TABLE official_top30 (
   rank TINYINT UNSIGNED NOT NULL,
   ...
 )
@@ -106,7 +106,7 @@ You have an error in your SQL syntax ... right syntax to use near 'rank'
 
 ### 2.1 TypeScript 语法混入 JS 文件
 
-**场景**：在 `server/routes/votes.js` 中使用了 TypeScript 类型注解
+**场景**：在 `server/routes/picks.js` 中使用了 TypeScript 类型注解
 
 **代码**：
 ```javascript
@@ -232,7 +232,7 @@ setInterval(async () => {
 
 **代码**：
 ```xml
-<text wx:if="{{voteWinners.find(w => w.rank === idx + 1)}}">
+<text wx:if="{{officialTop30.find(w => w.rank === idx + 1)}}">
 ```
 
 **错误**：
@@ -245,7 +245,7 @@ Bad attr `wx:if` with message: unexpected `>` at pos20.
 **解决**：在 JS 层预处理数据，WXML 只做简单属性访问：
 ```javascript
 // JS: 预先计算好
-const voteSlots = Array.from({length: 30}, (_, i) => {
+const pickSlots = Array.from({length: 30}, (_, i) => {
   const w = winners.find(w => w.rank === i + 1);
   return { slot: i + 1, winnerName: w ? w.playerName : '' };
 });
@@ -531,9 +531,9 @@ const config = {
 
 ---
 
-### 7.5 投票搜索框点击选手即提交，误触风险
+### 7.5 猜测搜索框点击选手即提交，误触风险
 
-**场景**：投票页面搜索选手时，点击搜索结果中的选手即触发提交
+**场景**：猜测页面搜索选手时，点击搜索结果中的选手即触发提交
 
 **根因**：点击选手的 `catchtap` 事件直接调用了 `submitVoteSlot()` API，没有二次确认。用户在浏览搜索结果时容易误触
 

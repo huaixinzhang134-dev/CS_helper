@@ -143,10 +143,10 @@ async function reviewComment(id, status) {
   } catch (e) { alert(e.message); }
 }
 
-// ==================== 投票管理 ====================
+// ==================== 猜测管理 ====================
 async function loadSlotConfig() {
   try {
-    const data = await API.getSlotConfig(2026);
+    const data = await API.getPickConfig(2026);
     const grid = document.getElementById('slotGrid');
     let html = '';
     for (let i = 1; i <= 30; i++) {
@@ -172,7 +172,7 @@ function toggleSlot(slot) {
 
 async function saveSlotConfig() {
   try {
-    await API.setSlotConfig(2026, window._slotConfig);
+    await API.setPickConfig(2026, window._slotConfig);
     document.getElementById('saveSlotBtn').style.background = '#0066cc';
     document.getElementById('saveSlotBtn').textContent = '保存开关配置';
     alert('配置已保存');
@@ -181,7 +181,7 @@ async function saveSlotConfig() {
 
 async function loadWinners() {
   try {
-    const data = await API.getWinners(2026);
+    const data = await API.getOfficialTop30(2026);
     renderWinners(data.winners || []);
   } catch (e) { showError(e); }
 }
@@ -227,7 +227,7 @@ async function saveWinners() {
   }
   if (winners.length === 0) { alert('请至少填写一名选手'); return; }
   try {
-    await API.setWinners(2026, winners);
+    await API.setOfficialTop30(2026, winners);
     alert('已保存');
   } catch (e) { alert(e.message); }
 }
@@ -235,7 +235,7 @@ async function saveWinners() {
 async function checkResults() {
   const threshold = parseInt(document.getElementById('matchThreshold').value) || 15;
   try {
-    const data = await API.checkVotes(2026, threshold);
+    const data = await API.checkPicks(2026, threshold);
     const el = document.getElementById('checkResult');
     if (data.total === 0) {
       el.innerHTML = '<span class="success">无人达标</span>';
@@ -251,7 +251,7 @@ async function awardCoins() {
   if (!confirm('确定向达标用户发放代币奖励？不可重复发放！')) return;
   const threshold = parseInt(document.getElementById('matchThreshold').value) || 15;
   try {
-    const data = await API.awardVotes(2026, threshold, 10);
+    const data = await API.awardPicks(2026, threshold, 10);
     document.getElementById('awardResult').innerHTML =
       `<span class="success">已向 ${data.awardedUsers} 人发放 ${data.totalCoinsAwarded} 代币</span>`;
   } catch (e) { alert(e.message); }

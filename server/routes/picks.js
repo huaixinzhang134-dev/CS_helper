@@ -1,15 +1,15 @@
 /**
- * 选手年度投票路由（每位 top 独立提交，覆盖式，每 slot 最多 3 次）
+ * 选手年度猜测路由（每位 top 独立提交，覆盖式，每 slot 最多 3 次）
  *
- * POST   /api/votes/submit-slot    提交某 top 的选择（覆盖上次）
- * GET    /api/votes/my-votes       查询我的全部投票
- * GET    /api/votes/statistics     查看统计
- * GET    /api/votes/slot-config    查看各 top 提交开关
- * POST   /api/votes/admin/slot-config  管理员设置提交开关
- * POST   /api/votes/admin/winners       设定官方 Top30
- * GET    /api/votes/admin/winners       查看官方 Top30
- * GET    /api/votes/admin/check         核对投票
- * POST   /api/votes/admin/award         发奖
+ * POST   /api/picks/submit          提交某 top 的选择（覆盖上次）
+ * GET    /api/picks/my-picks        查询我的全部票选
+ * GET    /api/picks/statistics      查看统计
+ * GET    /api/picks/config          查看各 top 提交开关
+ * POST   /api/picks/admin/config        管理员设置提交开关
+ * POST   /api/picks/admin/official      设定官方 Top30
+ * GET    /api/picks/admin/official      查看官方 Top30
+ * GET    /api/picks/admin/check         核对猜测结果
+ * POST   /api/picks/admin/award         发奖
  */
 const express = require('express');
 const router = express.Router();
@@ -20,7 +20,7 @@ const CURRENT_YEAR = 2026;
 const MAX_SUBMISSIONS_PER_SLOT = 3;
 
 // ============================================================
-// POST /api/votes/submit-slot
+// POST /api/picks/submit
 // Body: { year: 2026, slot: 1, playerGameId: "123", playerName: "s1mple" }
 // ============================================================
 router.post('/submit-slot', authMiddleware, async (req, res, next) => {
@@ -36,7 +36,7 @@ router.post('/submit-slot', authMiddleware, async (req, res, next) => {
 
     // 检查该 slot 是否可提交
     const [cfgRows] = await query(
-      'SELECT can_submit FROM vote_slot_config WHERE year = ? AND slot = ?',
+      'SELECT can_submit FROM pick_config WHERE year = ? AND slot = ?',
       [year, slot]
     );
     if (cfgRows[0] && cfgRows[0].can_submit === 0) {
@@ -45,7 +45,7 @@ router.post('/submit-slot', authMiddleware, async (req, res, next) => {
 
     // 查询当前该 slot 的提交次数
     const [existing] = await query(
-      'SELECT id, submission_no FROM player_vote_slots WHERE user_openid = ? AND year = ? AND slot = ?',
+      'SELECT id, submission_no FROM user_picks WHERE user_openid = ? AND year = ? AND slot = ?',
       [req.userOpenid, year, slot]
     );
 
@@ -61,7 +61,7 @@ router.post('/submit-slot', authMiddleware, async (req, res, next) => {
 
     // 覆盖写入（ON DUPLICATE KEY UPDATE）
     await query(
-      `INSERT INTO player_vote_slots (user_openid, year, slot, submission_no, player_game_id, player_name)
+      `INSERT INTO user_picks (user_openid, year, slot, submission_no, player_game_id, player_name)
        VALUES (?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE submission_no = VALUES(submission_no),
                                player_game_id = VALUES(player_game_id),
@@ -78,14 +78,14 @@ router.post('/submit-slot', authMiddleware, async (req, res, next) => {
 });
 
 // ============================================================
-// GET /api/votes/my-votes?year=2026
-// 查询我的全部投票（每个 slot 的最新提交）
+// GET /api/picks/my-picks?year=2026
+// 查询我的全部票选（每个 slot 的最新提交）
 // ============================================================
-router.get('/my-votes', authMiddleware, async (req, res, next) => {
+router.get('/my-picks', authMiddleware, async (req, res, next) => {
   try {
     const year = parseInt(req.query.year || String(CURRENT_YEAR), 10);
     const [rows] = await query(
-      'SELECT slot, submission_no, player_game_id, player_name FROM player_vote_slots WHERE user_openid = ? AND year = ? ORDER BY slot ASC',
+      'SELECT slot, submission_no, player_game_id, player_name FROM user_picks WHERE user_openid = ? AND year = ? ORDER BY slot ASC',
       [req.userOpenid, year]
     );
 
@@ -100,7 +100,7 @@ router.get('/my-votes', authMiddleware, async (req, res, next) => {
     res.json({
       code: 0, message: '',
       data: {
-        hasVoted: selections.length > 0,
+        hasPicked: selections.length > 0,
         selections,
         year,
       }
@@ -109,7 +109,7 @@ router.get('/my-votes', authMiddleware, async (req, res, next) => {
 });
 
 // ============================================================
-// GET /api/votes/statistics?year=2026
+// GET /api/picks/statistics?year=2026
 // ============================================================
 router.get('/statistics', async (req, res, next) => {
   try {
@@ -118,7 +118,7 @@ router.get('/statistics', async (req, res, next) => {
     // 每位选手总出现次数
     const [totalRows] = await query(
       `SELECT player_game_id, player_name, COUNT(*) AS total_appearances
-       FROM player_vote_slots WHERE year = ?
+       FROM user_picks WHERE year = ?
        GROUP BY player_game_id, player_name
        ORDER BY total_appearances DESC LIMIT 100`,
       [year]
@@ -127,7 +127,7 @@ router.get('/statistics', async (req, res, next) => {
     // 每个 slot 的统计
     const [slotRows] = await query(
       `SELECT slot, player_game_id, player_name, COUNT(*) AS count
-       FROM player_vote_slots WHERE year = ?
+       FROM user_picks WHERE year = ?
        GROUP BY slot, player_game_id, player_name
        ORDER BY slot ASC, count DESC`,
       [year]
@@ -162,13 +162,13 @@ router.get('/statistics', async (req, res, next) => {
 });
 
 // ============================================================
-// GET /api/votes/slot-config?year=2026
+// GET /api/picks/config?year=2026
 // ============================================================
-router.get('/slot-config', async (req, res, next) => {
+router.get('/config', async (req, res, next) => {
   try {
     const year = parseInt(req.query.year || String(CURRENT_YEAR), 10);
     const [rows] = await query(
-      'SELECT slot, can_submit FROM vote_slot_config WHERE year = ? ORDER BY slot ASC',
+      'SELECT slot, can_submit FROM pick_config WHERE year = ? ORDER BY slot ASC',
       [year]
     );
 
@@ -183,17 +183,17 @@ router.get('/slot-config', async (req, res, next) => {
 
 // ============================================================
 // 管理员：设置提交开关
-// POST /api/votes/admin/slot-config
+// POST /api/picks/admin/config
 // Body: { year: 2026, config: { "1": true, "2": false, ... } }
 // ============================================================
-router.post('/admin/slot-config', async (req, res, next) => {
+router.post('/admin/config', async (req, res, next) => {
   try {
     const { year = CURRENT_YEAR, config } = req.body || {};
     if (!config) return res.status(400).json({ code: 400, message: '缺少 config', data: null });
 
     for (const [slot, canSubmit] of Object.entries(config)) {
       await query(
-        'INSERT INTO vote_slot_config (year, slot, can_submit) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE can_submit = ?',
+        'INSERT INTO pick_config (year, slot, can_submit) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE can_submit = ?',
         [year, parseInt(slot), canSubmit ? 1 : 0, canSubmit ? 1 : 0]
       );
     }
@@ -204,19 +204,19 @@ router.post('/admin/slot-config', async (req, res, next) => {
 
 // ============================================================
 // 管理员接口：设定年度官方 Top30
-// POST /api/votes/admin/winners
+// POST /api/picks/admin/official
 // Body: { year: 2026, winners: [{ rank: 1, playerGameId: "123", playerName: "s1mple" }, ...] }
 // ============================================================
-router.post('/admin/winners', async (req, res, next) => {
+router.post('/admin/official', async (req, res, next) => {
   try {
     const { year = CURRENT_YEAR, winners, adminOpenid } = req.body || {};
     if (!winners || !Array.isArray(winners) || winners.length === 0) {
       return res.status(400).json({ code: 400, message: '请提供获奖名单', data: null });
     }
-    await query('DELETE FROM vote_winners WHERE year = ?', [year]);
+    await query('DELETE FROM official_top30 WHERE year = ?', [year]);
     for (const w of winners) {
       await query(
-        'INSERT INTO vote_winners (year, `rank`, player_game_id, player_name, set_by) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO official_top30 (year, `rank`, player_game_id, player_name, set_by) VALUES (?, ?, ?, ?, ?)',
         [year, w.rank, w.playerGameId, w.playerName || '', adminOpenid || 'admin']
       );
     }
@@ -227,11 +227,11 @@ router.post('/admin/winners', async (req, res, next) => {
 // ============================================================
 // 管理员接口：查看年度官方 Top30
 // ============================================================
-router.get('/admin/winners', async (req, res, next) => {
+router.get('/admin/official', async (req, res, next) => {
   try {
     const year = parseInt(req.query.year || String(CURRENT_YEAR), 10);
     const [rows] = await query(
-      'SELECT `rank`, player_game_id, player_name FROM vote_winners WHERE year = ? ORDER BY `rank` ASC',
+      'SELECT `rank`, player_game_id, player_name FROM official_top30 WHERE year = ? ORDER BY `rank` ASC',
       [year]
     );
     res.json({
@@ -242,8 +242,8 @@ router.get('/admin/winners', async (req, res, next) => {
 });
 
 // ============================================================
-// 管理员接口：核对投票结果
-// GET /api/votes/admin/check?year=2026&matchThreshold=20
+// 管理员接口：核对猜测结果
+// GET /api/picks/admin/check?year=2026&matchThreshold=20
 // ============================================================
 router.get('/admin/check', async (req, res, next) => {
   try {
@@ -254,7 +254,7 @@ router.get('/admin/check', async (req, res, next) => {
     const offset = page * pageSize;
 
     const [winnerRows] = await query(
-      'SELECT `rank`, player_game_id FROM vote_winners WHERE year = ? ORDER BY `rank` ASC',
+      'SELECT `rank`, player_game_id FROM official_top30 WHERE year = ? ORDER BY `rank` ASC',
       [year]
     );
     if (winnerRows.length === 0) {
@@ -264,10 +264,10 @@ router.get('/admin/check', async (req, res, next) => {
     const winnerMap = new Map();
     for (const w of winnerRows) winnerMap.set(w.rank, w.player_game_id);
 
-    // 获取所有用户对各 slot 的投票
+    // 获取所有用户对各 slot 的猜测
     const [users] = await query(
       `SELECT DISTINCT pvs.user_openid, u.nickname
-       FROM player_vote_slots pvs
+       FROM user_picks pvs
        LEFT JOIN users u ON u.openid = pvs.user_openid
        WHERE pvs.year = ?
        ORDER BY pvs.user_openid`,
@@ -278,7 +278,7 @@ router.get('/admin/check', async (req, res, next) => {
     const userRows = users[0] || [];
     for (const user of userRows) {
       const [items] = await query(
-        'SELECT slot, player_game_id FROM player_vote_slots WHERE user_openid = ? AND year = ? ORDER BY slot ASC',
+        'SELECT slot, player_game_id FROM user_picks WHERE user_openid = ? AND year = ? ORDER BY slot ASC',
         [user.user_openid, year]
       );
 
@@ -303,14 +303,14 @@ router.get('/admin/check', async (req, res, next) => {
 
 // ============================================================
 // 管理员接口：发放代币奖励
-// POST /api/votes/admin/award
+// POST /api/picks/admin/award
 // ============================================================
 router.post('/admin/award', async (req, res, next) => {
   try {
     const { year = CURRENT_YEAR, matchThreshold = 15, coinsPerMatch = 10, adminOpenid = 'admin' } = req.body || {};
 
     const [winnerRows] = await query(
-      'SELECT `rank`, player_game_id FROM vote_winners WHERE year = ? ORDER BY `rank` ASC',
+      'SELECT `rank`, player_game_id FROM official_top30 WHERE year = ? ORDER BY `rank` ASC',
       [year]
     );
     if (winnerRows.length === 0) {
@@ -321,7 +321,7 @@ router.post('/admin/award', async (req, res, next) => {
     for (const w of winnerRows) winnerMap.set(w.rank, w.player_game_id);
 
     const [users] = await query(
-      'SELECT DISTINCT user_openid FROM player_vote_slots WHERE year = ?', [year]
+      'SELECT DISTINCT user_openid FROM user_picks WHERE year = ?', [year]
     );
 
     const conn = require('../db/pool').pool;
@@ -333,7 +333,7 @@ router.post('/admin/award', async (req, res, next) => {
       const usersList = users[0] || [];
       for (const user of usersList) {
         const [items] = await c.query(
-          'SELECT slot, player_game_id FROM player_vote_slots WHERE user_openid = ? AND year = ? ORDER BY slot ASC',
+          'SELECT slot, player_game_id FROM user_picks WHERE user_openid = ? AND year = ? ORDER BY slot ASC',
           [user.user_openid, year]
         );
 
@@ -344,12 +344,12 @@ router.post('/admin/award', async (req, res, next) => {
 
         if (matchedCount >= matchThreshold) {
           const reward = matchedCount * coinsPerMatch;
-          const [awardRows] = await c.query('SELECT id FROM vote_awards WHERE year = ? AND user_openid = ?', [year, user.user_openid]);
+          const [awardRows] = await c.query('SELECT id FROM top30_awards WHERE year = ? AND user_openid = ?', [year, user.user_openid]);
           if (awardRows.length > 0) continue;
 
           await c.query('UPDATE users SET coins = coins + ?, total_coins_earned = total_coins_earned + ? WHERE openid = ?', [reward, reward, user.user_openid]);
-          await c.query('INSERT INTO coin_transactions (user_openid, amount, balance_after, type, description) VALUES (?, ?, (SELECT coins FROM users WHERE openid = ?), ?, ?)', [user.user_openid, reward, user.user_openid, 'reward', `年度投票奖励: 猜对${matchedCount}人`]);
-          await c.query('INSERT INTO vote_awards (year, user_openid, match_count, reward_coins, awarded_by) VALUES (?, ?, ?, ?, ?)', [year, user.user_openid, matchedCount, reward, adminOpenid]);
+          await c.query('INSERT INTO coin_transactions (user_openid, amount, balance_after, type, description) VALUES (?, ?, (SELECT coins FROM users WHERE openid = ?), ?, ?)', [user.user_openid, reward, user.user_openid, 'reward', `年度猜测奖励: 猜对${matchedCount}人`]);
+          await c.query('INSERT INTO top30_awards (year, user_openid, match_count, reward_coins, awarded_by) VALUES (?, ?, ?, ?, ?)', [year, user.user_openid, matchedCount, reward, adminOpenid]);
           awardedCount++;
           totalCoins += reward;
         }

@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 004: 代币系统 + 选手投票（问卷形式）
+-- Migration 004: 代币系统 + 选手猜测（问卷形式）
 -- ============================================================
 
 -- 1. users 表添加代币列
@@ -58,12 +58,12 @@ CREATE TABLE user_items (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='用户道具库存';
 
--- 6. 选手投票（每位top独立提交，每slot最多3次覆盖式提交）
-DROP TABLE IF EXISTS player_vote_slots;
-CREATE TABLE player_vote_slots (
+-- 6. 选手票选（每位top独立提交，每slot最多3次覆盖式提交）
+DROP TABLE IF EXISTS user_picks;
+CREATE TABLE user_picks (
   id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_openid     VARCHAR(64)     NOT NULL,
-  year            YEAR            NOT NULL COMMENT '投票年份',
+  year            YEAR            NOT NULL COMMENT '猜测年份',
   slot            TINYINT UNSIGNED NOT NULL COMMENT 'top1~30 序号',
   submission_no   TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '当前第几次提交',
   player_game_id  VARCHAR(64)     NOT NULL DEFAULT '',
@@ -71,14 +71,14 @@ CREATE TABLE player_vote_slots (
   created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_pvs_user_slot (user_openid, year, slot),
-  KEY idx_pvs_player (player_game_id)
+  UNIQUE KEY uk_up_user_slot (user_openid, year, slot),
+  KEY idx_up_player (player_game_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='选手投票（每slot独立，覆盖式提交）';
+  COMMENT='选手票选（每slot独立，覆盖式提交）';
 
--- 7. 投票提交开关（管理员控制每个top能否提交）
-DROP TABLE IF EXISTS vote_slot_config;
-CREATE TABLE vote_slot_config (
+-- 7. 提交开关（管理员控制每个top能否提交）
+DROP TABLE IF EXISTS pick_config;
+CREATE TABLE pick_config (
   id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
   year            YEAR            NOT NULL,
   slot            TINYINT UNSIGNED NOT NULL COMMENT 'top1~30',
@@ -86,9 +86,9 @@ CREATE TABLE vote_slot_config (
   updated_by      VARCHAR(64)     NULL,
   updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_vsc_year_slot (year, slot)
+  UNIQUE KEY uk_pc_year_slot (year, slot)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='投票提交开关（管理员控制）';
+  COMMENT='提交开关（管理员控制）';
 
 -- 9. 管理员账户表（登录凭据存储在服务端）
 DROP TABLE IF EXISTS admin_users;
@@ -106,7 +106,7 @@ CREATE TABLE admin_users (
 INSERT IGNORE INTO admin_users (username, password_hash) VALUES ('admin', MD5('7355608'));
 
 -- 初始化当前年度的 slot 配置（默认全部可提交）
-INSERT IGNORE INTO vote_slot_config (year, slot, can_submit) VALUES
+INSERT IGNORE INTO pick_config (year, slot, can_submit) VALUES
 (2026,1,1),(2026,2,1),(2026,3,1),(2026,4,1),(2026,5,1),
 (2026,6,1),(2026,7,1),(2026,8,1),(2026,9,1),(2026,10,1),
 (2026,11,1),(2026,12,1),(2026,13,1),(2026,14,1),(2026,15,1),
@@ -115,8 +115,8 @@ INSERT IGNORE INTO vote_slot_config (year, slot, can_submit) VALUES
 (2026,26,1),(2026,27,1),(2026,28,1),(2026,29,1),(2026,30,1);
 
 -- 8. 管理员设定的年度官方Top30（用于核对发奖）
-DROP TABLE IF EXISTS vote_winners;
-CREATE TABLE vote_winners (
+DROP TABLE IF EXISTS official_top30;
+CREATE TABLE official_top30 (
   id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
   year            YEAR            NOT NULL,
   `rank`          TINYINT UNSIGNED NOT NULL COMMENT '排名 1-30',
@@ -125,13 +125,13 @@ CREATE TABLE vote_winners (
   set_by          VARCHAR(64)     NULL COMMENT '管理员openid',
   created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_vw_year_rank (year, rank)
+  UNIQUE KEY uk_ot_year_rank (year, rank)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='年度官方Top30（管理员设定）';
 
 -- 8. 发奖记录
-DROP TABLE IF EXISTS vote_awards;
-CREATE TABLE vote_awards (
+DROP TABLE IF EXISTS top30_awards;
+CREATE TABLE top30_awards (
   id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   year            YEAR            NOT NULL,
   user_openid     VARCHAR(64)     NOT NULL,
@@ -140,9 +140,9 @@ CREATE TABLE vote_awards (
   awarded_by      VARCHAR(64)     NULL COMMENT '管理员openid',
   created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_va_year_user (year, user_openid)
+  UNIQUE KEY uk_ta_year_user (year, user_openid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='投票发奖记录';
+  COMMENT='猜测发奖记录';
 
 -- 插入默认道具
 INSERT INTO shop_items (name, description, price, icon, item_type, max_per_user) VALUES

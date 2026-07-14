@@ -17,7 +17,7 @@ const syncRouter = require('./routes/sync');
 const logoRouter = require('./routes/logo');
 const usersRouter = require('./routes/users');
 const coinsRouter = require('./routes/coins');
-const votesRouter = require('./routes/votes');
+const picksRouter = require('./routes/picks');
 const adminAuthRouter = require('./routes/admin-auth').router;
 
 const { setupWebSocket } = require('./ws');
@@ -72,8 +72,8 @@ app.use('/api/pk', require('./routes/pk'));
 // 代币系统
 app.use('/api/coins', coinsRouter);
 
-// 年度投票
-app.use('/api/votes', votesRouter);
+// 年度猜测
+app.use('/api/picks', picksRouter);
 
 // 管理员登录
 app.use('/api/admin', adminAuthRouter);

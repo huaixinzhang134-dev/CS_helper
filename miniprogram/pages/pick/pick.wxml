@@ -1,7 +1,7 @@
-<view class="container vote-page">
+<view class="container pick-page">
   <!-- 页面标题 -->
   <view class="page-header">
-    <text class="page-title">{{year}} 年度 Top30 投票</text>
+    <text class="page-title">{{year}} 年度 Top30 猜测</text>
     <text class="page-desc">每位 top 独立提交，每位置最多 3 次覆盖式提交</text>
   </view>
 
@@ -11,8 +11,8 @@
   </view>
   <text class="progress-text">{{filledCount}} / 30 已选</text>
 
-  <!-- 投票表单 -->
-  <scroll-view scroll-y class="vote-form" enhanced="{{true}}" show-scrollbar="{{false}}">
+  <!-- 猜测表单 -->
+  <scroll-view scroll-y class="pick-form" enhanced="{{true}}" show-scrollbar="{{false}}">
     <view
       class="slot-item {{item.playerName ? 'filled' : ''}} {{!item.canSubmit ? 'disabled' : ''}}"
       wx:for="{{slots}}"

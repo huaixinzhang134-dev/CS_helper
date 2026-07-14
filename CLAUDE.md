@@ -48,13 +48,13 @@ git push
 | `shop_items` | 商城商品（提示券 40 代币、额外机会 90 代币） |
 | `user_items` | 用户道具库存 |
 
-### 投票系统（2026 年度 Top30）
+### 猜测系统（2026 年度 Top30）
 | 表 | 用途 |
 |----|------|
-| `player_vote_slots` | 用户投票（每位 top 独立提交，覆盖式，最多 3 次） |
-| `vote_slot_config` | 各 top 提交开关（管理员控制） |
-| `vote_winners` | 管理员设定的官方 Top30 |
-| `vote_awards` | 发奖记录（防止重复发放） |
+| `user_picks` | 用户猜测（每位 top 独立提交，覆盖式，最多 3 次） |
+| `pick_config` | 各 top 提交开关（管理员控制） |
+| `official_top30` | 管理员设定的官方 Top30 |
+| `top30_awards` | 发奖记录（防止重复发放） |
 
 ### 管理后台
 | 表 | 用途 |
@@ -83,7 +83,7 @@ git push
 - 双方都准备后服务端选新目标选手，重置猜测状态
 - 轮询检测对方准备状态（/api/pk/rooms/:id/ready + /next-round）
 
-## 年度 Top30 投票（2026-07-14）
+## 年度 Top30 猜测（2026-07-14）
 
 - 每位 top（1-30）独立提交，每 slot 最多 3 次覆盖式
 - 搜索选手 → 暂存 → 点击「提交」按钮确认
@@ -93,7 +93,7 @@ git push
 ## 代币系统（2026-07-14）
 
 - `users` 表 `coins` / `total_coins_earned` 列
-- 获取途径：充值（管理员）、活动奖励、投票奖励
+- 获取途径：充值（管理员）、活动奖励、猜测奖励
 - 消费途径：商城购买道具（提示券、额外机会）
 - 交易记录在 `coin_transactions` 表
 
@@ -101,7 +101,7 @@ git push
 
 - 独立网页：https://cshelper-production.up.railway.app/admin
 - 后端鉴权：`/api/admin/login` 验证 admin_users 表
-- 功能：用户管理、评论审核、投票管理（开关/Top30设定/核对发奖）
+- 功能：用户管理、评论审核、猜测管理（开关/Top30设定/核对发奖）
 - 小程序内 admin 页面已改为迁移提示
 
 ## 版本更新公告（2026-07-14）

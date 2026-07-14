@@ -1,7 +1,7 @@
 /**
- * 年度投票页面（每位 top 独立提交，覆盖式，每 slot 最多 3 次）
+ * 年度猜测页面（每位 top 独立提交，覆盖式，每 slot 最多 3 次）
  */
-import { submitVoteSlot, fetchMyVotes, fetchVoteSlotConfig, searchPlayers, Player } from '../../services/api';
+import { submitPick, fetchMyPicks, fetchPickConfig, searchPlayers, Player } from '../../services/api';
 
 Page({
   data: {
@@ -30,7 +30,7 @@ Page({
 
   onLoad() {
     wx.showModal({
-      title: '投票须知',
+      title: '猜测须知',
       content: '每位用户对每个 top 位置有 3 次独立提交机会，每次提交覆盖上一次结果，请谨慎选择！',
       confirmText: '我知道了',
       showCancel: false,
@@ -40,14 +40,14 @@ Page({
 
   async loadAll() {
     wx.showLoading({ title: '加载中...' });
-    await this.loadMyVotes();      // 先初始化 slots 数组
-    await this.loadSlotConfig();   // 再读 slots 设置开关状态
+    await this.loadMyPicks();      // 先初始化 slots 数组
+    await this.loadPickConfig();   // 再读 slots 设置开关状态
     wx.hideLoading();
     this.setData({ loaded: true });
   },
 
-  async loadMyVotes() {
-    const res = await fetchMyVotes(this.data.year);
+  async loadMyPicks() {
+    const res = await fetchMyPicks(this.data.year);
     const slots = Array.from({ length: 30 }, (_, i) => ({
       slot: i + 1, label: `Top${i + 1}`, playerGameId: '', playerName: '',
       submissionNo: 0, maxSubmissions: 3, canSubmit: true,
@@ -62,8 +62,8 @@ Page({
     this.setData({ slots, filledCount: slots.filter(s => s.playerName).length });
   },
 
-  async loadSlotConfig() {
-    const res = await fetchVoteSlotConfig(this.data.year);
+  async loadPickConfig() {
+    const res = await fetchPickConfig(this.data.year);
     if (res.success && res.data?.config) {
       const slots = [...this.data.slots];
       for (let i = 0; i < 30; i++) {
@@ -130,11 +130,11 @@ Page({
     if (!slot || slot < 1 || slot > 30 || !selectedPlayer) return;
 
     this.setData({ submitting: true });
-    const result = await submitVoteSlot(slot, selectedPlayer.playerId, selectedPlayer.name, this.data.year);
+    const result = await submitPick(slot, selectedPlayer.playerId, selectedPlayer.name, this.data.year);
 
     if (result.success && result.data) {
       wx.showToast({ title: `Top${slot} 第 ${result.data.submissionNo} 次提交成功`, icon: 'success' });
-      await this.loadMyVotes();
+      await this.loadMyPicks();
     } else {
       wx.showToast({ title: result.message || '提交失败', icon: 'none' });
     }
@@ -147,8 +147,8 @@ Page({
     const slot = parseInt(e.currentTarget.dataset.slot, 10);
     if (slot < 1 || slot > 30) return;
     this.setData({ submitting: true });
-    const result = await submitVoteSlot(slot, '', '', this.data.year);
-    if (result.success) await this.loadMyVotes();
+    const result = await submitPick(slot, '', '', this.data.year);
+    if (result.success) await this.loadMyPicks();
     else wx.showToast({ title: result.message || '清除失败', icon: 'none' });
     this.setData({ submitting: false });
   },

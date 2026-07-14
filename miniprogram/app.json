@@ -2,7 +2,7 @@
   "pages": [
     "pages/home/home",
     "pages/shop/shop",
-    "pages/vote/vote",
+    "pages/pick/pick",
     "pages/events/events",
     "pages/match/match",
     "pages/matchDetail/matchDetail",
