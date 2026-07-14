@@ -80,7 +80,7 @@ router.get('/transactions', authMiddleware, async (req, res, next) => {
     res.json({
       code: 0, message: '',
       data: {
-        list: rows[0].map(r => ({
+        list: rows.map(r => ({
           id: r.id,
           amount: r.amount,
           balanceAfter: r.balance_after,
@@ -160,7 +160,7 @@ router.get('/shop', async (req, res, next) => {
     const [rows] = await query('SELECT * FROM shop_items WHERE enabled = 1 ORDER BY price ASC');
     res.json({
       code: 0, message: '',
-      data: rows[0].map(item => ({
+      data: rows.map(item => ({
         id: item.id,
         name: item.name,
         description: item.description,
@@ -253,7 +253,7 @@ router.get('/items', authMiddleware, async (req, res, next) => {
     const [rows] = await query('SELECT * FROM user_items WHERE user_openid = ?', [req.userOpenid]);
     res.json({
       code: 0, message: '',
-      data: rows[0].map(r => ({
+      data: rows.map(r => ({
         itemType: r.item_type,
         quantity: r.quantity,
       }))
