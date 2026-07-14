@@ -5,7 +5,7 @@
 
   <!-- 头部欢迎 -->
   <view class="hero">
-    <image class="hero-logo" src="/assets/icons/SS.png" mode="aspectFit" />
+    <image class="hero-logo" src="/assets/icons/yunxue.png" mode="aspectFit" />
     <text class="hero-title">云雪CS助手</text>
     <text class="hero-desc">赛事查询 · 选手资料 · 趣味竞猜</text>
   </view>

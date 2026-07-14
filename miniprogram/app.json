@@ -31,8 +31,8 @@
       {
         "pagePath": "pages/home/home",
         "text": "首页",
-        "iconPath": "assets/icons/SS.png",
-        "selectedIconPath": "assets/icons/SS.png"
+        "iconPath": "assets/icons/yunxue.png",
+        "selectedIconPath": "assets/icons/yunxue.png"
       },
       {
         "pagePath": "pages/events/events",
