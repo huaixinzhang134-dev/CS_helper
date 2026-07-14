@@ -91,7 +91,7 @@
           <text class="card-subtitle status-{{item.status}}">{{item.status}}</text>
         </view>
         <view class="card-body">
-          <text>{{item.teamA?.name || '?'}} vs {{item.teamB?.name || '?'}}</text>
+          <text>{{item.teamA.name}} vs {{item.teamB.name}}</text>
         </view>
         <view class="card-actions">
           <button size="mini" bindtap="onEditMatch" data-item="{{item}}">编辑</button>
