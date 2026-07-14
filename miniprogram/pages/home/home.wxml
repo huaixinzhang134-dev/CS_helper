@@ -19,7 +19,6 @@
       data-item="{{item}}"
       catchtap="onTapMenu"
     >
-      <image class="grid-icon" src="{{item.icon}}" mode="aspectFit" />
       <text class="grid-title">{{item.title}}</text>
       <text class="grid-desc">{{item.desc}}</text>
     </view>
@@ -34,7 +33,6 @@
       data-item="{{item}}"
       catchtap="onTapMenu"
     >
-      <image class="grid-icon" src="{{item.icon}}" mode="aspectFit" />
       <text class="grid-title">{{item.title}}</text>
       <text class="grid-desc">{{item.desc}}</text>
     </view>

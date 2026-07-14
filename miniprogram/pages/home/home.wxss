@@ -99,12 +99,6 @@
   opacity: 0.85;
 }
 
-.grid-icon {
-  width: 64rpx;
-  height: 64rpx;
-  margin-bottom: 14rpx;
-}
-
 .grid-title {
   font-size: 28rpx;
   font-weight: 600;

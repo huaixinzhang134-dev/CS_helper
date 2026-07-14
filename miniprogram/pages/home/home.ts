@@ -9,7 +9,6 @@ Page({
     topMenus: [
       {
         id: 'events',
-        icon: '/assets/icons/SS.png',
         title: '赛事中心',
         desc: '查看比赛与赛事信息',
         page: '/pages/events/events',
@@ -17,7 +16,6 @@ Page({
       },
       {
         id: 'guess',
-        icon: '/assets/icons/guess.png',
         title: '猜一猜',
         desc: '看看你对CS职业有多了解',
         page: '/pages/guess/guess',
@@ -25,7 +23,6 @@ Page({
       },
       {
         id: 'players',
-        icon: '/assets/icons/playerbase.png',
         title: '选手资料库',
         desc: '选手数据与排行榜',
         page: '/pages/player/list',
@@ -36,7 +33,6 @@ Page({
     bottomMenus: [
       {
         id: 'shop',
-        icon: '/assets/icons/game.png',
         title: '道具商城',
         desc: '代币购买道具',
         page: '/pages/shop/shop',
@@ -44,7 +40,6 @@ Page({
       },
       {
         id: 'profile',
-        icon: '/assets/icons/mine.png',
         title: '我的',
         desc: '个人信息与代币管理',
         page: '/pages/user/index',
