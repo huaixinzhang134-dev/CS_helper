@@ -51,15 +51,22 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 /* Pagination */
 .pagination { margin-top: 16px; text-align: center; color: #888; font-size: 13px; }
 
-/* Slot Grid */
-.slot-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-.slot-toggle { display: flex; flex-direction: column; align-items: center; width: calc(10% - 8px); min-width: 60px; padding: 10px 4px; border-radius: 8px; border: 1px solid #2a2d3e; cursor: pointer; font-size: 12px; }
-.slot-toggle.on { background: #1a2d1a; }
-.slot-toggle.off { background: #2d1a1a; border-color: #5c1a1a; }
-.slot-toggle .label { color: #ccc; }
-.slot-toggle .status { font-size: 10px; margin-top: 4px; }
-.slot-toggle.on .status { color: #4CAF50; }
-.slot-toggle.off .status { color: #e74c3c; }
+/* Slot Switch Grid */
+.slot-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.slot-switch { display: flex; align-items: center; gap: 8px; width: calc(20% - 8px); min-width: 130px; padding: 10px 12px; border-radius: 8px; border: 1px solid #2a2d3e; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+.slot-switch.on { background: #1a2d1a; border-color: #2d7d46; }
+.slot-switch.off { background: #2d1a1a; border-color: #5c1a1a; opacity: 0.7; }
+.slot-switch .label { flex: 1; color: #e0e0e0; font-weight: 500; }
+/* 开关滑块 */
+.switch-track { width: 36px; height: 20px; border-radius: 10px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+.slot-switch.on .switch-track { background: #4CAF50; }
+.slot-switch.off .switch-track { background: #555; }
+.switch-knob { width: 16px; height: 16px; border-radius: 50%; background: #fff; position: absolute; top: 2px; transition: left 0.2s; }
+.slot-switch.on .switch-knob { left: 18px; }
+.slot-switch.off .switch-knob { left: 2px; }
+.slot-switch .status { font-size: 11px; }
+.slot-switch.on .status { color: #81C784; }
+.slot-switch.off .status { color: #e57373; }
 
 /* Winner list */
 .winner-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }

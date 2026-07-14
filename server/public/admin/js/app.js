@@ -151,8 +151,9 @@ async function loadSlotConfig() {
     let html = '';
     for (let i = 1; i <= 30; i++) {
       const can = data.config[i] !== false;
-      html += `<div class="slot-toggle ${can ? 'on' : 'off'}" data-slot="${i}" onclick="toggleSlot(${i})">
+      html += `<div class="slot-switch ${can ? 'on' : 'off'}" data-slot="${i}" onclick="toggleSlot(${i})">
         <span class="label">Top${i}</span>
+        <div class="switch-track"><div class="switch-knob"></div></div>
         <span class="status">${can ? '开启' : '关闭'}</span>
       </div>`;
     }
