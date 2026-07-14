@@ -544,7 +544,51 @@ const config = {
 
 ---
 
-### 7.6 搜索框中英文映射不完整
+### 7.6 Promise.all 并发导致 data 未初始化时被读取
+
+**场景**：`onLoad` 中用 `Promise.all` 并行执行 `loadMyVotes()` 和 `loadSlotConfig()`，后者读取 `this.data.slots` 时报 `Cannot set property 'canSubmit' of undefined`
+
+**代码**：
+```javascript
+async loadAll() {
+  await Promise.all([
+    this.loadMyVotes(),    // 异步设置 this.data.slots = [...]
+    this.loadSlotConfig(), // 读取 this.data.slots → []
+  ]);
+}
+```
+
+**根因**：`Promise.all` 并发执行多个异步函数，`loadSlotConfig` 在 `loadMyVotes` 调用 `setData` 之前就读到了初始空数组 `slots: []`，访问 `slots[i]` 为 `undefined`。微信小程序的 `setData` 是异步的（在下一个微任务中合并更新），无法在并发中保证顺序
+
+**解决**：改为串行执行：
+```javascript
+async loadAll() {
+  await this.loadMyVotes();      // 先初始化数据
+  await this.loadSlotConfig();   // 再基于已有数据操作
+}
+```
+
+> 凡是有 `A setData → B 读取该数据` 依赖关系的，必须串行，不能用 `Promise.all`。
+
+---
+
+### 7.7 未登录状态调用需认证 API 返回 401
+
+**场景**：商城页面加载时，未登录用户调用 `fetchUserItems()`（带 auth 的接口）返回 401
+
+**根因**：页面没有检查登录状态就直接调用需要 `Authorization` header 的 API。`getAuth` / `postAuth` 等函数会自动附加 token，但未登录时 token 不存在或已过期
+
+**解决**：调用 auth API 前先检查 token 是否存在：
+```javascript
+const token = wx.getStorageSync('token');
+const res = token ? await fetchUserItems() : { success: true, data: [] };
+```
+
+或者在 auth API 内部检测到无 token 时返回空数据而非请求后端。
+
+---
+
+### 7.8 搜索框中英文映射不完整
 
 **场景**：按国家搜索选手时，数据库存中文名（如"中国"），用户输入英文（如"China"）搜不到
 
@@ -679,6 +723,42 @@ end tag missing, near `view`
 ---
 
 ### 3.9 @import 样式重复定义
+
+---
+
+### 3.10 scroll-view 右 padding 不生效（微信渲染特性）
+
+**场景**：在 `<scroll-view>` 上设置 `padding`，左侧 padding 生效但右侧 padding 被裁剪
+
+**代码**：
+```xml
+<scroll-view scroll-y class="update-body">
+  <text>长文本内容...</text>
+</scroll-view>
+```
+
+```css
+.update-body {
+  padding: 24rpx 50rpx;  /* 左 padding 有效，右 padding 被裁剪 */
+}
+```
+
+**根因**：微信小程序 `<scroll-view>` 的渲染机制与普通 `<view>` 不同。scroll-view 的 overflow 滚动容器在计算内容宽度时**不包含 padding-right**，导致右侧 padding 区域被视作溢出裁剪掉
+
+**解决**：不在 scroll-view 上设水平 padding，改为内层容器：
+```xml
+<scroll-view scroll-y class="update-body">
+  <view class="update-inner">
+    <text>长文本内容...</text>
+  </view>
+</scroll-view>
+```
+```css
+.update-body { max-height: 50vh; }          /* scroll-view 本身无 padding */
+.update-inner { padding: 24rpx 50rpx; }     /* 内层容器设 padding */
+```
+
+> 微信所有滚动容器（scroll-view / swiper）均有此特性，水平 padding 始终用内层容器实现。
 
 **场景**：多个页面文件引用同一 WXSS 文件导致样式冲突
 
