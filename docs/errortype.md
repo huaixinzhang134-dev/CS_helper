@@ -149,6 +149,37 @@ Error: Cannot find module 'dotenv'
 
 ---
 
+### 2.4 setInterval 回调内非法使用 continue
+
+**场景**：在 `setInterval` 回调函数中使用 `continue`
+
+**代码**：
+```javascript
+setInterval(async () => {
+  // ...
+  if (!res.success) continue;  // ❌
+  // ...
+}, 2000);
+```
+
+**错误**：
+```
+SyntaxError: Unsyntactic continue
+```
+
+**根因**：`continue` 只能在 `for` / `while` / `do-while` 循环体内使用，`setInterval` / `setTimeout` / `forEach` / `Promise.then` 等回调函数**不是**循环结构，在其中使用 `continue` 是 JS 语法错误
+
+**解决**：改用 `return` 跳过本轮执行：
+```javascript
+setInterval(async () => {
+  // ...
+  if (!res.success) return;  // ✅ 回调内用 return 跳过后续
+  // ...
+}, 2000);
+```
+
+---
+
 ## 3. 微信小程序 WXML 错误
 
 ### 3.1 不支持箭头函数表达式
@@ -233,6 +264,38 @@ ReferenceError: __route__ is not defined
 **根因**：微信开发者工具缓存了旧的页面路由映射，新增页面时缓存未刷新
 
 **解决**：清除编译缓存（工具 → 清除缓存 → 全部清除），重新编译
+
+---
+
+### 3.5 module 'xxx.js' is not defined（级联错误）
+
+**场景**：页面 JS 文件编译失败后，微信开发者工具报告该模块未定义
+
+**错误**：
+```
+Error: module 'pages/guess/guess.js' is not defined
+```
+
+**根因**：该页面 `.ts` 文件本身存在语法错误（如 `continue` 在循环外使用），导致 TypeScript 编译器生成失败的空模块，微信加载时报 module not defined
+
+**解决**：**不是独立错误**，是其他语法错误的级联表现。排查并修复 `.ts` 文件中的真实语法错误即可自动解决
+
+**鉴别**：当同时看到 `SyntaxError` 和 `module is not defined` 时，先修 `SyntaxError`，模块加载问题会随之消失
+
+---
+
+### 3.6 Component is not found in path "wx://not-found"
+
+**场景**：页面加载异常时触发
+
+**错误**：
+```
+Component is not found in path "wx://not-found"
+```
+
+**根因**：页面 JS 模块加载失败（编译错误或运行时崩溃），微信框架尝试渲染 fallback 组件但找不到
+
+**解决**：排查 JS 编译/运行时错误，修复后此问题自然消失。通常是级联错误
 
 ---
 
