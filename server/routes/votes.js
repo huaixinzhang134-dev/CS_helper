@@ -89,7 +89,7 @@ router.get('/my-votes', authMiddleware, async (req, res, next) => {
       [req.userOpenid, year]
     );
 
-    const selections = rows[0].map(r => ({
+    const selections = rows.map(r => ({
       slot: r.slot,
       playerGameId: r.player_game_id,
       playerName: r.player_name,
@@ -149,7 +149,7 @@ router.get('/statistics', async (req, res, next) => {
       code: 0, message: '',
       data: {
         year,
-        overall: totalRows[0].map((r, i) => ({
+        overall: totalRows.map((r, i) => ({
           rank: i + 1,
           playerGameId: r.player_game_id,
           playerName: r.player_name,
@@ -173,7 +173,7 @@ router.get('/slot-config', async (req, res, next) => {
     );
 
     const config = {};
-    for (const r of rows[0]) {
+    for (const r of rows) {
       config[r.slot] = !!r.can_submit;
     }
 
@@ -236,7 +236,7 @@ router.get('/admin/winners', async (req, res, next) => {
     );
     res.json({
       code: 0, message: '',
-      data: { year, hasSet: rows[0].length > 0, winners: rows[0].map(r => ({ rank: r.rank, playerGameId: r.player_game_id, playerName: r.player_name })) }
+      data: { year, hasSet: rows.length > 0, winners: rows.map(r => ({ rank: r.rank, playerGameId: r.player_game_id, playerName: r.player_name })) }
     });
   } catch (err) { next(err); }
 });
@@ -257,12 +257,12 @@ router.get('/admin/check', async (req, res, next) => {
       'SELECT `rank`, player_game_id FROM vote_winners WHERE year = ? ORDER BY `rank` ASC',
       [year]
     );
-    if (winnerRows[0].length === 0) {
+    if (winnerRows.length === 0) {
       return res.status(400).json({ code: 400, message: '尚未设定该年份的官方 Top30', data: null });
     }
 
     const winnerMap = new Map();
-    for (const w of winnerRows[0]) winnerMap.set(w.rank, w.player_game_id);
+    for (const w of winnerRows) winnerMap.set(w.rank, w.player_game_id);
 
     // 获取所有用户对各 slot 的投票
     const [users] = await query(
@@ -284,7 +284,7 @@ router.get('/admin/check', async (req, res, next) => {
 
       let matchedCount = 0;
       const matchDetails = [];
-      for (const item of items[0]) {
+      for (const item of items) {
         const official = winnerMap.get(item.slot);
         const isMatch = official === item.player_game_id;
         if (isMatch) matchedCount++;
@@ -313,12 +313,12 @@ router.post('/admin/award', async (req, res, next) => {
       'SELECT `rank`, player_game_id FROM vote_winners WHERE year = ? ORDER BY `rank` ASC',
       [year]
     );
-    if (winnerRows[0].length === 0) {
+    if (winnerRows.length === 0) {
       return res.status(400).json({ code: 400, message: '尚未设定该年份的官方 Top30', data: null });
     }
 
     const winnerMap = new Map();
-    for (const w of winnerRows[0]) winnerMap.set(w.rank, w.player_game_id);
+    for (const w of winnerRows) winnerMap.set(w.rank, w.player_game_id);
 
     const [users] = await query(
       'SELECT DISTINCT user_openid FROM player_vote_slots WHERE year = ?', [year]
@@ -330,21 +330,22 @@ router.post('/admin/award', async (req, res, next) => {
       await c.beginTransaction();
       let awardedCount = 0, totalCoins = 0;
 
-      for (const user of users[0]) {
+      const usersList = users[0] || [];
+      for (const user of usersList) {
         const [items] = await c.query(
           'SELECT slot, player_game_id FROM player_vote_slots WHERE user_openid = ? AND year = ? ORDER BY slot ASC',
           [user.user_openid, year]
         );
 
         let matchedCount = 0;
-        for (const item of items[0]) {
+        for (const item of items) {
           if (winnerMap.get(item.slot) === item.player_game_id) matchedCount++;
         }
 
         if (matchedCount >= matchThreshold) {
           const reward = matchedCount * coinsPerMatch;
           const [awardRows] = await c.query('SELECT id FROM vote_awards WHERE year = ? AND user_openid = ?', [year, user.user_openid]);
-          if (awardRows[0].length > 0) continue;
+          if (awardRows.length > 0) continue;
 
           await c.query('UPDATE users SET coins = coins + ?, total_coins_earned = total_coins_earned + ? WHERE openid = ?', [reward, reward, user.user_openid]);
           await c.query('INSERT INTO coin_transactions (user_openid, amount, balance_after, type, description) VALUES (?, ?, (SELECT coins FROM users WHERE openid = ?), ?, ?)', [user.user_openid, reward, user.user_openid, 'reward', `年度投票奖励: 猜对${matchedCount}人`]);
