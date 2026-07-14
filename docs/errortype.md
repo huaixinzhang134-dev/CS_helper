@@ -13,7 +13,8 @@
 5. [数据库迁移错误](#5-数据库迁移错误)
 6. [网络与连接错误](#6-网络与连接错误)
 7. [逻辑/设计错误](#7-逻辑设计错误)
-8. [工具链与开发环境错误](#8-工具链与开发环境错误)
+8. [安全与凭据管理](#8-安全与凭据管理)
+9. [工具链与开发环境错误](#9-工具链与开发环境错误)
 
 ---
 
@@ -149,7 +150,50 @@ Error: Cannot find module 'dotenv'
 
 ---
 
-### 2.4 setInterval 回调内非法使用 continue
+### 2.4 mysql2 query 结果解构时 rows[0] 误用
+
+**场景**：使用 `mysql2/promise` 执行查询后，对结果 `rows` 进行迭代/映射
+
+**错误代码**：
+```javascript
+const [rows] = await query('SELECT slot, can_submit FROM config WHERE year = ?', [year]);
+for (const r of rows[0]) {          // ❌ rows[0] 是第一行对象，不可迭代
+  config[r.slot] = !!r.can_submit;
+}
+
+const items = rows[0].map(...);      // ❌ rows[0] 是 RowDataPacket，没有 .map
+
+if (winnerRows[0].length === 0) {}   // ❌ rows[0] 没有 .length
+```
+
+**错误信息**：
+```
+"rows[0] is not iterable"
+"rows[0].map is not a function"
+```
+
+**根因**：对 `mysql2/promise` 的 `execute()` / `query()` 返回格式理解错误。`pool.execute(sql, params)` 返回 `[rows, fields]`，解构成 `const [rows]` 后，`rows` **已经是行数组**（`RowDataPacket[]`），不需要再取 `rows[0]` 作为数组：
+
+| 表达式 | 实际类型 | 说明 |
+|--------|---------|------|
+| `rows` | `RowDataPacket[]` | ✅ 行数组，可直接 `for...of` / `.map()` / `.length` |
+| `rows[0]` | `RowDataPacket` | ❌ 单行对象，没有 `.map()` / `.length`，`for...of` 会遍历对象属性 |
+
+**解决**：去掉多余的 `[0]`：
+```javascript
+const [rows] = await query('SELECT ...');
+for (const r of rows) {              // ✅ 遍历所有行
+  config[r.slot] = !!r.can_submit;
+}
+const items = rows.map(...);          // ✅
+if (winnerRows.length === 0) {}       // ✅
+```
+
+**鉴别口诀**：`[rows]` 解构后，`rows` 就是数组，要对**所有行**操作直接用 `rows`，要用**第一行**才用 `rows[0]`。
+
+---
+
+### 2.5 setInterval 回调内非法使用 continue
 
 **场景**：在 `setInterval` 回调函数中使用 `continue`
 
@@ -487,7 +531,20 @@ const config = {
 
 ---
 
-### 7.5 搜索框中英文映射不完整
+### 7.5 投票搜索框点击选手即提交，误触风险
+
+**场景**：投票页面搜索选手时，点击搜索结果中的选手即触发提交
+
+**根因**：点击选手的 `catchtap` 事件直接调用了 `submitVoteSlot()` API，没有二次确认。用户在浏览搜索结果时容易误触
+
+**解决**：将"点击选手"和"提交"分离：
+- 点击选手 → 暂存选择（`selectedPlayer`），高亮显示
+- 独立「提交」按钮 → 调用 API 正式提交
+- 蒙层点击不关闭弹窗，防止误触丢失已选内容
+
+---
+
+### 7.6 搜索框中英文映射不完整
 
 **场景**：按国家搜索选手时，数据库存中文名（如"中国"），用户输入英文（如"China"）搜不到
 
@@ -510,6 +567,8 @@ const config = {
 2. 后端提供 `/api/admin/login` 接口验证身份
 3. 前端只发登录请求，不存储任何凭据源码
 4. 服务端返回 token 用于后续请求鉴权
+
+**后续改进**：将管理后台从微信小程序迁移到独立的网页版（`server/public/admin/`），通过 `/admin` 路径访问，后端 API 鉴权，彻底避免前端凭据泄露风险。
 
 **迁移 SQL**：
 ```sql
@@ -581,7 +640,45 @@ INSERT INTO admin_users (username, password_hash) VALUES ('admin', MD5('7355608'
 
 ---
 
-### 3.8 @import 样式重复定义
+### 3.8 wx:if / wx:else 标签未闭合
+
+**场景**：在 WXML 中使用 `wx:if` + `wx:else` 条件渲染，标签嵌套层次与闭合不匹配
+
+**代码**：
+```xml
+<view wx:if="{{condition}}">
+  <text>分支A</text>
+</view>
+<view wx:else>
+  <text>分支B</text>
+  <view class="inner"></view>
+  <!-- 缺少 </view> 闭合 wx:else -->
+```
+
+**错误**：
+```
+end tag missing, near `view`
+```
+
+**根因**：WXML 的 `wx:if` / `wx:else` / `wx:elif` 是互斥分支，**每个分支都是独立的 `<view>` 标签**，各自必须有完整的开闭标签。使用 `wx:else` 时常见的错误是在内容底部多了一个 `</view>` 或者少了一个。
+
+**解决**：数清标签配对：
+```xml
+<view class="container">           <!-- 1 open -->
+  <view wx:if="{{cond}}">          <!-- 2 open -->
+    ...
+  </view>                          <!-- 2 close -->
+  <view wx:else>                   <!-- 3 open -->
+    ...
+  </view>                          <!-- 3 close -->
+</view>                            <!-- 1 close -->
+```
+
+> 技巧：在 WXML 中使用 `wx:if` + `wx:else` 时，保持两个分支缩进一致，从底部逐级核对 `</view>` 的配对数量。
+
+---
+
+### 3.9 @import 样式重复定义
 
 **场景**：多个页面文件引用同一 WXSS 文件导致样式冲突
 
