@@ -54,6 +54,11 @@ function userToDTO(row) {
     dto.soloTotalGames = row.solo_total_games;
     dto.soloWinRate = parseFloat(row.solo_win_rate || '0');
   }
+  // 代币数据
+  if (row.coins !== undefined) {
+    dto.coins = row.coins;
+    dto.totalCoinsEarned = row.total_coins_earned;
+  }
   return dto;
 }
 
@@ -302,6 +307,84 @@ router.get('/ranking', async (req, res, next) => {
         winRate: parseFloat(r.win_rate || '0')
       }))
     });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// 管理员：用户列表
+// GET /api/users/admin/list?page=0&pageSize=20
+// ============================================================
+router.get('/admin/list', async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page || '0', 10), 0);
+    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
+    const offset = page * pageSize;
+
+    const [rows, countRows] = await Promise.all([
+      query(
+        'SELECT id, openid, nickname, avatar_url, win_count, total_games, win_rate, coins, created_at, updated_at FROM users ORDER BY id DESC LIMIT ? OFFSET ?',
+        [String(pageSize), String(offset)]
+      ),
+      query('SELECT COUNT(*) AS total FROM users'),
+    ]);
+
+    res.json({
+      code: 0, message: '',
+      data: {
+        list: rows[0].map(r => ({
+          id: r.id,
+          openid: r.openid,
+          nickname: r.nickname,
+          avatarUrl: r.avatar_url,
+          winCount: r.win_count,
+          totalGames: r.total_games,
+          winRate: parseFloat(r.win_rate || '0'),
+          coins: r.coins || 0,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+        })),
+        total: countRows[0][0].total,
+        page, pageSize,
+        hasMore: (page + 1) * pageSize < countRows[0][0].total,
+      }
+    });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// 管理员：编辑用户
+// PUT /api/users/admin/:openid
+// Body: { nickname, coins }
+// ============================================================
+router.put('/admin/:openid', async (req, res, next) => {
+  try {
+    const { openid } = req.params;
+    const { nickname, coins } = req.body || {};
+
+    const updates = [];
+    const params = [];
+    if (nickname !== undefined) { updates.push('nickname = ?'); params.push(String(nickname).trim().slice(0, 64)); }
+    if (coins !== undefined) { updates.push('coins = ?'); params.push(Math.max(0, parseInt(coins, 10) || 0)); }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ code: 400, message: '没有需要更新的字段', data: null });
+    }
+
+    params.push(openid);
+    await query(`UPDATE users SET ${updates.join(', ')} WHERE openid = ?`, params);
+    res.json({ code: 0, message: '更新成功', data: null });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// 管理员：删除用户
+// DELETE /api/users/admin/:openid
+// ============================================================
+router.delete('/admin/:openid', async (req, res, next) => {
+  try {
+    const { openid } = req.params;
+    await query('DELETE FROM users WHERE openid = ?', [openid]);
+    res.json({ code: 0, message: '删除成功', data: null });
   } catch (err) { next(err); }
 });
 

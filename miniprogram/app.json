@@ -1,5 +1,8 @@
 {
   "pages": [
+    "pages/home/home",
+    "pages/shop/shop",
+    "pages/vote/vote",
     "pages/events/events",
     "pages/match/match",
     "pages/matchDetail/matchDetail",
@@ -25,6 +28,12 @@
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "assets/icons/SS.png",
+        "selectedIconPath": "assets/icons/SS.png"
+      },
       {
         "pagePath": "pages/events/events",
         "text": "赛事",

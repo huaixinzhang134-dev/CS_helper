@@ -284,6 +284,22 @@ Page({
     });
   },
 
+  // ============ 年度投票 ============
+
+  onOpenVote() {
+    if (!this.data.userInfo) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/vote/vote' });
+  },
+
+  // ============ 道具商城 ============
+
+  onOpenShop() {
+    wx.navigateTo({ url: '/pages/shop/shop' });
+  },
+
   // ============ 封神榜 ============
 
   async onOpenRanking() {

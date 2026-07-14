@@ -232,6 +232,24 @@
 
   </view>
 
+  <!-- PK 等待对手准备下一局 -->
+  <view class="modal-mask" wx:if="{{showPkWaittingNext}}" style="z-index: 100;">
+    <view class="modal-content">
+      <view class="modal-title">等待对手</view>
+      <view class="modal-body" style="text-align:center;">
+        <text style="display:block;margin:20rpx 0;font-size:28rpx;color:var(--text-secondary);">
+          {{myReady ? '已准备，等待对手点击再来一局...' : '准备中...'}}
+        </text>
+        <text style="display:block;margin:10rpx 0;font-size:24rpx;color:var(--text-muted);">
+          第 {{pkRound}} 局
+        </text>
+      </view>
+      <view class="modal-footer">
+        <button class="btn-secondary" bindtap="onCancelWaitNext">取消等待</button>
+      </view>
+    </view>
+  </view>
+
   <!-- Result Modal（猜对/猜错后弹出，点击空白可关闭） -->
   <view class="modal-mask" wx:if="{{showResultModal}}" bindtap="onResultMaskTap">
     <view class="modal-content" catchtap="onResultContentTap">

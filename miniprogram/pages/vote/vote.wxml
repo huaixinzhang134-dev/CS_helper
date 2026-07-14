@@ -1,0 +1,74 @@
+<view class="container vote-page">
+  <!-- 页面标题 -->
+  <view class="page-header">
+    <text class="page-title">{{year}} 年度 Top30 投票</text>
+    <text class="page-desc">选出你心目中的年度最佳选手</text>
+    <text class="page-hint">{{submissionHint}}</text>
+  </view>
+
+  <!-- 进度 -->
+  <view class="progress-bar">
+    <view class="progress-fill" style="width: {{(filledCount / 30) * 100}}%"></view>
+  </view>
+  <text class="progress-text">{{filledCount}} / 30 已选择</text>
+
+  <!-- 投票表单 -->
+  <scroll-view scroll-y class="vote-form" enhanced="{{true}}" show-scrollbar="{{false}}">
+    <view
+      class="slot-item {{item.playerName ? 'filled' : ''}}"
+      wx:for="{{slots}}"
+      wx:key="slot"
+      data-slot="{{item.slot}}"
+      catchtap="onSlotTap"
+    >
+      <text class="slot-label">Top{{item.slot}}</text>
+      <view class="slot-value">
+        <text class="slot-player" wx:if="{{item.playerName}}">{{item.playerName}}</text>
+        <text class="slot-placeholder" wx:else>点击选择选手</text>
+      </view>
+      <view class="slot-clear" wx:if="{{item.playerName}}" data-slot="{{item.slot}}" catchtap="onClearSlot">✕</view>
+    </view>
+  </scroll-view>
+
+  <!-- 提交按钮 -->
+  <view class="submit-area">
+    <button class="btn-primary submit-btn" bindtap="onSubmit" disabled="{{submitting}}">
+      {{submitting ? '提交中...' : (hasVoted ? '再次提交（覆盖）' : '提交投票')}}
+    </button>
+  </view>
+
+  <!-- ====== 搜索弹出层 ====== -->
+  <view class="modal-mask" wx:if="{{activeSlot > 0}}" catchtap="onCloseSearch">
+    <view class="search-panel" catchtap="">
+      <view class="search-header">
+        <text class="search-title">选择 Top{{activeSlot}}</text>
+        <text class="search-close" catchtap="onCloseSearch">✕</text>
+      </view>
+      <view class="search-input-wrap">
+        <icon type="search" size="16" color="#aaa" />
+        <input
+          class="search-input"
+          placeholder="输入选手名称搜索"
+          value="{{searchQuery}}"
+          bindinput="onSearchInput"
+          focus="{{activeSlot > 0}}"
+        />
+      </view>
+      <scroll-view scroll-y class="search-results" enhanced="{{true}}" show-scrollbar="{{false}}">
+        <view
+          class="search-item"
+          wx:for="{{searchResults}}"
+          wx:key="_id"
+          data-player="{{item}}"
+          catchtap="onSelectPlayer"
+        >
+          <text class="search-player-name">{{item.name}}</text>
+          <text class="search-player-team">{{item.team || '无战队'}}</text>
+        </view>
+        <view class="search-empty" wx:if="{{searchQuery && searchResults.length === 0 && !searchLoading}}">
+          <text>未找到匹配选手</text>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,38 @@
+<view class="container shop-page">
+  <!-- 头部：代币余额 -->
+  <view class="header-balance">
+    <text class="balance-label">我的代币</text>
+    <view class="balance-row">
+      <text class="balance-icon">🪙</text>
+      <text class="balance-amount">{{coins}}</text>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 商品列表 -->
+  <view class="shop-list" wx:else>
+    <view class="section-title">道具商城</view>
+    <view class="shop-item" wx:for="{{shopItems}}" wx:key="id">
+      <view class="item-icon-wrap">
+        <text class="item-icon-emoji">{{item.icon === '/assets/icons/hint.png' ? '💡' : '⭐'}}</text>
+      </view>
+      <view class="item-info">
+        <text class="item-name">{{item.name}}</text>
+        <text class="item-desc">{{item.description}}</text>
+        <text class="item-owned" wx:if="{{item.bought > 0}}">拥有: {{item.bought}}个</text>
+      </view>
+      <view class="item-action">
+        <text class="item-price">🪙 {{item.price}}</text>
+        <button class="buy-btn" data-id="{{item.id}}" bindtap="onBuy" disabled="{{buying}}" size="mini">购买</button>
+      </view>
+    </view>
+
+    <view class="shop-empty" wx:if="{{shopItems.length === 0}}">
+      <text>暂无商品上架</text>
+    </view>
+  </view>
+</view>

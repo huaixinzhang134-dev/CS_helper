@@ -1,0 +1,134 @@
+.home-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  position: relative;
+  padding: 0 30rpx;
+  box-sizing: border-box;
+}
+
+/* 背景层 */
+.bg-image {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0.15;
+}
+
+.bg-fix-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+/* ========== Hero ========== */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60rpx 40rpx 50rpx;
+  z-index: 1;
+  position: relative;
+}
+
+.hero-logo {
+  width: 100rpx;
+  height: 100rpx;
+  margin-bottom: 20rpx;
+}
+
+.hero-title {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 10rpx;
+}
+
+.hero-desc {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+/* ========== 宫格行 ========== */
+.grid-row {
+  display: flex;
+  justify-content: center;
+  gap: 24rpx;
+  width: 100%;
+  z-index: 1;
+  position: relative;
+  margin-bottom: 24rpx;
+}
+
+/* ========== 方框样式（上排三个） ========== */
+.item-third {
+  width: calc((100% - 48rpx) / 3);
+  aspect-ratio: 1 / 1;
+}
+
+/* ========== 方框样式（下排两个） ========== */
+.item-half {
+  width: calc((100% - 24rpx) / 2);
+  aspect-ratio: 1 / 1;
+}
+
+/* ========== 通用宫格方框样式 ========== */
+.grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1rpx solid var(--border-color);
+  border-radius: 20rpx;
+  padding: 20rpx;
+  box-sizing: border-box;
+  transition: transform 0.15s;
+  cursor: pointer;
+}
+
+.grid-item:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
+.grid-icon {
+  width: 64rpx;
+  height: 64rpx;
+  margin-bottom: 14rpx;
+}
+
+.grid-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6rpx;
+  text-align: center;
+}
+
+.grid-desc {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ========== 底部 ========== */
+.footer-info {
+  margin-top: 40rpx;
+  padding: 20rpx;
+  z-index: 1;
+  position: relative;
+}
+
+.footer-text {
+  font-size: 22rpx;
+  color: var(--text-muted);
+}

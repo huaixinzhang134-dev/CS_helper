@@ -473,6 +473,8 @@ export interface UserInfo {
   totalGames: number;
   winRate: number;
   guessRecords: GuessRecordItem[];
+  coins?: number;
+  totalCoinsEarned?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -708,4 +710,232 @@ export const reportPkAttempt = async (
   attempts: number
 ): Promise<{ success: boolean; data: { creatorAttempts: number; joinerAttempts: number } | null }> => {
   return await post<{ creatorAttempts: number; joinerAttempts: number }>(`/pk/rooms/${roomId}/attempt`, { role, attempts });
+};
+
+/**
+ * 标记玩家准备开始下一局
+ */
+export const readyForNextRound = async (
+  roomId: string,
+  role: 'creator' | 'joiner'
+): Promise<{ success: boolean; data: { creatorReady: boolean; joinerReady: boolean; bothReady: boolean } | null; message?: string }> => {
+  return await post<{ creatorReady: boolean; joinerReady: boolean; bothReady: boolean }>(`/pk/rooms/${roomId}/ready`, { role });
+};
+
+/**
+ * 双方都准备后，开始新一局
+ */
+export const startNextRound = async (
+  roomId: string
+): Promise<{ success: boolean; data: { round: number; targetPlayer: any } | null; message?: string }> => {
+  return await post<{ round: number; targetPlayer: any }>(`/pk/rooms/${roomId}/next-round`);
+};
+
+// ============================================================
+// 代币系统 API
+// ============================================================
+
+export interface ShopItem {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  icon: string;
+  itemType: string;
+  maxPerUser: number;
+}
+
+export interface UserItem {
+  itemType: string;
+  quantity: number;
+}
+
+/**
+ * 获取代币余额
+ */
+export const fetchCoinBalance = async (): Promise<{ success: boolean; data: { coins: number; totalCoinsEarned: number } | null }> => {
+  return await getAuth<{ coins: number; totalCoinsEarned: number }>('/coins/balance');
+};
+
+/**
+ * 获取交易记录
+ */
+export const fetchCoinTransactions = async (
+  page: number = 0,
+  pageSize: number = 20
+): Promise<{ success: boolean; data: any | null }> => {
+  return await getAuth<any>(`/coins/transactions?page=${page}&pageSize=${pageSize}`);
+};
+
+/**
+ * 获取商品列表
+ */
+export const fetchShopItems = async (): Promise<{ success: boolean; data: ShopItem[] | null }> => {
+  const res = await get<ShopItem[]>('/coins/shop');
+  return { success: res.success, data: res.data ?? [] };
+};
+
+/**
+ * 购买道具
+ */
+export const buyShopItem = async (
+  itemId: number,
+  quantity: number = 1
+): Promise<{ success: boolean; data: { coins: number; itemType: string } | null; message?: string }> => {
+  return await postAuth<{ coins: number; itemType: string }>('/coins/shop/buy', { itemId, quantity });
+};
+
+/**
+ * 获取用户道具库存
+ */
+export const fetchUserItems = async (): Promise<{ success: boolean; data: UserItem[] | null }> => {
+  const res = await getAuth<UserItem[]>('/coins/items');
+  return { success: res.success, data: res.data ?? [] };
+};
+
+// ============================================================
+// 投票 API
+// ============================================================
+
+export interface VoteSelection {
+  slot: number;
+  playerGameId: string;
+  playerName: string;
+}
+
+/**
+ * 提交投票（覆盖式）
+ */
+export const submitVotes = async (
+  selections: VoteSelection[],
+  year: number = 2026
+): Promise<{ success: boolean; data: { submissionNo: number; count: number } | null; message?: string }> => {
+  return await postAuth<{ submissionNo: number; count: number }>('/votes/submit', { year, selections });
+};
+
+/**
+ * 查询我的投票
+ */
+export const fetchMyVotes = async (
+  year: number = 2026
+): Promise<{ success: boolean; data: { hasVoted: boolean; submissionNo: number; selections: VoteSelection[] } | null }> => {
+  return await getAuth<any>(`/votes/my-votes?year=${year}`);
+};
+
+/**
+ * 查看投票统计
+ */
+export const fetchVoteStatistics = async (
+  year: number = 2026
+): Promise<{ success: boolean; data: any | null }> => {
+  return await getAuth<any>(`/votes/statistics?year=${year}`);
+};
+
+// ============================================================
+// 管理后台 API
+// ============================================================
+
+export interface AdminUser {
+  id: number;
+  openid: string;
+  nickname: string;
+  avatarUrl: string | null;
+  winCount: number;
+  totalGames: number;
+  winRate: number;
+  coins: number;
+  createdAt: string;
+}
+
+/**
+ * 获取用户列表（管理员）
+ */
+export const fetchAdminUsers = async (
+  page: number = 0,
+  pageSize: number = 20
+): Promise<{ success: boolean; data: { list: AdminUser[]; total: number; hasMore: boolean } | null }> => {
+  return await getAuth<any>(`/users/admin/list?page=${page}&pageSize=${pageSize}`);
+};
+
+/**
+ * 编辑用户（管理员）
+ */
+export const adminUpdateUser = async (
+  openid: string,
+  data: { nickname?: string; coins?: number }
+): Promise<{ success: boolean; data: any; message?: string }> => {
+  return await putAuth<any>(`/users/admin/${encodeURIComponent(openid)}`, data);
+};
+
+/**
+ * 删除用户（管理员）
+ */
+export const adminDeleteUser = async (
+  openid: string
+): Promise<{ success: boolean; data: any; message?: string }> => {
+  return await del<any>(`/users/admin/${encodeURIComponent(openid)}`);
+};
+
+/**
+ * 获取待审核评论
+ */
+export const fetchPendingComments = async (
+  page: number = 0,
+  pageSize: number = 20
+): Promise<{ success: boolean; data: { list: any[]; total: number; hasMore: boolean } | null }> => {
+  return await get<any>(`/comments/admin/pending?page=${page}&pageSize=${pageSize}`);
+};
+
+/**
+ * 审核评论
+ */
+export const reviewComment = async (
+  commentId: string,
+  status: 'approved' | 'rejected',
+  reviewer: string = 'admin'
+): Promise<{ success: boolean; data: any; message?: string }> => {
+  return await post<any>(`/comments/${commentId}/review`, { status, reviewer });
+};
+
+/**
+ * 获取投票管理数据
+ */
+export const fetchVoteWinners = async (
+  year: number = 2026
+): Promise<{ success: boolean; data: any | null }> => {
+  return await get<any>(`/votes/admin/winners?year=${year}`);
+};
+
+/**
+ * 设定官方Top30（管理员）
+ */
+export const adminSetVoteWinners = async (
+  year: number,
+  winners: { rank: number; playerGameId: string; playerName: string }[],
+  adminOpenid: string = 'admin'
+): Promise<{ success: boolean; data: any; message?: string }> => {
+  return await post<any>('/votes/admin/winners', { year, winners, adminOpenid });
+};
+
+/**
+ * 核对投票结果（管理员）
+ */
+export const adminCheckVotes = async (
+  year: number = 2026,
+  matchThreshold: number = 0,
+  page: number = 0
+): Promise<{ success: boolean; data: any | null }> => {
+  return await get<any>(`/votes/admin/check?year=${year}&matchThreshold=${matchThreshold}&page=${page}`);
+};
+
+/**
+ * 发放投票奖励（管理员）
+ */
+export const adminAwardVotes = async (
+  year: number = 2026,
+  matchThreshold: number = 15,
+  coinsPerMatch: number = 10,
+  adminOpenid: string = 'admin'
+): Promise<{ success: boolean; data: any; message?: string }> => {
+  return await post<any>('/votes/admin/award', { year, matchThreshold, coinsPerMatch, adminOpenid });
 };

@@ -1,4 +1,4 @@
-import { fetchRandomPlayerByDifficulty, searchPlayers, submitGuessRecord, createPkRoom, joinPkRoom, getPkRoom, reportPkResult, reportPkAttempt, Player } from '../../services/api';
+import { fetchRandomPlayerByDifficulty, searchPlayers, submitGuessRecord, createPkRoom, joinPkRoom, getPkRoom, reportPkResult, reportPkAttempt, readyForNextRound, startNextRound, Player } from '../../services/api';
 import { STATIC_BASE } from '../../config';
 
 // HLTV 占位剪影 URL
@@ -82,6 +82,12 @@ Page({
     opponentAvatar: '/assets/icons/user.png',
     opponentName: '对手',
 
+    // PK多局支持
+    pkRound: 1,                  // 当前局数
+    showPkWaittingNext: false,   // 等待对手准备下一局
+    myReady: false,              // 我是否已点准备（房主/对手各自维护自己的）
+    pkGameOver: false,           // PK游戏是否已完全结束（双方都退出）
+
     // 提示功能
     hintUsed: false,         // 本局是否已用过提示
     showHintModal: false,    // 提示弹窗
@@ -141,10 +147,8 @@ Page({
     // 离开页面时清理所有轮询
     this._stopPollingForJoiner();
     this._stopPollingForPkProgress();
-    if ((this as any)._pkResultTimer) {
-      clearInterval((this as any)._pkResultTimer);
-      (this as any)._pkResultTimer = null;
-    }
+    this._stopPollingForPkResult();
+    this._stopPollingForNextPKRound();
   },
 
   /**
@@ -432,13 +436,22 @@ Page({
   },
 
   /**
+   * 停止PK结果轮询
+   */
+  _stopPollingForPkResult() {
+    if ((this as any)._pkResultTimer) {
+      clearInterval((this as any)._pkResultTimer);
+      (this as any)._pkResultTimer = null;
+    }
+  },
+
+  /**
    * 开始轮询PK最终结果（自己已结束后，等待对方结果）
    */
   _startPollingForPkResult() {
     // 先清除进度轮询
     this._stopPollingForPkProgress();
-
-    if ((this as any)._pkResultTimer) clearInterval((this as any)._pkResultTimer);
+    this._stopPollingForPkResult();
     if (!this.data.pkRoomId) return;
 
     let pollCount = 0;
@@ -898,39 +911,147 @@ Page({
   },
 
   /**
-   * 结算弹窗：再来一局按钮 → 重置并开始新回合
-   * PK模式结算后回到模式选择
+   * 结算弹窗：再来一局按钮
+   * PK模式：标记准备 & 等待对方 → 双方都准备后自动开始新一局
+   * 单人模式：直接开始新回合
    */
   async onResultRestart() {
     this.setData({ showResultModal: false });
     if (this.data.gameMode === 'friend') {
-      // PK模式回到选择界面
-      this._stopPollingForJoiner();
-      this._stopPollingForPkProgress();
-      if ((this as any)._pkResultTimer) {
-        clearInterval((this as any)._pkResultTimer);
-        (this as any)._pkResultTimer = null;
+      await this._readyForNextPKRound();
+    } else {
+      await this.startNewRound();
+    }
+  },
+
+  /**
+   * PK模式：标记准备，等待双方都准备后开始下一局
+   */
+  async _readyForNextPKRound() {
+    const { pkRoomId, isRoomOwner, userInfo } = this.data;
+    if (!pkRoomId || !userInfo) return;
+
+    const role = isRoomOwner ? 'creator' : 'joiner';
+    this.setData({ myReady: true, showPkWaittingNext: true });
+
+    // 通知服务端我已准备
+    const res = await readyForNextRound(pkRoomId, role);
+    if (!res.success) {
+      wx.showToast({ title: '操作失败', icon: 'none' });
+      this.setData({ myReady: false, showPkWaittingNext: false });
+      return;
+    }
+
+    if (res.data?.bothReady) {
+      // 双方都准备好了，直接开始下一局
+      await this._doNextPKRound();
+    } else {
+      // 等待对方准备，开始轮询
+      wx.showToast({ title: '已准备，等待对手...', icon: 'none' });
+      this._startPollingForNextPKRound();
+    }
+  },
+
+  /**
+   * 轮询等待对方准备下一局
+   */
+  _startPollingForNextPKRound() {
+    this._stopPollingForNextPKRound();
+    if (!this.data.pkRoomId) return;
+
+    (this as any)._pkNextRoundTimer = setInterval(async () => {
+      if (!this.data.pkRoomId) {
+        this._stopPollingForNextPKRound();
+        return;
       }
+      try {
+        const res = await getPkRoom(this.data.pkRoomId);
+        if (!res.success || !res.data) continue;
+
+        const room = res.data;
+        const myRole = this.data.isRoomOwner ? 'creator' : 'joiner';
+        const oppRole = this.data.isRoomOwner ? 'joiner' : 'creator';
+        const oppReady = oppRole === 'joiner' ? room.joinerReadyForNext : room.creatorReadyForNext;
+
+        if (oppReady) {
+          // 对方也准备好了
+          this._stopPollingForNextPKRound();
+          wx.showToast({ title: '对手已准备！', icon: 'success' });
+          await this._doNextPKRound();
+        }
+      } catch (err) {
+        // 静默处理
+      }
+    }, 2000);
+  },
+
+  /**
+   * 停止下一局轮询
+   */
+  _stopPollingForNextPKRound() {
+    if ((this as any)._pkNextRoundTimer) {
+      clearInterval((this as any)._pkNextRoundTimer);
+      (this as any)._pkNextRoundTimer = null;
+    }
+  },
+
+  /**
+   * 执行PK下一局：双方都准备后，服务端换新目标选手
+   */
+  async _doNextPKRound() {
+    const { pkRoomId } = this.data;
+    if (!pkRoomId) return;
+
+    // 清除旧局轮询，避免干扰
+    this._stopPollingForPkProgress();
+    this._stopPollingForPkResult();
+
+    wx.showLoading({ title: '加载下一局...' });
+    try {
+      const res = await startNextRound(pkRoomId);
+      wx.hideLoading();
+      if (!res.success || !res.data) {
+        wx.showToast({ title: '开启下一局失败', icon: 'none' });
+        return;
+      }
+
+      const target = res.data.targetPlayer;
       this.setData({
-        showModeSelection: true,
-        gameMode: '',
-        pkRoomId: '',
-        isRoomOwner: false,
-        opponentInfo: null,
+        targetPlayer: target,
+        targetAvatarUrl: normalizeAvatarUrl(target.avatar),
+        guesses: [],
+        attemptsLeft: MAX_PK_ATTEMPTS,
+        gameStatus: 'playing' as 'playing',
         myAttempts: 0,
         opponentAttempts: 0,
         hintUsed: false,
         showHintModal: false,
         hintContent: '',
-        targetPlayer: null,
-        targetAvatarUrl: '',
-        guesses: [],
-        gameStatus: 'playing' as 'playing',
+        pkRound: res.data.round || (this.data.pkRound + 1),
+        showPkWaittingNext: false,
+        myReady: false,
         pkResult: null,
+        showResultModal: false,
       });
-    } else {
-      await this.startNewRound();
+
+      // 重新开始轮询PK进度
+      this._startPollingForPkProgress();
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: '加载失败', icon: 'none' });
     }
+  },
+
+  /**
+   * 取消等待下一局（回到结算弹窗）
+   */
+  onCancelWaitNext() {
+    this._stopPollingForNextPKRound();
+    this.setData({
+      showPkWaittingNext: false,
+      myReady: false,
+      showResultModal: true,
+    });
   },
 
   /**

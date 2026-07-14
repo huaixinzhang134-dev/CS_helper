@@ -26,6 +26,7 @@ function toDTO(row) {
 /**
  * GET /api/comments
  * 查询评论，可按选手 game_id 或用户 id 筛选
+ * 只返回 approved 状态 + pending 超过18小时自动视为已通过
  */
 router.get('/', async (req, res, next) => {
   try {
@@ -33,12 +34,12 @@ router.get('/', async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page || '0', 10), 0);
     const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
 
-    const where = [];
+    const where = ["pc.status = 'approved' OR (pc.status = 'pending' AND pc.created_at < NOW() - INTERVAL 18 HOUR)"];
     const params = [];
-    if (playerGameId) { where.push('player_game_id = ?'); params.push(playerGameId); }
-    if (userId) { where.push('user_id = ?'); params.push(userId); }
+    if (playerGameId) { where.push('pc.player_game_id = ?'); params.push(playerGameId); }
+    if (userId) { where.push('pc.user_id = ?'); params.push(userId); }
 
-    const whereSQL = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    const whereSQL = 'WHERE ' + where.join(' AND ');
     const offset = page * pageSize;
 
     const [rows, countRows] = await Promise.all([
@@ -94,7 +95,7 @@ router.post('/', async (req, res, next) => {
     }
 
     const [result] = await query(
-      `INSERT INTO player_comments (user_id, player_game_id, content) VALUES (?, ?, ?)`,
+      `INSERT INTO player_comments (user_id, player_game_id, content, status) VALUES (?, ?, ?, 'pending')`,
       [userId, playerGameId, trimmed]
     );
 
@@ -129,6 +130,67 @@ router.delete('/:id', async (req, res, next) => {
 
     await query('DELETE FROM player_comments WHERE id = ?', [id]);
     res.json({ code: 0, message: '删除成功', data: { id: String(id) } });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// 管理员：获取待审核评论
+// GET /api/comments/admin/pending?page=0&pageSize=20
+// ============================================================
+router.get('/admin/pending', async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page || '0', 10), 0);
+    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
+    const offset = page * pageSize;
+
+    const [rows, countRows] = await Promise.all([
+      query(
+        `SELECT pc.*, u.nickname AS user_name
+         FROM player_comments pc
+         LEFT JOIN users u ON u.openid = pc.user_id
+         WHERE pc.status = 'pending'
+         ORDER BY pc.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [String(pageSize), String(offset)]
+      ),
+      query("SELECT COUNT(*) AS total FROM player_comments WHERE status = 'pending'"),
+    ]);
+
+    res.json({
+      code: 0, message: '',
+      data: {
+        list: rows[0].map(r => ({
+          _id: String(r.id),
+          userId: r.user_id,
+          userName: r.user_name || r.user_id || '匿名用户',
+          playerGameId: r.player_game_id,
+          content: r.content,
+          status: r.status,
+          createdAt: r.created_at,
+        })),
+        total: countRows[0][0].total,
+        page, pageSize,
+        hasMore: (page + 1) * pageSize < countRows[0][0].total,
+      }
+    });
+  } catch (err) { next(err); }
+});
+
+/**
+ * POST /api/comments/:id/review
+ * Body: { status: 'approved'|'rejected', reviewer: 'admin' }
+ */
+router.post('/:id/review', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, reviewer } = req.body || {};
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ code: 400, message: 'status 必须为 approved 或 rejected', data: null });
+    }
+
+    await query('UPDATE player_comments SET status = ?, reviewed_by = ? WHERE id = ?', [status, reviewer || 'admin', id]);
+    res.json({ code: 0, message: `评论已${status === 'approved' ? '通过' : '驳回'}`, data: null });
   } catch (err) { next(err); }
 });
 

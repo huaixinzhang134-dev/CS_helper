@@ -2,10 +2,12 @@
  * PK 房间管理（好友对战）
  *
  * API:
- *   POST /api/pk/rooms        创建房间（选择难度后）
- *   POST /api/pk/rooms/:id/join  加入房间（通过分享链接）
- *   GET  /api/pk/rooms/:id    查询房间状态
- *   POST /api/pk/rooms/:id/result  报告游戏结果
+ *   POST   /api/pk/rooms              创建房间（选择难度后）
+ *   POST   /api/pk/rooms/:id/join     加入房间（通过分享链接）
+ *   GET    /api/pk/rooms/:id          查询房间状态
+ *   POST   /api/pk/rooms/:id/result   报告游戏结果
+ *   POST   /api/pk/rooms/:id/ready    标记玩家准备开始下一局
+ *   POST   /api/pk/rooms/:id/next-round 双方都准备后开始新一局
  */
 const express = require('express');
 const router = express.Router();
@@ -15,11 +17,11 @@ const { query } = require('../db/pool');
 // 生产环境可用 Redis 或 MySQL 表，当前用 Map（单进程够用）
 const rooms = new Map();
 
-// 定期清理过期房间（30 分钟无活动）
+// 定期清理过期房间（60 分钟无活动，给玩家充足时间进行多局对战）
 setInterval(() => {
   const now = Date.now();
   for (const [id, room] of rooms) {
-    if (now - room.updatedAt > 30 * 60 * 1000) {
+    if (now - room.updatedAt > 60 * 60 * 1000) {
       rooms.delete(id);
     }
   }
@@ -70,6 +72,10 @@ router.post('/rooms', async (req, res, next) => {
       joinerResult: null,
       creatorAttempts: 0,   // 实时尝试次数（用于对方进度展示）
       joinerAttempts: 0,
+      // 多局支持
+      round: 1,                  // 当前局数
+      creatorReadyForNext: false, // 房主是否准备下一局
+      joinerReadyForNext: false,  // 对手是否准备下一局
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -140,6 +146,7 @@ router.get('/rooms/:id', async (req, res, next) => {
       data: {
         roomId: room.id,
         difficulty: room.difficulty,
+        round: room.round || 1,
         creator: room.creator,
         joiner: room.joiner,
         targetPlayer: room.targetPlayer,
@@ -147,6 +154,8 @@ router.get('/rooms/:id', async (req, res, next) => {
         joinerResult: room.joinerResult,
         creatorAttempts: room.creatorAttempts || 0,
         joinerAttempts: room.joinerAttempts || 0,
+        creatorReadyForNext: room.creatorReadyForNext || false,
+        joinerReadyForNext: room.joinerReadyForNext || false,
         createdAt: room.createdAt,
       },
     });
@@ -245,6 +254,100 @@ router.post('/rooms/:id/result', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+/**
+ * POST /api/pk/rooms/:id/ready
+ * 标记当前玩家准备开始下一局
+ * Body: { role: 'creator'|'joiner' }
+ */
+router.post('/rooms/:id/ready', async (req, res, next) => {
+  try {
+    const room = rooms.get(req.params.id);
+    if (!room) {
+      return res.status(404).json({ code: 404, message: '房间不存在或已过期', data: null });
+    }
+
+    const { role } = req.body;
+    if (role === 'creator') {
+      room.creatorReadyForNext = true;
+    } else if (role === 'joiner') {
+      room.joinerReadyForNext = true;
+    } else {
+      return res.status(400).json({ code: 400, message: 'role 必须为 creator 或 joiner', data: null });
+    }
+    room.updatedAt = Date.now();
+
+    const bothReady = room.creatorReadyForNext && room.joinerReadyForNext;
+
+    res.json({
+      code: 0,
+      data: {
+        creatorReady: room.creatorReadyForNext,
+        joinerReady: room.joinerReadyForNext,
+        bothReady,
+      },
+    });
+  } catch (err) { next(err); }
+});
+
+/**
+ * POST /api/pk/rooms/:id/next-round
+ * 双方都准备后，开始新一局（重新选目标选手，重置猜测状态）
+ * 可由任何一方调用，服务端检查双方状态
+ */
+router.post('/rooms/:id/next-round', async (req, res, next) => {
+  try {
+    const room = rooms.get(req.params.id);
+    if (!room) {
+      return res.status(404).json({ code: 404, message: '房间不存在或已过期', data: null });
+    }
+
+    if (!room.creatorReadyForNext || !room.joinerReadyForNext) {
+      return res.status(400).json({ code: 400, message: '双方未都准备', data: null });
+    }
+
+    // 选新目标选手
+    const target = await selectTargetPlayer(room.difficulty);
+    if (!target) {
+      return res.status(500).json({ code: 500, message: '无法选取目标选手', data: null });
+    }
+
+    // 重置游戏状态
+    room.round += 1;
+    room.creatorResult = null;
+    room.joinerResult = null;
+    room.creatorAttempts = 0;
+    room.joinerAttempts = 0;
+    room.creatorReadyForNext = false;
+    room.joinerReadyForNext = false;
+    room.targetPlayer = {
+      _id: String(target.id),
+      id: target.id,
+      playerId: target.game_id,
+      name: target.name,
+      team: target.current_team,
+      age: target.age,
+      country: target.country,
+      countryCode: target.country_code,
+      region: target.region,
+      position: target.position,
+      majorAppearances: target.major_appearances,
+      formerTeams: target.former_teams,
+      avatar: target.avatar,
+    };
+    room.updatedAt = Date.now();
+
+    console.log(`[pk] 房间 ${req.params.id} 开始第 ${room.round} 局`);
+
+    res.json({
+      code: 0,
+      data: {
+        round: room.round,
+        targetPlayer: room.targetPlayer,
+      },
+    });
+  } catch (err) { next(err); }
 });
 
 // ======================== 工具函数 ========================
