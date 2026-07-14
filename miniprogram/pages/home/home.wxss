@@ -151,8 +151,12 @@
 }
 
 .update-body {
-  padding: 24rpx 50rpx;
   max-height: 50vh;
+}
+
+.update-inner {
+  padding: 24rpx 50rpx;
+  box-sizing: border-box;
 }
 
 .update-content {

@@ -50,7 +50,9 @@
         <text class="update-title">📢 版本更新公告</text>
       </view>
       <scroll-view scroll-y class="update-body">
-        <text class="update-content">{{updateContent}}</text>
+        <view class="update-inner">
+          <text class="update-content">{{updateContent}}</text>
+        </view>
       </scroll-view>
       <view class="update-footer">
         <button class="update-btn" bindtap="onCloseUpdate">我收到</button>
