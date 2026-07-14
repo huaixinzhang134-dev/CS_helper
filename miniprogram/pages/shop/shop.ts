@@ -40,9 +40,10 @@ Page({
   },
 
   async loadShopItems() {
+    const token = wx.getStorageSync('token');
     const [shopRes, itemsRes] = await Promise.all([
       fetchShopItems(),
-      fetchUserItems(),
+      token ? fetchUserItems() : Promise.resolve({ success: true, data: [] }),
     ]);
 
     const userItems: UserItem[] = itemsRes.success ? (itemsRes.data || []) : [];
