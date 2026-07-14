@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CS Match Pro 管理后台</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 登录页 -->
+    <div id="loginPage" class="page">
+      <div class="login-box">
+        <h1>CS Match Pro 管理后台</h1>
+        <div class="form-group">
+          <input type="text" id="loginUsername" placeholder="用户名">
+        </div>
+        <div class="form-group">
+          <input type="password" id="loginPassword" placeholder="密码" onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div id="loginError" class="error-msg"></div>
+        <button onclick="doLogin()" id="loginBtn">登录</button>
+      </div>
+    </div>
+
+    <!-- 主页面 -->
+    <div id="mainPage" class="page" style="display:none">
+      <div class="topbar">
+        <h2>管理后台</h2>
+        <div>
+          <span id="adminUserDisplay" class="admin-name"></span>
+          <button class="btn-sm" onclick="doLogout()">退出</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="users" onclick="switchTab('users')">用户管理</button>
+        <button class="tab" data-tab="comments" onclick="switchTab('comments')">评论审核</button>
+        <button class="tab" data-tab="votes" onclick="switchTab('votes')">投票管理</button>
+      </div>
+
+      <div class="tab-content" id="tab-users">
+        <div class="toolbar">
+          <input type="text" id="userSearch" placeholder="搜索用户..." oninput="loadUsers()">
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>昵称</th><th>胜场</th><th>总局</th><th>胜率</th><th>代币</th><th>操作</th></tr></thead>
+          <tbody id="userTableBody"></tbody>
+        </table>
+        <div class="pagination" id="userPagination"></div>
+      </div>
+
+      <div class="tab-content" id="tab-comments" style="display:none">
+        <table>
+          <thead><tr><th>用户</th><th>选手</th><th>内容</th><th>时间</th><th>操作</th></tr></thead>
+          <tbody id="commentTableBody"></tbody>
+        </table>
+        <div class="pagination" id="commentPagination"></div>
+      </div>
+
+      <div class="tab-content" id="tab-votes" style="display:none">
+        <div class="subsection">
+          <h3>提交开关控制</h3>
+          <div class="slot-grid" id="slotGrid"></div>
+          <button onclick="saveSlotConfig()" id="saveSlotBtn">保存开关配置</button>
+        </div>
+        <div class="subsection">
+          <h3>官方 Top30 设定</h3>
+          <div id="winnerList"></div>
+          <button onclick="addWinnerRow()">+ 添加选手</button>
+          <button onclick="saveWinners()">保存 Top30</button>
+        </div>
+        <div class="subsection">
+          <h3>核对发奖</h3>
+          <div class="form-row">
+            <label>猜对阈值：</label>
+            <input type="number" id="matchThreshold" value="15" style="width:80px">
+            <button onclick="checkResults()">核对</button>
+            <button onclick="awardCoins()" style="background:#e74c3c">发放代币奖励</button>
+          </div>
+          <div id="checkResult"></div>
+          <div id="awardResult"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑用户弹窗 -->
+  <div id="userModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('userModal')">&times;</span>
+      <h3>编辑用户</h3>
+      <div class="form-group"><label>昵称</label><input type="text" id="editNickname"></div>
+      <div class="form-group"><label>代币</label><input type="number" id="editCoins"></div>
+      <input type="hidden" id="editOpenid">
+      <button onclick="saveUser()">保存</button>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

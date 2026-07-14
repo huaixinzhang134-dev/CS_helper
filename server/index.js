@@ -78,6 +78,9 @@ app.use('/api/votes', votesRouter);
 // 管理员登录
 app.use('/api/admin', adminAuthRouter);
 
+// 管理后台网页
+app.use('/admin', require('./routes/admin-web'));
+
 // 404
 app.use((req, res) => {
   res.status(404).json({ code: 404, message: '接口不存在', data: null });
