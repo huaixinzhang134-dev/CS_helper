@@ -73,7 +73,7 @@ git push
 
 | 难度 | SQL 过滤条件 | 选手池 |
 |------|-------------|--------|
-| trivial | `status IN ('active','coach')` + `team_ranking rank <= 30` | ~173 |
+| trivial | `status IN ('active','coach')` + `team_ranking ranking <= 30` | ~173 |
 | easy | `status IN ('active','coach')` + `INNER JOIN team_ranking` | ~2000 |
 | hard | `status IN ('active','coach','free_agent')` | ~3000 |
 | hell | 全部选手（含退役） | ~6000 |

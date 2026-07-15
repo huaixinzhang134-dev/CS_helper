@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS player_comments (
 DROP TABLE IF EXISTS team_ranking;
 CREATE TABLE team_ranking (
   id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-  `rank`          INT UNSIGNED    NOT NULL,
+  ranking         INT UNSIGNED    NOT NULL,
   team_name       VARCHAR(128)    NOT NULL DEFAULT '',
   team_id         INT UNSIGNED    NULL,
   hltv_team_id    VARCHAR(32)     NOT NULL DEFAULT '',
@@ -144,7 +144,7 @@ CREATE TABLE team_ranking (
   updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
                                     ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_ranking_rank (`rank`),
+  KEY idx_ranking_rank (ranking),
   KEY idx_ranking_team_name (team_name),
   KEY idx_ranking_team_id (team_id),
   KEY idx_ranking_hltv_id (hltv_team_id)

@@ -567,7 +567,7 @@ function parseRanking(html, topN = DEFAULT_TOP) {
 
       if (name) {
         teams.push({
-          rank,
+          ranking: rank,
           name,
           teamId,
           points,
@@ -607,7 +607,7 @@ function parseRanking(html, topN = DEFAULT_TOP) {
       }
 
       if (name) {
-        teams.push({ rank, name, teamId, points: '', logo });
+        teams.push({ ranking: rank, name, teamId, points: '', logo });
       }
     });
     if (teams.length > 0) return teams;
@@ -627,7 +627,7 @@ function parseRanking(html, topN = DEFAULT_TOP) {
       seen.add(name);
       rank++;
       if (rank > topN) return false;
-      teams.push({ rank, name, teamId, points: '', logo: '' });
+      teams.push({ ranking: rank, name, teamId, points: '', logo: '' });
     }
   });
 
@@ -680,7 +680,7 @@ async function crawlRanking(topN = DEFAULT_TOP, outputPath = OUTPUT_FILE) {
     // 输出预览
     console.log('\n=== 排名预览 ===');
     teams.slice(0, Math.min(10, teams.length)).forEach(t => {
-      console.log(`  #${t.rank}  ${t.name}${t.points ? ` (${t.points})` : ''}`);
+      console.log(`  #${t.ranking}  ${t.name}${t.points ? ` (${t.points})` : ''}`);
     });
     if (teams.length > 10) {
       console.log(`  ... 共 ${teams.length} 支队伍`);
@@ -752,7 +752,7 @@ async function crawlTeamDetails(rankedTeams) {
   const results = [];
   for (let i = 0; i < rankedTeams.length; i++) {
     const t = rankedTeams[i];
-    console.log(`[${i + 1}/${rankedTeams.length}] #${t.rank} ${t.name} (HLTV ID: ${t.teamId})`);
+    console.log(`[${i + 1}/${rankedTeams.length}] #${t.ranking} ${t.name} (HLTV ID: ${t.teamId})`);
 
     if (!t.teamId) {
       console.log(`  跳过: 无 teamId`);

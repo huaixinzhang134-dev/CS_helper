@@ -11,7 +11,7 @@ const { query } = require('../db/pool');
 router.get('/ranked', async (req, res, next) => {
   try {
     const [rows] = await query(
-      'SELECT team_name FROM team_ranking ORDER BY `rank` ASC'
+      'SELECT team_name FROM team_ranking ORDER BY ranking ASC'
     );
     const teamNames = rows.map(r => r.team_name).filter(Boolean);
     res.json({
@@ -56,14 +56,14 @@ router.get('/ranking', async (req, res, next) => {
       `SELECT r.team_name,
               MAX(r.points) AS points,
               MAX(r.logo_url) AS logo_url,
-              MIN(r.\`rank\`) AS \`rank\`,
+              MIN(r.ranking) AS ranking,
               MAX(t.region) AS region,
               MAX(t.logo_url) AS team_logo_url
        FROM team_ranking r
        LEFT JOIN team t ON t.name = r.team_name
        ${whereSql}
        GROUP BY r.team_name
-       ORDER BY \`rank\` ASC
+       ORDER BY ranking ASC
        LIMIT ${pageSize} OFFSET ${offset}`,
       params
     );
@@ -73,7 +73,7 @@ router.get('/ranking', async (req, res, next) => {
       message: '',
       data: rows.map(r => ({
         teamName: r.team_name,
-        rank: r.rank,
+        ranking: r.ranking,
         points: r.points,
         logoUrl: r.team_logo_url || r.logo_url || '',
         region: r.region || 'Other'

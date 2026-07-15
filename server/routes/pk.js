@@ -364,7 +364,7 @@ async function selectTargetPlayer(difficulty) {
   if (difficulty === 'trivial') {
     sql = `SELECT p.* FROM player p
            WHERE p.current_team IN (
-             SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY \`rank\` ASC LIMIT 30) AS top30
+             SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY ranking ASC LIMIT 30) AS top30
            )
            ORDER BY RAND() LIMIT 1`;
   } else if (difficulty === 'easy') {

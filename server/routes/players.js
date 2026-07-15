@@ -79,7 +79,7 @@ router.get('/pool', async (req, res, next) => {
       sql = `SELECT DISTINCT p.* FROM player p
              INNER JOIN team_ranking r ON r.team_name = p.current_team
              WHERE p.status IN ('active','coach')
-               AND r.\`rank\` <= 30
+               AND r.ranking <= 30
              ORDER BY p.id ASC`;
     } else if (difficulty === 'easy') {
       sql = `SELECT DISTINCT p.* FROM player p
@@ -182,7 +182,7 @@ router.get('/random-by-difficulty', async (req, res, next) => {
       sql = `SELECT DISTINCT p.* FROM player p
              INNER JOIN team_ranking r ON r.team_name = p.current_team
              WHERE p.status IN ('active','coach')
-               AND r.\`rank\` <= 30
+               AND r.ranking <= 30
              ORDER BY RAND() LIMIT 1`;
     } else if (difficulty === 'easy') {
       sql = `SELECT DISTINCT p.* FROM player p

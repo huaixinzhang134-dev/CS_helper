@@ -60,7 +60,7 @@ def insert_rankings(cur, rankings: list):
 
     sql = """
         INSERT INTO team_ranking
-          (`rank`, team_name, team_id, hltv_team_id, points, logo_url)
+          (ranking, team_name, team_id, hltv_team_id, points, logo_url)
         VALUES
           (%s, %s, %s, %s, %s, %s)
     """
@@ -78,7 +78,7 @@ def insert_rankings(cur, rankings: list):
             unmatched += 1
 
         rows.append((
-            int(r.get("rank", 0)),
+            int(r.get("ranking", 0)),
             team_name,
             team_id,
             str(r.get("teamId", "")),

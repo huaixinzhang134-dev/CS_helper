@@ -31,10 +31,10 @@ async function main() {
     try {
       const item = JSON.parse(line);
       await conn.execute(
-        `INSERT INTO team_ranking (\`rank\`, team_name, team_id, hltv_team_id, points, logo_url)
+        `INSERT INTO team_ranking (ranking, team_name, team_id, hltv_team_id, points, logo_url)
          VALUES (?, ?, NULL, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE \`rank\` = VALUES(\`rank\`), points = VALUES(points), logo_url = VALUES(logo_url)`,
-        [item.rank, item.name, item.teamId || '', item.points || '', item.logo || '']
+         ON DUPLICATE KEY UPDATE ranking = VALUES(ranking), points = VALUES(points), logo_url = VALUES(logo_url)`,
+        [item.ranking, item.name, item.teamId || '', item.points || '', item.logo || '']
       );
       // 同步更新 team 表的队标（如果存在该队伍）
       if (item.logo) {

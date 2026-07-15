@@ -19,7 +19,7 @@ function normalizeAvatarUrl(avatar: string): string {
 
 interface TeamRankItem {
   teamName: string;
-  rank: number;
+  ranking: number;
   points: string;
   logoUrl: string;
   region: string;

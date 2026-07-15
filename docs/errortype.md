@@ -28,7 +28,7 @@
 ```sql
 SELECT * FROM player WHERE current_team IN (
   SELECT team_name FROM (
-    SELECT team_name FROM team_ranking ORDER BY `rank` ASC LIMIT 30
+    SELECT team_name FROM team_ranking ORDER BY ranking ASC LIMIT 30
   ) AS top30
 )
 ```
@@ -41,7 +41,7 @@ SELECT * FROM player WHERE current_team IN (
 ```sql
 SELECT DISTINCT p.* FROM player p
 INNER JOIN team_ranking r ON r.team_name = p.current_team
-WHERE r.rank <= 30
+WHERE r.ranking <= 30
 ```
 
 ---

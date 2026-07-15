@@ -20,7 +20,7 @@ DROP TABLE IF EXISTS team_ranking;
 CREATE TABLE team_ranking (
   id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
   -- 排名（1 = 世界第一）
-  `rank`          INT UNSIGNED    NOT NULL,
+  ranking         INT UNSIGNED    NOT NULL,
   -- 队伍名称（冗余存储，便于直接查询）
   team_name       VARCHAR(128)    NOT NULL DEFAULT '',
   -- 队伍 ID（关联 team 表，可为 NULL 表示尚未收录到 team 表）
@@ -37,7 +37,7 @@ CREATE TABLE team_ranking (
   updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
                                     ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_ranking_rank (`rank`),
+  KEY idx_ranking_rank (ranking),
   KEY idx_ranking_team_name (team_name),
   KEY idx_ranking_team_id (team_id),
   KEY idx_ranking_hltv_id (hltv_team_id)
