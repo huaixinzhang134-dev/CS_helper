@@ -1,0 +1,524 @@
+/* CS Match Pro Web — 全局样式 */
+:root {
+  --bg: #0f111a;
+  --bg-card: #1a1d2e;
+  --bg-hover: #242740;
+  --border: #2a2d3e;
+  --text: #e0e0e0;
+  --text-secondary: #aab;
+  --text-muted: #667;
+  --primary: #0066cc;
+  --primary-hover: #0052a3;
+  --accent: #00e5ff;
+  --success: #4CAF50;
+  --warning: #ff9800;
+  --danger: #e74c3c;
+  --correct: #4CAF50;
+  --close: #ffc107;
+  --incorrect: #555;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration: none; }
+
+/* ========== App Shell ========== */
+#app { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ========== Top Navigation ========== */
+.top-nav {
+  display: flex;
+  align-items: center;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.top-nav::-webkit-scrollbar { display: none; }
+
+.nav-items {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+  white-space: nowrap;
+  transition: all 0.2s;
+  border: none;
+  background: none;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text); }
+.nav-item.active { background: var(--primary); color: #fff; }
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.nav-user:hover { color: var(--text); }
+.nav-user-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  object-fit: cover;
+  background: var(--border);
+}
+
+/* ========== Main Content ========== */
+.main-content {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* ========== Page Header ========== */
+.page-header {
+  margin-bottom: 20px;
+  padding: 16px 0;
+}
+.page-header h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+.page-header .subtitle { font-size: 14px; color: var(--text-muted); }
+
+/* ========== Loading ========== */
+.loading { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.loading::after { content: '...'; animation: dots 1.2s steps(3) infinite; }
+@keyframes dots { 50% { opacity: 0.3; } }
+
+.loading-more { text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px; }
+
+/* ========== Empty State ========== */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-size: 15px; }
+
+/* ========== Cards ========== */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.card:hover { background: var(--bg-hover); transform: translateY(-1px); box-shadow: var(--shadow); }
+
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.card-title { font-size: 15px; font-weight: 600; }
+.card-subtitle { font-size: 12px; color: var(--text-muted); }
+
+/* ========== Buttons ========== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 20px; border-radius: var(--radius-sm); border: none;
+  font-size: 14px; cursor: pointer; transition: all 0.15s;
+  color: #fff; background: var(--primary);
+}
+.btn:hover { opacity: 0.85; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+.btn-secondary { background: #555; }
+.btn-danger { background: var(--danger); }
+.btn-success { background: var(--success); }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-ghost:hover { background: var(--bg-hover); }
+.btn-block { width: 100%; }
+
+/* ========== Forms ========== */
+.input {
+  width: 100%; padding: 10px 14px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text); font-size: 14px;
+  outline: none; transition: border-color 0.2s;
+}
+.input:focus { border-color: var(--primary); }
+.input-group { display: flex; gap: 8px; }
+
+/* ========== Search Bar ========== */
+.search-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 0 14px;
+  margin-bottom: 16px;
+}
+.search-bar .input { border: none; background: none; padding: 10px 0; }
+.search-bar .input:focus { border-color: transparent; }
+
+/* ========== Modal ========== */
+.modal-mask {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6); z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-content {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); width: 90%; max-width: 480px;
+  max-height: 85vh; overflow-y: auto; padding: 24px;
+}
+.modal-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+.modal-body { margin-bottom: 16px; font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; }
+.modal-close {
+  float: right; cursor: pointer; font-size: 24px; color: var(--text-muted);
+  line-height: 1; background: none; border: none;
+}
+
+/* ========== Badge / Tag ========== */
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 500;
+}
+.badge-live { background: rgba(231,76,60,0.2); color: #e74c3c; }
+.badge-upcoming { background: rgba(255,152,0,0.2); color: #ff9800; }
+.badge-finished { background: rgba(85,85,85,0.3); color: #888; }
+.badge-won { background: rgba(76,175,80,0.2); color: #4CAF50; }
+.badge-lost { background: rgba(231,76,60,0.2); color: #e74c3c; }
+
+/* ========== Match Card ========== */
+.match-card .matchup {
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; padding: 12px 0;
+}
+.match-card .team-block { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 100px; }
+.match-card .team-logo { width: 40px; height: 40px; object-fit: contain; }
+.match-card .team-name { font-size: 14px; font-weight: 500; text-align: center; }
+.match-card .score-block { text-align: center; min-width: 80px; }
+.match-card .score-text { font-size: 28px; font-weight: 700; }
+.match-card .score-winner { color: var(--success); }
+.match-card .vs-text { font-size: 18px; color: var(--text-muted); }
+.match-card .match-time { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+/* ========== Event List ========== */
+.event-list .event-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px; cursor: pointer; transition: all 0.15s;
+  border-bottom: 1px solid var(--border);
+}
+.event-list .event-item:hover { background: var(--bg-hover); }
+.event-item .event-name { font-size: 15px; font-weight: 500; }
+.event-item .event-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.event-item .event-arrow { font-size: 20px; color: var(--text-muted); }
+
+/* ========== Guess Game ========== */
+.guess-board { padding: 8px 0; }
+
+.guess-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.guess-table th {
+  padding: 8px 6px; text-align: center;
+  color: var(--text-muted); font-weight: 500;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg);
+}
+.guess-table td {
+  padding: 8px 6px; text-align: center;
+  border-bottom: 1px solid rgba(42,45,62,0.5);
+  white-space: nowrap;
+}
+.guess-table .td-correct { background: rgba(76,175,80,0.15); }
+.guess-table .td-close { background: rgba(255,193,7,0.15); }
+.guess-table .td-incorrect { color: var(--text-muted); }
+.guess-table .arrow { font-size: 10px; margin-left: 2px; }
+
+.attempts-bar {
+  display: flex; gap: 4px; justify-content: center; padding: 12px 0;
+}
+.attempt-box {
+  width: 24px; height: 24px; border-radius: 4px;
+  border: 1px solid var(--border); background: transparent;
+}
+.attempt-box.used { background: var(--danger); border-color: var(--danger); }
+.attempt-box.success { background: var(--success); border-color: var(--success); }
+
+/* ========== Player List ========== */
+.player-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+.player-grid-item {
+  padding: 12px 8px; text-align: center;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: all 0.15s;
+}
+.player-grid-item:hover { background: var(--bg-hover); border-color: var(--primary); }
+.player-grid-item .p-name { font-size: 13px; font-weight: 500; }
+
+/* ========== Search Results Dropdown ========== */
+.search-results {
+  max-height: 320px; overflow-y: auto;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); margin-top: 4px;
+}
+.search-result-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer; transition: all 0.1s;
+}
+.search-result-item:hover { background: var(--bg-hover); }
+.search-result-item .sr-name { font-size: 14px; font-weight: 500; }
+.search-result-item .sr-team { font-size: 12px; color: var(--text-muted); }
+.search-result-item .sr-id { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+
+/* ========== PK Status ========== */
+.pk-status {
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; padding: 12px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 12px;
+}
+.pk-player { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.pk-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: var(--border); }
+.pk-name { font-size: 13px; font-weight: 500; }
+.pk-attempts { font-size: 11px; color: var(--text-muted); }
+.pk-vs { font-size: 16px; font-weight: 700; color: var(--danger); }
+
+/* ========== Shop ========== */
+.shop-header {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.shop-balance { font-size: 24px; font-weight: 700; color: var(--warning); }
+
+.shop-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 10px;
+}
+.shop-item-icon { font-size: 28px; }
+.shop-item-info { flex: 1; }
+.shop-item-name { font-size: 15px; font-weight: 600; }
+.shop-item-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.shop-item-price { font-size: 13px; font-weight: 600; color: var(--warning); margin-bottom: 4px; }
+.shop-item-owned { font-size: 11px; color: var(--text-muted); }
+
+/* ========== Rankings ========== */
+.tab-bar {
+  display: flex; gap: 2px; background: var(--bg-card);
+  border-radius: var(--radius-sm); padding: 3px; margin-bottom: 16px;
+}
+.tab-item {
+  flex: 1; padding: 10px; text-align: center; cursor: pointer;
+  border-radius: 6px; color: var(--text-muted); font-size: 13px;
+  transition: all 0.15s; border: none; background: none;
+}
+.tab-item:hover { color: var(--text); }
+.tab-item.active { background: var(--primary); color: #fff; }
+
+.rank-list .rank-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: all 0.1s;
+}
+.rank-item:hover { background: var(--bg-hover); }
+.rank-num {
+  width: 28px; text-align: center; font-size: 16px; font-weight: 700;
+  color: var(--text-muted);
+}
+.rank-num.top3 { color: var(--warning); }
+.rank-info { flex: 1; }
+.rank-name { font-size: 14px; font-weight: 500; }
+.rank-meta { font-size: 12px; color: var(--text-muted); }
+.rank-value { text-align: right; }
+.rank-rating { font-size: 16px; font-weight: 700; }
+.rank-label { font-size: 11px; color: var(--text-muted); }
+
+/* ========== Player Detail ========== */
+.player-profile {
+  display: flex; gap: 20px; align-items: flex-start;
+  padding: 20px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.player-avatar { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; background: var(--border); flex-shrink: 0; }
+.player-body { flex: 1; }
+.player-name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+.player-nickname { font-size: 22px; font-weight: 700; }
+.player-realname { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; }
+.player-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.player-tag { padding: 2px 10px; border-radius: 999px; font-size: 11px; border: 1px solid var(--border); }
+.player-team-info { font-size: 14px; margin-bottom: 4px; }
+.player-former-teams { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.player-former-tag { padding: 2px 8px; border-radius: 4px; font-size: 11px; background: var(--bg); color: var(--text-muted); }
+
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px; margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px;
+  text-align: center;
+}
+.stat-card .stat-label { font-size: 12px; color: var(--text-muted); }
+.stat-card .stat-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+
+/* ========== Pick Grid ========== */
+.pick-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.pick-slot {
+  padding: 12px; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); cursor: pointer; text-align: center;
+  transition: all 0.15s;
+}
+.pick-slot:hover { background: var(--bg-hover); }
+.pick-slot.filled { border-color: var(--success); }
+.pick-slot.disabled { opacity: 0.5; cursor: not-allowed; }
+.pick-slot .slot-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.pick-slot .slot-name { font-size: 13px; margin-top: 4px; }
+
+.progress-bar {
+  height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; margin: 8px 0;
+}
+.progress-fill { height: 100%; background: var(--primary); border-radius: 3px; transition: width 0.3s; }
+
+/* ========== Admin ========== */
+.admin-panel { max-width: 100%; }
+.admin-topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 0; margin-bottom: 16px;
+}
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table th, .admin-table td {
+  padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border);
+}
+.admin-table th { color: var(--text-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; }
+
+.slot-switch-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.slot-toggle {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; border-radius: var(--radius-sm); cursor: pointer;
+  font-size: 12px; border: 1px solid var(--border);
+}
+.slot-toggle.on { background: rgba(76,175,80,0.15); border-color: var(--success); }
+.slot-toggle.off { background: rgba(85,85,85,0.2); border-color: var(--border); }
+
+/* ========== Modal (Search Panel for Picks) ========== */
+.search-panel {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); width: 90%; max-width: 500px;
+  max-height: 80vh; display: flex; flex-direction: column;
+}
+.search-panel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 16px 0;
+}
+.search-panel-body { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.search-panel-footer { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+
+/* ========== Difficulty Selection ========== */
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mode-btn-card {
+  padding: 16px; text-align: center; cursor: pointer;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); transition: all 0.15s;
+}
+.mode-btn-card:hover { background: var(--bg-hover); border-color: var(--primary); }
+.mode-btn-card .mode-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+.mode-btn-card .mode-name { font-size: 14px; font-weight: 600; }
+.mode-btn-card .mode-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* ========== User Profile Page ========== */
+.user-header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 20px; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 16px;
+}
+.user-avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; background: var(--border); }
+.user-avatar-placeholder {
+  width: 60px; height: 60px; border-radius: 50%;
+  background: var(--border); display: flex; align-items: center; justify-content: center;
+  font-size: 24px; color: var(--text-muted);
+}
+.user-stats { display: flex; gap: 16px; margin-top: 8px; }
+.user-stat { text-align: center; }
+.user-stat-num { font-size: 18px; font-weight: 700; display: block; }
+.user-stat-label { font-size: 11px; color: var(--text-muted); }
+
+.menu-list { margin-bottom: 16px; }
+.menu-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; cursor: pointer;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); margin-bottom: 6px;
+  transition: all 0.1s;
+}
+.menu-item:hover { background: var(--bg-hover); }
+.menu-item-text { font-size: 14px; }
+.menu-item-arrow { color: var(--text-muted); }
+.menu-spacer { height: 12px; }
+
+/* ========== Comment Section ========== */
+.comment-list { margin: 12px 0; }
+.comment-item {
+  padding: 10px 0; border-bottom: 1px solid rgba(42,45,62,0.5);
+}
+.comment-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.comment-user { font-size: 13px; font-weight: 500; }
+.comment-player { font-size: 12px; color: var(--accent); }
+.comment-text { font-size: 14px; line-height: 1.5; margin-bottom: 2px; }
+.comment-time { font-size: 11px; color: var(--text-muted); }
+
+.comment-bar {
+  position: sticky; bottom: 0; background: var(--bg-card);
+  border-top: 1px solid var(--border); padding: 12px;
+  display: flex; gap: 8px; align-items: center;
+}
+
+/* ========== Refresh / WS status ========== */
+.ws-status { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+.ws-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
+.ws-dot.connected { background: var(--success); }
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* ========== Responsive ========== */
+@media (max-width: 640px) {
+  .main-content { padding: 12px; }
+  .player-profile { flex-direction: column; align-items: center; text-align: center; }
+  .player-name-row { justify-content: center; }
+  .match-card .team-block { min-width: 70px; }
+  .match-card .team-logo { width: 32px; height: 32px; }
+  .match-card .score-text { font-size: 22px; }
+  .pick-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .mode-grid { grid-template-columns: 1fr; }
+  .nav-item { padding: 6px 10px; font-size: 12px; }
+  .player-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+}

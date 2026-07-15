@@ -126,6 +126,53 @@ router.post('/login', async (req, res, next) => {
 });
 
 // ============================================================
+// POST /api/users/web-login
+// Web 端手机号登录（替代微信登录）
+// Body: { phone }
+// ============================================================
+router.post('/web-login', async (req, res, next) => {
+  try {
+    let { phone } = req.body || {};
+    if (!phone || !phone.trim()) {
+      return res.status(400).json({ code: 400, message: '请输入手机号', data: null });
+    }
+    phone = String(phone).trim().replace(/\s+/g, '');
+    // 简单校验手机号格式
+    if (!/^1\d{10}$/.test(phone)) {
+      return res.status(400).json({ code: 400, message: '手机号格式不正确', data: null });
+    }
+
+    // 以 phone_<号码> 作为 openid，确保同一手机号登录后数据一致
+    const openid = 'phone_' + phone;
+
+    const [existing] = await query('SELECT * FROM users WHERE openid = ? LIMIT 1', [openid]);
+    let user;
+    if (existing[0]) {
+      user = existing[0];
+      // 如果用户没有昵称，自动生成一个
+      if (!user.nickname || user.nickname === '微信用户') {
+        const maskedPhone = phone.slice(0, 3) + '****' + phone.slice(7);
+        await query('UPDATE users SET nickname = ? WHERE openid = ?', ['用户' + maskedPhone, openid]);
+        user.nickname = '用户' + maskedPhone;
+      }
+    } else {
+      // 新用户，生成默认昵称
+      const maskedPhone = phone.slice(0, 3) + '****' + phone.slice(7);
+      const nickname = '用户' + maskedPhone;
+      const [result] = await query(
+        'INSERT INTO users (openid, nickname, avatar_url, guess_records) VALUES (?, ?, ?, ?)',
+        [openid, nickname, '', JSON.stringify([])]
+      );
+      const [rows] = await query('SELECT * FROM users WHERE id = ?', [result.insertId]);
+      user = rows[0];
+    }
+
+    const token = generateToken(openid);
+    res.json({ code: 0, message: '登录成功', data: { token, user: userToDTO(user) } });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
 // GET /api/users/profile
 // ============================================================
 router.get('/profile', authMiddleware, async (req, res, next) => {

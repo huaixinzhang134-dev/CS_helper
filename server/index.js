@@ -81,6 +81,13 @@ app.use('/api/admin', adminAuthRouter);
 // 管理后台网页
 app.use('/admin', require('./routes/admin-web'));
 
+// Web 前端 SPA（主网站）
+app.use(express.static(path.join(__dirname, 'public', 'web')));
+// 所有非 API、非 health、非 admin 的 GET 请求返回 index.html
+app.get(/^\/(?!api\/|admin\/|health|static\/|ws).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'web', 'index.html'));
+});
+
 // 404
 app.use((req, res) => {
   res.status(404).json({ code: 404, message: '接口不存在', data: null });
