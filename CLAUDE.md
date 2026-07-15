@@ -14,6 +14,7 @@ git push
 ## 项目结构
 - `miniprogram/` — 微信小程序前端
 - `server/` — Express 后端（Node.js + MySQL）
+- `server/public/web/` — **Web 前端 SPA**（手机号登录，替代小程序）
 - `crawler/` — HLTV / 5eplay 爬虫脚本
 - `scripts/` — 数据导入脚本
 - `.github/workflows/` — GitHub Actions 自动化工作流
@@ -23,6 +24,7 @@ git push
 |------|------|
 | Railway 后台 | https://console.railway.app/project/pleasing-warmth |
 | 线上 API | https://cshelper-production.up.railway.app/api |
+| Web 前端（主站） | https://cshelper-production.up.railway.app/ |
 | 管理后台（网页版） | https://cshelper-production.up.railway.app/admin |
 | 管理员账号 | admin / 7355608（数据库 admin_users 表 MD5 存储） |
 | MySQL 连接 | `railway variables` 查看凭据，`mysql.railway.internal` 仅内部可访 |
