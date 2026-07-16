@@ -36,7 +36,7 @@ const DELAY_MAX = 2000;
 
 // 字母分类 —— HLTV URL 中使用大写
 // 实际 URL 示例: /players/archive/active?filter=N&page=2
-const ALL_CATEGORIES = ['numbers', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+const ALL_CATEGORIES = ['digit', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 
 // 分片映射：9 个并发 job，每个爬取 3 个首字母（job8 负责 Y/Z/数字符号）
 const CHUNK_MAP = [
@@ -48,7 +48,7 @@ const CHUNK_MAP = [
   ['P', 'Q', 'R'],
   ['S', 'T', 'U'],
   ['V', 'W', 'X'],
-  ['Y', 'Z', 'numbers'],
+  ['Y', 'Z', 'digit'],
 ];
 
 let CATEGORIES = ALL_CATEGORIES;  // 默认全量，--chunk 参数会覆盖
@@ -225,7 +225,7 @@ function isCloudflareBlock(html) {
  * 旧: /players/{category}?offset={offset}
  * 新: /players/archive/{type}?filter={category}&page={pageNum}
  *
- * @param {string} category 字母（大写）或 'numbers'
+ * @param {string} category 字母（大写）或 'digit'
  * @param {number} pageNum  页码（0=第一页）
  * @param {string} type     'active' | 'retired'
  */
