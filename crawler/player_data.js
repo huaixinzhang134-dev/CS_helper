@@ -742,9 +742,23 @@ async function crawlAllPages() {
         console.log(`--- 分类: ${category} (${archiveType}) ---`);
 
         for (let pageNum = 0; pageNum < MAX_PAGES; pageNum++) {
-          const html = await fetchPage(category, pageNum, archiveType);
+          let html;
+          if (pageNum === 0) {
+            // 第 1 页：必须成功，全超时重试
+            html = await fetchPage(category, pageNum, archiveType);
+          } else {
+            // 后续页：短超时 + 失败即视为无更多数据
+            try {
+              html = await fetchPage(category, pageNum, archiveType);
+            } catch (err) {
+              console.log(`  分类 ${category} 翻页失败 (${err.message})，视为无更多数据
+`);
+              break;
+            }
+          }
+          
           const players = parsePlayers(html, archiveType);
-
+          
           // 去重（按 id）
           let addedCount = 0;
           for (const p of players) {
@@ -753,13 +767,15 @@ async function crawlAllPages() {
               addedCount++;
             }
           }
-
-          console.log(`  第 ${pageNum + 1} 页完成，新增 ${addedCount} 个，总计 ${playerLinks.length} 个\n`);
-
+          
+          console.log(`  第 ${pageNum + 1} 页完成，新增 ${addedCount} 个，总计 ${playerLinks.length} 个
+`);
+          
           await delay(DELAY_BETWEEN_REQUESTS);
-
+          
           if (players.length === 0) {
-            console.log(`  分类 ${category} 没有更多数据\n`);
+            console.log(`  分类 ${category} 没有更多数据
+`);
             break;
           }
         }
