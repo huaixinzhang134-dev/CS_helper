@@ -158,7 +158,7 @@ async function fetchPageByUrl(url, retryCount = 0) {
 
     await page.goto(url, {
       waitUntil: 'domcontentloaded',
-      timeout: 60000
+      timeout: 120000    // 延长到 120s，HLTV 较慢或 Cloudflare 卡顿时需要更长时间
     });
 
     // 等待页面出现选手卡片或任何内容
@@ -194,6 +194,17 @@ async function fetchPageByUrl(url, retryCount = 0) {
 
     return html;
   } catch (err) {
+    const isTimeout = err.message.includes('Navigation timeout') || err.message.includes('Timeout');
+    if (isTimeout && retryCount < 3) {
+      const waitTime = (retryCount + 1) * 15000;
+      console.log(`  ⏱ 超时，${(waitTime / 1000).toFixed(0)}s 后重试 (${retryCount + 1}/3)...`);
+      await delay(waitTime);
+      // 超时后关闭旧页面重新打开，避免浏览器状态异常
+      try { await page.close(); } catch (_) {}
+      page = await browser.newPage();
+      await page.setViewport({ width: 1920, height: 1080 });
+      return fetchPageByUrl(url, retryCount + 1);
+    }
     console.error(`  ✗ 请求失败: ${err.message}`);
     throw err;
   }

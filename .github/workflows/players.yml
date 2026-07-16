@@ -69,28 +69,7 @@ jobs:
         uses: actions/download-artifact@v4
 
       - name: 合并分片文件
-        run: |
-          echo '[]' > playerbase.json.tmp
-          for f in playerbase-chunk-*/playerbase_chunk*.json; do
-            echo "合并: $f"
-            cat "$f" >> playerbase_merged.json
-            echo "" >> playerbase_merged.json
-          done
-          # 去重（按 _id）
-          node -e "
-            const fs = require('fs');
-            const lines = fs.readFileSync('playerbase_merged.json','utf8').split('\n').filter(l=>l.trim());
-            const seen = new Set();
-            const unique = [];
-            for (const line of lines) {
-              try {
-                const p = JSON.parse(line);
-                if (p._id && !seen.has(p._id)) { seen.add(p._id); unique.push(line); }
-              } catch(e) {}
-            }
-            fs.writeFileSync('crawler/playerbase.json', unique.join('\n'), 'utf8');
-            console.log('合并完成: ' + unique.length + ' 个选手');
-          "
+        run: node scripts/merge-player-chunks.js
 
       - name: 安装 MySQL 驱动 + mysqldump
         run: |
