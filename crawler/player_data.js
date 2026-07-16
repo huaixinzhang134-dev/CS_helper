@@ -113,7 +113,7 @@ async function initBrowser() {
   console.log(`浏览器路径: ${chromePath || '系统默认'}`);
 
   browser = await puppeteer.launch({
-    headless: 'new',
+    headless: 'old',
     executablePath: chromePath,
     args: [
       '--no-sandbox',
@@ -124,7 +124,8 @@ async function initBrowser() {
       '--no-zygote',
       '--disable-gpu',
       '--disable-web-security',
-      '--disable-features=IsolateOrigins,site-per-process'
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-blink-features=AutomationControlled'
     ]
   });
 
