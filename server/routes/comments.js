@@ -34,7 +34,7 @@ router.get('/', async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page || '0', 10), 0);
     const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
 
-    const where = ["pc.status = 'approved' OR (pc.status = 'pending' AND pc.created_at < NOW() - INTERVAL 18 HOUR)"];
+    const where = ["(pc.status = 'approved' OR (pc.status = 'pending' AND pc.created_at < NOW() - INTERVAL 18 HOUR))"];
     const params = [];
     if (playerGameId) { where.push('pc.player_game_id = ?'); params.push(playerGameId); }
     if (userId) { where.push('pc.user_id = ?'); params.push(userId); }
@@ -53,7 +53,7 @@ router.get('/', async (req, res, next) => {
         params
       ),
       query(
-        `SELECT COUNT(*) AS total FROM player_comments ${whereSQL}`,
+        `SELECT COUNT(*) AS total FROM player_comments pc ${whereSQL}`,
         params
       )
     ]);
