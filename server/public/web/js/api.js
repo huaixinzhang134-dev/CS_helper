@@ -3,28 +3,13 @@
  * 基于 fetch 封装，替代小程序 wx.request
  */
 const API = {
-  _token: null,
 
   /** 设置 auth token */
-  setToken(token) {
-    this._token = token;
-    localStorage.setItem('web_token', token || '');
-  },
 
-  getToken() {
-    if (!this._token) this._token = localStorage.getItem('web_token') || '';
-    return this._token;
-  },
 
-  clearToken() {
-    this._token = null;
-    localStorage.removeItem('web_token');
-  },
 
   async request(method, path, body, opts = {}) {
     const headers = { 'Content-Type': 'application/json' };
-    const token = this.getToken();
-    if (token && !opts.noAuth) headers['Authorization'] = `Bearer ${token}`;
 
     try {
       const res = await fetch(`/api${path}`, {
@@ -54,15 +39,6 @@ const API = {
   // ================== 用户认证 ==================
 
   /** Web 端手机号登录 */
-  async webLogin(phone) {
-    const res = await this.post('/users/web-login', { phone }, { noAuth: true });
-    if (res.code === 0 && res.data) {
-      this.setToken(res.data.token);
-      localStorage.setItem('web_user', JSON.stringify(res.data.user));
-      return { success: true, user: res.data.user };
-    }
-    return { success: false, message: res.message || '登录失败' };
-  },
 
   /** 管理员登录 */
   async adminLogin(username, password) {
@@ -75,18 +51,8 @@ const API = {
   },
 
   /** 获取本地缓存的用户信息 */
-  getCachedUser() {
-    try {
-      const user = localStorage.getItem('web_user');
-      return user ? JSON.parse(user) : null;
-    } catch { return null; }
-  },
 
   /** 清除登录 */
-  logout() {
-    this.clearToken();
-    localStorage.removeItem('web_user');
-  },
 
   /** 从后端获取用户信息 */
   async fetchProfile() {
