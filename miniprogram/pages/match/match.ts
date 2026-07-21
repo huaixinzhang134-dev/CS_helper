@@ -36,7 +36,12 @@ Page({
 
     // 注册全量列表更新回调
     this._unsubUpdates = matchWS.on('matches_update', (msg: { data: Match[] }) => {
-      const data = msg.data || [];
+      let data = msg.data || [];
+      // 如果有赛事筛选，过滤 WS 推送的数据
+      const eventName = this.data.eventName;
+      if (eventName) {
+        data = data.filter(m => m.event === eventName);
+      }
       const { list, anchorId } = this.sortMatches(data);
       const liveCount = list.filter(m => m.status === 'Live').length;
       this.setData({
