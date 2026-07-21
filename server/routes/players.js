@@ -67,7 +67,7 @@ router.get('/', async (req, res, next) => {
  * GET /api/players/pool?difficulty=trivial|easy|hard|hell
  * 根据难度返回选手池（用于猜一猜游戏，避免前端全量加载）
  *   trivial：status IN ('active','coach') 且队伍在 top30
- *   easy：   status IN ('active','coach') 且队伍在 team_ranking
+ *   easy：   major_appearances >= 5（不限职业状态）
  *   hard：   status IN ('active','coach','free_agent')（排除退役）
  *   hell：   所有选手（无 status 限制）
  */
@@ -79,13 +79,12 @@ router.get('/pool', async (req, res, next) => {
       sql = `SELECT DISTINCT p.* FROM player p
              INNER JOIN team_ranking r ON r.team_name = p.current_team
              WHERE p.status IN ('active','coach')
-               AND r.ranking <= 30
+               AND r.ranking <= 20
              ORDER BY p.id ASC`;
     } else if (difficulty === 'easy') {
-      sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team_ranking r ON r.team_name = p.current_team
-             WHERE p.status IN ('active','coach')
-             ORDER BY p.id ASC`;
+      sql = `SELECT * FROM player
+             WHERE major_appearances >= 5
+             ORDER BY id ASC`;
     } else if (difficulty === 'hard') {
       sql = `SELECT * FROM player
              WHERE status IN ('active','coach','free_agent')
@@ -170,7 +169,7 @@ router.get('/random', async (req, res, next) => {
  * GET /api/players/random-by-difficulty?difficulty=trivial|easy|hard|hell
  * 根据难度随机选一个目标选手（单人模式和PK模式共用同一套难度逻辑）
  *   trivial：status IN ('active','coach') 且队伍在 top30
- *   easy：   status IN ('active','coach') 且队伍在 team_ranking
+ *   easy：   major_appearances >= 5（不限职业状态）
  *   hard：   status IN ('active','coach','free_agent')（排除退役）
  *   hell：   所有选手（含退役）
  */
@@ -182,12 +181,11 @@ router.get('/random-by-difficulty', async (req, res, next) => {
       sql = `SELECT DISTINCT p.* FROM player p
              INNER JOIN team_ranking r ON r.team_name = p.current_team
              WHERE p.status IN ('active','coach')
-               AND r.ranking <= 30
+               AND r.ranking <= 20
              ORDER BY RAND() LIMIT 1`;
     } else if (difficulty === 'easy') {
-      sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team_ranking r ON r.team_name = p.current_team
-             WHERE p.status IN ('active','coach')
+      sql = `SELECT * FROM player
+             WHERE major_appearances >= 5
              ORDER BY RAND() LIMIT 1`;
     } else if (difficulty === 'hard') {
       sql = `SELECT * FROM player

@@ -78,14 +78,14 @@
           <text class="mode-icon">🌱</text>
           <view class="mode-text">
             <text class="mode-name">极简</text>
-            <text class="mode-desc">目标选手来自世界排名前 30 的战队</text>
+            <text class="mode-desc">目标选手来自世界排名前 20 的战队</text>
           </view>
         </button>
         <button class="mode-btn" bindtap="selectDifficulty" data-diff="easy">
           <text class="mode-icon">🌟</text>
           <view class="mode-text">
             <text class="mode-name">简单</text>
-            <text class="mode-desc">目标选手来自世界排名前 60 的战队</text>
+            <text class="mode-desc">选手参与Major次数 >= 5 次</text>
           </view>
         </button>
         <button class="mode-btn" bindtap="selectDifficulty" data-diff="hard">

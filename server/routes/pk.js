@@ -355,7 +355,7 @@ router.post('/rooms/:id/next-round', async (req, res, next) => {
 /**
  * 根据难度从 player 表中随机选一个目标选手
  * trivial：选手现役队伍在世界排名前30的战队中
- * easy：选手现役队伍必须在 team_ranking 表中（世界排名前60）
+ * easy：   major_appearances >= 5（不限职业状态）
  * hard：有现役队伍即可（含无排名战队）
  * hell：所有选手（含自由人/退役）
  */
@@ -364,12 +364,12 @@ async function selectTargetPlayer(difficulty) {
   if (difficulty === 'trivial') {
     sql = `SELECT p.* FROM player p
            WHERE p.current_team IN (
-             SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY ranking ASC LIMIT 30) AS top30
+             SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY ranking ASC LIMIT 20) AS top20
            )
            ORDER BY RAND() LIMIT 1`;
   } else if (difficulty === 'easy') {
-    sql = `SELECT p.* FROM player p
-           INNER JOIN team_ranking r ON r.team_name = p.current_team
+    sql = `SELECT * FROM player
+           WHERE major_appearances >= 5
            ORDER BY RAND() LIMIT 1`;
   } else if (difficulty === 'hard') {
     sql = `SELECT * FROM player
