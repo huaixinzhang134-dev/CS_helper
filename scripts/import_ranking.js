@@ -10,7 +10,7 @@ async function main() {
   // 与 server/db/pool.js 保持一致的 env var 优先级
   const conn = await mysql.createConnection({
     host: process.env.DB_HOST || process.env.MYSQLHOST || process.env.MYSQL_HOST || 'hayabusa.proxy.rlwy.net',
-    port: parseInt(process.env.DB_PORT || process.env.MYSQLPORT || process.env.MYSQL_PORT || '16612', 10),
+    port: parseInt(process.env.DB_PORT || process.env.MYSQLPORT || process.env.MYSQL_PORT || '3306', 10),
     user: process.env.DB_USER || process.env.MYSQLUSER || process.env.MYSQL_USER || 'root',
     password: process.env.DB_PASS || process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || '',
     database: process.env.DB_NAME || process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'railway',
