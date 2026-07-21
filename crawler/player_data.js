@@ -26,7 +26,7 @@ let puppeteer;
 // ======================== 配置 ========================
 
 const BASE_URL = 'https://www.hltv.org';
-const MAX_PAGES = 7;           // 每字母最多翻页数
+const MAX_PAGES = 10;          // 每字母最多翻页数（M 分类 active 有 8 页，预留余量）
 const OUTPUT_FILE = 'hltv-players.txt';
 const OUTPUT_JSON_FILE = 'playerbase.json';
 const IMAGE_DIR = 'image';
