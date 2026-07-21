@@ -47,16 +47,16 @@ async function syncCycle() {
       return;
     }
 
-    // 2. 筛选有效比赛：未开始/直播中的全部保留，已结束的保留近期
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().slice(0, 10);
-    // 结果 API 的已结束比赛自带 roundScores，全部保留
+    // 2. 筛选 5 天前 ~ 5 天后的比赛（共 11 天窗口）
+    const now = new Date();
+    const day5Ago = new Date(now); day5Ago.setDate(day5Ago.getDate() - 5);
+    const day5Later = new Date(now); day5Later.setDate(day5Later.getDate() + 5);
+    const minDate = day5Ago.toISOString().slice(0, 10);
+    const maxDate = day5Later.toISOString().slice(0, 10);
     const filtered = matches.filter(m => {
-      if (m.roundScores && m.roundScores.length > 0) return true;  // 有局分数据 → 保留
-      if (m.status !== 'Finished') return true;  // 未结束 → 保留
-      return m.date >= todayStr;  // 旧版已结束 → 仅保留今天
+      return m.date >= minDate && m.date <= maxDate;
     });
+    console.log(`[crawler] 日期窗口 ${minDate} ~ ${maxDate}，过滤前 ${matches.length} 场 → 过滤后 ${filtered.length} 场`);
 
     if (filtered.length === 0) {
       console.log(`[crawler] 过滤后无有效比赛 (${source})`);

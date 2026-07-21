@@ -27,8 +27,10 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
 
 /** 备选 API 端点（按优先级尝试） */
 const API_ENDPOINTS = [
-  // 5eplay CDN 赛事数据（与网页端 grade=1,2,3,7,8,9 保持一致，limit=200 确保不漏）
+  // 5eplay CDN 赛事数据（与网页端 grade=1,2,3,7,8,9 保持一致，多页确保不漏）
   'https://esports-data.5eplaycdn.com/v1/api/csgo/matches?page=1&limit=200&grade=1,2,3,7,8,9',
+  'https://esports-data.5eplaycdn.com/v1/api/csgo/matches?page=2&limit=200&grade=1,2,3,7,8,9',
+  'https://esports-data.5eplaycdn.com/v1/api/csgo/matches?page=3&limit=200&grade=1,2,3,7,8,9',
   // 5eplay APP 已结束的比赛（page_token 使用当天日期）
   function() {
     const today = new Date();
