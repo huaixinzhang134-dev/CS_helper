@@ -6,7 +6,7 @@
  * 输出：valve_ranking.json（JSON Lines 格式）
  *
  * 使用：
- *   node crawl_ranking.js              全量爬取前 60 名
+ *   node crawl_ranking.js              全量爬取前 50 名
  *   node crawl_ranking.js --top=30     爬取前 30 名
  *   node crawl_ranking.js --output=my_ranking.json  自定义输出文件
  */
@@ -26,7 +26,7 @@ const PLAYER_JSON_PATH = path.join(__dirname, 'playerbase_clean.json');
 const LOGO_OUTPUT_FILE = 'team_logos.json';
 const DELAY_MIN = 1000;
 const DELAY_MAX = 2000;
-const DEFAULT_TOP = 60;
+const DEFAULT_TOP = 50;
 const LOGO_DELAY_MS = 2000;
 
 // ======================== 轮换池配置 ========================
@@ -646,7 +646,7 @@ function saveData(teams, outputPath) {
 
 /**
  * 爬取 Valve 世界排名
- * @param {number} topN - 取前多少名（默认 60）
+ * @param {number} topN - 取前多少名（默认 50）
  * @param {string} outputPath - 输出文件路径
  */
 async function crawlRanking(topN = DEFAULT_TOP, outputPath = OUTPUT_FILE) {
@@ -822,7 +822,7 @@ if (require.main === module) {
 
     (async () => {
       try {
-        const teams = await crawlRanking(9999, OUTPUT_FILE);
+        const teams = await crawlRanking(DEFAULT_TOP, OUTPUT_FILE);
         if (teams.length > 0) {
           await crawlTeamDetails(teams);
           console.log('\n全量爬取完成');
