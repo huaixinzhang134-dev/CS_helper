@@ -24,6 +24,10 @@ async function main() {
     process.exit(1);
   }
 
+  // 先清空旧数据，避免重复导入导致脏数据
+  await conn.execute('TRUNCATE TABLE team_ranking');
+  console.log('已清空 team_ranking 表');
+
   const lines = fs.readFileSync(filePath, 'utf8').trim().split('\n');
   let inserted = 0;
 

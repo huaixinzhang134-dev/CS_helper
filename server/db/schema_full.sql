@@ -145,7 +145,7 @@ CREATE TABLE team_ranking (
                                     ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_ranking_rank (ranking),
-  KEY idx_ranking_team_name (team_name),
+  UNIQUE KEY uk_ranking_team_name (team_name),
   KEY idx_ranking_team_id (team_id),
   KEY idx_ranking_hltv_id (hltv_team_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
