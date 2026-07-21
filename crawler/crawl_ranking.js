@@ -822,7 +822,7 @@ if (require.main === module) {
 
     (async () => {
       try {
-        const teams = await crawlRanking(DEFAULT_TOP, OUTPUT_FILE);
+        const teams = await crawlRanking(9999, OUTPUT_FILE);
         if (teams.length > 0) {
           await crawlTeamDetails(teams);
           console.log('\n全量爬取完成');
