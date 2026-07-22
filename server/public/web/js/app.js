@@ -935,3 +935,525 @@ const App = {
     `;
   },
 
+  async _showGuessRecords() {
+    if (!this.user) return;
+    const res = await API.fetchGuessRecords(0, 20);
+    const records = res.code === 0 && res.data ? res.data.list : [];
+    const diffLabel = { easy: '简单', hard: '困难', hell: '地狱', trivial: '极简', personal: '个人' };
+    const html = `<div class="modal-mask" onclick="this.remove()">
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-title">竞猜记录</div>
+        <div class="modal-body">
+          ${records.length ? records.map(r => `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+              <span class="badge ${r.won?'badge-won':'badge-lost'}">${r.won?'胜':'负'}</span>
+              <div style="flex:1;">
+                <div style="font-size:13px;font-weight:500;">${esc(r.targetPlayerName||'未知')}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${diffLabel[r.difficulty]||r.difficulty} · ${r.attempts}次</div>
+              </div>
+              <div style="font-size:11px;color:var(--text-muted);">${r.playedAt ? new Date(r.playedAt).toLocaleDateString() : ''}</div>
+            </div>`).join('') : '<div style="text-align:center;padding:20px;color:var(--text-muted);">暂无竞猜记录</div>'}
+        </div>
+        <div class="modal-footer"><button class="btn btn-sm" onclick="this.closest('.modal-mask').remove()">关闭</button></div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+  },
+
+  async _showRankingModal() {
+    if (!this.user) return;
+    const res = await API.fetchRanking('pk');
+    const list = res.success ? res.data : [];
+    const html = `<div class="modal-mask" onclick="this.remove()">
+      <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="modal-title">封神榜</div>
+        <div class="modal-body">
+          ${list.length ? list.map((u, i) => `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+              <span style="width:24px;text-align:center;font-weight:700;color:${i<3?'var(--warning)':'var(--text-muted)'};">${i+1}</span>
+              <div style="flex:1;">
+                <div style="font-size:13px;font-weight:500;">${esc(u.nickname)}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:14px;font-weight:600;">${u.winRate}%</div>
+                <div style="font-size:11px;color:var(--text-muted);">${u.winCount}胜/${u.totalGames}局</div>
+              </div>
+            </div>`).join('') : '<div style="text-align:center;padding:20px;color:var(--text-muted);">暂无数据</div>'}
+        </div>
+        <div class="modal-footer"><button class="btn btn-sm" onclick="this.closest('.modal-mask').remove()">关闭</button></div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+  },
+
+  // ==================== 商城 ====================
+  async renderShop(container) {
+    if (!this.user) { container.innerHTML = '<div class="empty-state">请先登录</div>'; return; }
+    container.innerHTML = '<div class="loading">加载中</div>';
+    try {
+      const [balanceRes, shopRes] = await Promise.all([
+        API.fetchCoinBalance(),
+        API.fetchShopItems()
+      ]);
+      const coins = balanceRes.code === 0 ? (balanceRes.data?.coins || 0) : 0;
+      const items = shopRes.success ? shopRes.data : [];
+
+      let html = `
+        <div class="shop-header">
+          <span style="font-size:32px;">🪙</span>
+          <div><div style="font-size:13px;color:var(--text-muted);">我的代币</div>
+          <div class="shop-balance">${coins}</div></div>
+        </div>
+        <div class="page-header"><h1 style="font-size:18px;">道具商城</h1></div>
+      `;
+
+      if (items.length) {
+        items.forEach(item => {
+          const emoji = item.icon && item.icon.includes('hint') ? '💡' : '⭐';
+          html += `<div class="shop-item">
+            <div class="shop-item-icon">${emoji}</div>
+            <div class="shop-item-info">
+              <div class="shop-item-name">${esc(item.name)}</div>
+              <div class="shop-item-desc">${esc(item.description)}</div>
+            </div>
+            <div style="text-align:right;">
+              <div class="shop-item-price">🪙 ${item.price}</div>
+              <button class="btn btn-sm" onclick="App._buyItem(${item.id},${item.price})">购买</button>
+            </div>
+          </div>`;
+        });
+      } else {
+        html += '<div class="empty-state">暂无商品上架</div>';
+      }
+
+      container.innerHTML = html;
+    } catch (e) { container.innerHTML = '<div class="empty-state">加载失败</div>'; }
+  },
+
+  async _buyItem(itemId, price) {
+    if (!confirm(`确定花费 ${price} 代币购买该商品吗？`)) return;
+    const res = await API.buyShopItem(itemId);
+    if (res.code === 0) {
+      alert('购买成功');
+      this.renderShop(document.getElementById('pageContent'));
+    } else {
+      alert(res.message || '购买失败');
+    }
+  },
+
+  // ==================== 年度 Top30 猜测 ====================
+  async renderPicks(container) {
+    if (!this.user) { container.innerHTML = '<div class="empty-state">请先登录</div>'; return; }
+    container.innerHTML = '<div class="loading">加载中</div>';
+    try {
+      const [picksRes, configRes] = await Promise.all([
+        API.fetchMyPicks(2026),
+        API.fetchPickConfig(2026)
+      ]);
+
+      const slots = Array.from({length: 30}, (_, i) => ({
+        slot: i+1, playerGameId: '', playerName: '',
+        submissionNo: 0, maxSubmissions: 3, canSubmit: true
+      }));
+
+      if (picksRes.code === 0 && picksRes.data?.selections) {
+        picksRes.data.selections.forEach(sel => {
+          if (sel.slot >= 1 && sel.slot <= 30) {
+            slots[sel.slot-1].playerGameId = sel.playerGameId;
+            slots[sel.slot-1].playerName = sel.playerName;
+            slots[sel.slot-1].submissionNo = sel.submissionNo;
+            slots[sel.slot-1].maxSubmissions = sel.maxSubmissions || 3;
+          }
+        });
+      }
+
+      if (configRes.success && configRes.data?.config) {
+        Object.entries(configRes.data.config).forEach(([k, v]) => {
+          const idx = parseInt(k) - 1;
+          if (idx >= 0 && idx < 30) slots[idx].canSubmit = v;
+        });
+      }
+
+      const filled = slots.filter(s => s.playerName).length;
+
+      container.innerHTML = `
+        <div class="page-header">
+          <h1>2026 年度 Top30 猜测</h1>
+          <span class="subtitle">每位 top 独立提交，每位置最多 3 次覆盖式提交</span>
+        </div>
+        <div style="margin-bottom:16px;">
+          <div class="progress-bar"><div class="progress-fill" style="width:${filled/30*100}%"></div></div>
+          <div style="font-size:13px;color:var(--text-muted);text-align:center;">${filled} / 30 已选</div>
+        </div>
+        <div class="pick-grid">
+          ${slots.map(s => `
+            <div class="pick-slot ${s.playerName?'filled':''} ${!s.canSubmit?'disabled':''}"
+                 onclick="App._openPickSlot(${s.slot},'${s.playerName}',${s.submissionNo},${s.maxSubmissions})">
+              <div class="slot-label">Top${s.slot}</div>
+              <div class="slot-name">${s.playerName ? esc(s.playerName) : (s.canSubmit ? '+ 选择' : '关闭')}</div>
+              ${s.submissionNo > 0 ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px;">${s.submissionNo}/${s.maxSubmissions}</div>` : ''}
+            </div>`).join('')}
+        </div>
+      `;
+    } catch (e) { container.innerHTML = '<div class="empty-state">加载失败</div>'; }
+  },
+
+  _openPickSlot(slot, playerName, submissionNo, maxSubmissions) {
+    submissionNo = parseInt(submissionNo) || 0;
+    maxSubmissions = parseInt(maxSubmissions) || 3;
+    if (submissionNo >= maxSubmissions) { alert(`已达最大提交次数 ${maxSubmissions}`); return; }
+
+    const html = `<div class="modal-mask" id="pickModal">
+      <div class="search-panel" onclick="event.stopPropagation()">
+        <div class="search-panel-header">
+          <span class="modal-title">选择 Top${slot}</span>
+          <button class="modal-close" onclick="document.getElementById('pickModal').remove()">×</button>
+        </div>
+        <div style="padding:0 16px;font-size:12px;color:var(--text-muted);">
+          当前提交: 第 ${submissionNo + 1} / ${maxSubmissions} 次
+        </div>
+        <div class="search-panel-body">
+          <div class="input-group" style="margin-bottom:12px;">
+            <input class="input" id="pickSearch" placeholder="输入选手名称搜索" oninput="App._pickSearch(this.value, ${slot})">
+          </div>
+          <div id="pickResults"></div>
+        </div>
+        <div class="search-panel-footer" id="pickFooter" style="display:none;">
+          <span id="pickSelected" style="font-size:13px;flex:1;"></span>
+          <button class="btn btn-sm" id="pickSubmitBtn" onclick="App._submitPick(${slot})">提交</button>
+        </div>
+      </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    this._pickSlot = slot;
+    this._pickSelected = null;
+    setTimeout(() => {
+      const input = document.getElementById('pickSearch');
+      if (input) input.focus();
+    }, 100);
+  },
+
+  _pickSlot: 0,
+  _pickSelected: null,
+
+  async _pickSearch(query, slot) {
+    if (!query || !query.trim()) { document.getElementById('pickResults').innerHTML = ''; return; }
+    if (this._pkTimer) clearTimeout(this._pkTimer);
+    this._pkTimer = setTimeout(async () => {
+      const res = await API.searchPlayers(query, 0, 30);
+      const results = document.getElementById('pickResults');
+      if (res.success && res.data.length) {
+        results.innerHTML = '<div class="search-results">' +
+          res.data.map(p => `<div class="search-result-item" onclick="App._pickSelect('${esc(p.playerId)}','${esc(p.name)}')">
+            <span class="sr-name">${esc(p.name)}</span>
+            <span class="sr-team">${esc(p.team||'')}</span>
+          </div>`).join('') + '</div>';
+        this._pickSearchResults = res.data;
+      } else {
+        results.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);">未找到匹配选手</div>';
+      }
+    }, 300);
+  },
+
+  _pickSelect(playerId, name) {
+    this._pickSelected = { playerId, name };
+    const footer = document.getElementById('pickFooter');
+    footer.style.display = 'flex';
+    document.getElementById('pickSelected').textContent = `已选: ${name}`;
+    document.getElementById('pickResults').innerHTML = '';
+    document.getElementById('pickSearch').value = '';
+  },
+
+  async _submitPick(slot) {
+    if (!this._pickSelected) return;
+    const btn = document.getElementById('pickSubmitBtn');
+    btn.disabled = true; btn.textContent = '提交中...';
+    const res = await API.submitPick(slot, this._pickSelected.playerId, this._pickSelected.name);
+    if (res.code === 0) {
+      alert(`提交成功！第 ${res.data?.submissionNo} 次`);
+      document.getElementById('pickModal')?.remove();
+      this.renderPicks(document.getElementById('pageContent'));
+    } else {
+      alert(res.message || '提交失败');
+    }
+    btn.disabled = false; btn.textContent = '提交';
+  },
+
+  // ==================== 管理后台 ====================
+  async renderAdmin(container) {
+    const token = API.adminGetToken();
+    if (!token) {
+      container.innerHTML = `
+        <div class="page-header"><h1>管理后台</h1></div>
+        <div class="card" style="max-width:400px;margin:40px auto;">
+          <div style="margin-bottom:16px;">
+            <input class="input" id="adminUser" placeholder="用户名" style="margin-bottom:8px;">
+            <input class="input" id="adminPass" type="password" placeholder="密码" onkeydown="if(event.key==='Enter')App._adminLogin()">
+          </div>
+          <p id="adminLoginError" style="color:var(--danger);font-size:13px;display:none;margin-bottom:8px;"></p>
+          <button class="btn btn-block" onclick="App._adminLogin()">登录</button>
+        </div>
+      `;
+      return;
+    }
+    try {
+      await API.adminVerify();
+      this._renderAdminPanel(container);
+    } catch (e) {
+      localStorage.removeItem('adminToken');
+      this.renderAdmin(container);
+    }
+  },
+
+  async _adminLogin() {
+    const username = document.getElementById('adminUser')?.value.trim();
+    const password = document.getElementById('adminPass')?.value;
+    if (!username || !password) { document.getElementById('adminLoginError').textContent = '请输入用户名和密码'; document.getElementById('adminLoginError').style.display = 'block'; return; }
+    try {
+      await API.adminLoginRequest(username, password);
+      this._renderAdminPanel(document.getElementById('pageContent'));
+    } catch (e) {
+      document.getElementById('adminLoginError').textContent = e.message;
+      document.getElementById('adminLoginError').style.display = 'block';
+    }
+  },
+
+  async _renderAdminPanel(container) {
+    container.innerHTML = `
+      <div class="admin-topbar">
+        <h2>管理后台</h2>
+        <button class="btn btn-ghost btn-sm" onclick="localStorage.removeItem('adminToken');App.renderAdmin(document.getElementById('pageContent'))">退出</button>
+      </div>
+      <div class="tab-bar">
+        <button class="tab-item active" data-tab="users" onclick="App._adminSwitchTab('users')">用户管理</button>
+        <button class="tab-item" data-tab="comments" onclick="App._adminSwitchTab('comments')">评论审核</button>
+        <button class="tab-item" data-tab="votes" onclick="App._adminSwitchTab('votes')">猜测管理</button>
+      </div>
+      <div id="adminTabContent">
+        <div id="adminUsersTab" style="display:block;"></div>
+        <div id="adminCommentsTab" style="display:none;"></div>
+        <div id="adminVotesTab" style="display:none;"></div>
+      </div>
+    `;
+    this._adminTab = 'users';
+    this._adminUserPage = 0;
+    this._adminCommentPage = 0;
+    this._adminLoadUsers();
+    this._adminLoadComments();
+    this._adminLoadVotes();
+  },
+
+  _adminSwitchTab(tab) {
+    this._adminTab = tab;
+    document.getElementById('adminUsersTab').style.display = tab === 'users' ? 'block' : 'none';
+    document.getElementById('adminCommentsTab').style.display = tab === 'comments' ? 'block' : 'none';
+    document.getElementById('adminVotesTab').style.display = tab === 'votes' ? 'block' : 'none';
+    if (tab === 'users') this._adminLoadUsers();
+    else if (tab === 'comments') this._adminLoadComments();
+    else if (tab === 'votes') this._adminLoadVotes();
+  },
+
+  async _adminLoadUsers() {
+    const el = document.getElementById('adminUsersTab');
+    if (!el) return;
+    try {
+      const data = await API.adminGetUsers(this._adminUserPage, 20);
+      el.innerHTML = `
+        <div style="overflow-x:auto;">
+          <table class="admin-table">
+            <thead><tr><th>ID</th><th>昵称</th><th>胜场</th><th>总局</th><th>胜率</th><th>代币</th><th>操作</th></tr></thead>
+            <tbody>${data.list.map(u => `<tr>
+              <td>${u.id}</td><td>${esc(u.nickname)}</td><td>${u.winCount}</td><td>${u.totalGames}</td>
+              <td>${u.winRate}%</td><td>${u.coins}</td>
+              <td><button class="btn btn-sm" onclick="App._adminEditUser('${esc(u.openid)}','${esc(u.nickname)}',${u.coins})">编辑</button>
+                  <button class="btn btn-sm btn-danger" onclick="App._adminDeleteUser('${esc(u.openid)}')">删除</button></td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+        <div style="text-align:center;padding:8px;font-size:13px;color:var(--text-muted);">共 ${data.total} 条</div>
+      `;
+    } catch (e) { el.innerHTML = '<div class="empty-state">加载失败</div>'; }
+  },
+
+  async _adminEditUser(openid, nickname, coins) {
+    const newNick = prompt('昵称:', nickname);
+    if (newNick === null) return;
+    const newCoins = prompt('代币:', coins);
+    if (newCoins === null) return;
+    try {
+      await API.adminUpdateUser(openid, { nickname: newNick, coins: parseInt(newCoins) || 0 });
+      alert('更新成功');
+      this._adminLoadUsers();
+    } catch (e) { alert(e.message); }
+  },
+
+  async _adminDeleteUser(openid) {
+    if (!confirm('确定删除此用户？')) return;
+    try {
+      await API.adminDeleteUser(openid);
+      this._adminLoadUsers();
+    } catch (e) { alert(e.message); }
+  },
+
+  async _adminLoadComments() {
+    const el = document.getElementById('adminCommentsTab');
+    if (!el) return;
+    try {
+      const data = await API.adminGetPendingComments(this._adminCommentPage, 20);
+      el.innerHTML = data.list.length ? `
+        <div style="overflow-x:auto;">
+          <table class="admin-table">
+            <thead><tr><th>用户</th><th>选手</th><th>内容</th><th>时间</th><th>操作</th></tr></thead>
+            <tbody>${data.list.map(c => `<tr>
+              <td>${esc(c.userName)}</td><td>${esc(c.playerGameId)}</td>
+              <td>${esc(c.content)}</td><td>${c.createdAt||''}</td>
+              <td><button class="btn btn-sm btn-success" onclick="App._adminReviewComment('${c._id}','approved')">通过</button>
+                  <button class="btn btn-sm btn-danger" onclick="App._adminReviewComment('${c._id}','rejected')">驳回</button></td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+        <div style="text-align:center;padding:8px;font-size:13px;color:var(--text-muted);">共 ${data.total} 条待审核</div>
+      ` : '<div class="empty-state">暂无待审核评论</div>';
+    } catch (e) { el.innerHTML = '<div class="empty-state">加载失败</div>'; }
+  },
+
+  async _adminReviewComment(id, status) {
+    try {
+      await API.adminReviewComment(id, status);
+      this._adminLoadComments();
+    } catch (e) { alert(e.message); }
+  },
+
+  async _adminLoadVotes() {
+    const el = document.getElementById('adminVotesTab');
+    if (!el) return;
+    try {
+      const [configData, officialData] = await Promise.all([
+        API.adminGetPickConfig(2026),
+        API.adminGetOfficialTop30(2026)
+      ]);
+      const config = configData.config || {};
+      const winners = officialData.winners || [];
+
+      el.innerHTML = `
+        <div style="margin-bottom:24px;">
+          <h3 style="margin-bottom:12px;">提交开关控制</h3>
+          <div class="slot-switch-grid" id="slotSwitchGrid">
+            ${Array.from({length:30}, (_,i) => {
+              const on = config[i+1] !== false;
+              return `<div class="slot-toggle ${on?'on':'off'}" data-slot="${i+1}" onclick="App._adminToggleSlot(${i+1})">
+                <span>Top${i+1}</span>
+                <span style="font-size:11px;">${on?'开启':'关闭'}</span>
+              </div>`;
+            }).join('')}
+          </div>
+          <button class="btn btn-sm" onclick="App._adminSaveSlotConfig()" id="saveSlotBtn" style="margin-top:8px;">保存开关配置</button>
+          <span id="slotDirty" style="display:none;color:var(--warning);font-size:12px;margin-left:8px;">有未保存更改</span>
+        </div>
+        <div style="margin-bottom:24px;">
+          <h3 style="margin-bottom:12px;">官方 Top30 设定</h3>
+          <div id="winnerInputs">
+            ${Array.from({length:30}, (_,i) => {
+              const w = winners.find(x => x.rank === i+1);
+              return `<div style="display:flex;gap:8px;margin-bottom:6px;align-items:center;">
+                <span style="font-size:12px;min-width:40px;">Top${i+1}</span>
+                <input class="input" style="flex:1;" placeholder="选手ID" value="${esc(w?.playerGameId||'')}" data-rank="${i+1}" id="winnerId${i+1}">
+                <input class="input" style="flex:1;" placeholder="选手名称" value="${esc(w?.playerName||'')}" id="winnerName${i+1}">
+              </div>`;
+            }).join('')}
+          </div>
+          <button class="btn btn-sm" onclick="App._adminSaveWinners()">保存 Top30</button>
+        </div>
+        <div>
+          <h3 style="margin-bottom:12px;">核对发奖</h3>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+            <label style="font-size:13px;">猜对阈值：</label>
+            <input class="input" style="width:80px;" id="matchThreshold" value="15">
+            <button class="btn btn-sm" onclick="App._adminCheckPicks()">核对</button>
+            <button class="btn btn-sm btn-danger" onclick="App._adminAwardPicks()">发放代币奖励</button>
+          </div>
+          <div id="adminCheckResult" style="font-size:13px;color:var(--text-secondary);"></div>
+        </div>
+      `;
+      this._adminSlotConfig = { ...config };
+    } catch (e) { el.innerHTML = '<div class="empty-state">加载失败</div>'; }
+  },
+
+  _adminSlotConfig: {},
+
+  _adminToggleSlot(slot) {
+    this._adminSlotConfig[slot] = !(this._adminSlotConfig[slot] !== false);
+    const grid = document.getElementById('slotSwitchGrid');
+    if (grid) {
+      grid.querySelectorAll('.slot-toggle').forEach(el => {
+        const s = parseInt(el.dataset.slot);
+        const on = this._adminSlotConfig[s] !== false;
+        el.className = `slot-toggle ${on?'on':'off'}`;
+        el.querySelector('span:last-child').textContent = on?'开启':'关闭';
+      });
+    }
+    document.getElementById('slotDirty').style.display = 'inline';
+  },
+
+  async _adminSaveSlotConfig() {
+    try {
+      await API.adminSetPickConfig(2026, this._adminSlotConfig);
+      document.getElementById('slotDirty').style.display = 'none';
+      alert('配置已保存');
+    } catch (e) { alert(e.message); }
+  },
+
+  async _adminSaveWinners() {
+    const winners = [];
+    for (let i = 1; i <= 30; i++) {
+      const id = document.getElementById(`winnerId${i}`)?.value.trim();
+      const name = document.getElementById(`winnerName${i}`)?.value.trim();
+      if (id && name) winners.push({ rank: i, playerGameId: id, playerName: name });
+    }
+    if (!winners.length) { alert('请至少填写一名选手'); return; }
+    try {
+      await API.adminSetOfficialTop30(2026, winners);
+      alert('已保存');
+    } catch (e) { alert(e.message); }
+  },
+
+  async _adminCheckPicks() {
+    const threshold = parseInt(document.getElementById('matchThreshold')?.value) || 15;
+    try {
+      const data = await API.adminCheckPicks(2026, threshold);
+      const el = document.getElementById('adminCheckResult');
+      if (data.total === 0) {
+        el.innerHTML = '<span style="color:var(--success);">无人达标</span>';
+      } else {
+        el.innerHTML = `<span style="color:var(--success);">共 ${data.total} 名用户达标</span><br>` +
+          (data.list || []).slice(0, 20).map(u => `${esc(u.nickname)}: 猜对 ${u.matchedCount}/${u.totalSlots}`).join('<br>');
+      }
+    } catch (e) { alert(e.message); }
+  },
+
+  async _adminAwardPicks() {
+    if (!confirm('确定向达标用户发放代币奖励？不可重复发放！')) return;
+    try {
+      const data = await API.adminAwardPicks(2026, parseInt(document.getElementById('matchThreshold')?.value) || 15);
+      document.getElementById('adminCheckResult').innerHTML =
+        `<span style="color:var(--success);">已向 ${data.awardedUsers} 人发放 ${data.totalCoinsAwarded} 代币</span>`;
+    } catch (e) { alert(e.message); }
+  },
+};
+
+// ==================== 工具函数 ====================
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function formatDate(raw) {
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ==================== 启动 ====================
+document.addEventListener('DOMContentLoaded', () => App.init());
+
