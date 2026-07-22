@@ -19,6 +19,7 @@ const EUROPE_CODES = new Set([
   "PL","CZ","SK","HU","SI","HR","BA","RS","ME","MK","AL","XK",
   "RU","UA","BY","MD","EE","LV","LT",
   "BG","RO","LI","FO","SJ","AX","GI",
+  "TR",   // 土耳其地理上横跨欧亚，V社/ESL赛事按欧洲赛区对待
 ]);
 
 const AMERICAS_CODES = new Set([
@@ -34,7 +35,7 @@ const ASIA_CODES = new Set([
   "CN","JP","KR","KP","MN","TW","HK","MO",
   "SG","MY","ID","TH","VN","PH","MM","KH","LA","BN","TL",
   "IN","PK","BD","NP","BT","LK","MV","AF",
-  "TR","SA","AE","QA","KW","BH","OM","YE","JO","LB","SY","IQ","IR","IL","PS","AM","AZ","GE",
+  "SA","AE","QA","KW","BH","OM","YE","JO","LB","SY","IQ","IR","IL","PS","AM","AZ","GE",
   "KZ","UZ","TM","KG","TJ",
   "AU","NZ","PG","FJ","WS","TO","VU","SB","KI","NR","TV","PW","MH","FM","CK","NU","TK","WF","PF","NC","GU","MP","AS",
 ]);
@@ -71,7 +72,7 @@ const COUNTRY_NAME_REGION = {
   "Thailand": "Asia", "Vietnam": "Asia", "Philippines": "Asia",
   "India": "Asia", "Pakistan": "Asia", "Bangladesh": "Asia",
   "Nepal": "Asia", "Sri Lanka": "Asia", "Afghanistan": "Asia",
-  "Turkey": "Asia", "Türkiye": "Asia",
+  "Turkey": "Europe", "Türkiye": "Europe",
   "Saudi Arabia": "Asia", "United Arab Emirates": "Asia", "Qatar": "Asia",
   "Kuwait": "Asia", "Bahrain": "Asia", "Oman": "Asia", "Yemen": "Asia",
   "Jordan": "Asia", "Lebanon": "Asia", "Syria": "Asia", "Iraq": "Asia",

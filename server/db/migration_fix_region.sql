@@ -18,7 +18,8 @@ UPDATE player SET region = 'Europe' WHERE country_code IN (
   'IT','ES','PT','GR','MT','CY','AD','MC','SM','VA',
   'PL','CZ','SK','HU','SI','HR','BA','RS','ME','MK','AL','XK',
   'RU','UA','BY','MD','EE','LV','LT',
-  'BG','RO','LI','FO','SJ','AX','GI'
+  'BG','RO','LI','FO','SJ','AX','GI',
+  'TR'
 );
 
 UPDATE player SET region = 'Americas' WHERE country_code IN (
@@ -33,7 +34,7 @@ UPDATE player SET region = 'Asia' WHERE country_code IN (
   'CN','JP','KR','KP','MN','TW','HK','MO',
   'SG','MY','ID','TH','VN','PH','MM','KH','LA','BN','TL',
   'IN','PK','BD','NP','BT','LK','MV','AF',
-  'TR','SA','AE','QA','KW','BH','OM','YE','JO','LB','SY',
+  'SA','AE','QA','KW','BH','OM','YE','JO','LB','SY',
   'IQ','IR','IL','PS','AM','AZ','GE',
   'KZ','UZ','TM','KG','TJ',
   'AU','NZ','PG','FJ'
