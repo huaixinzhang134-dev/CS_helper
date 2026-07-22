@@ -436,7 +436,11 @@ Page({
     try {
       const res = await fetchRandomPlayerByDifficulty(difficulty);
       wx.hideLoading();
-      if (!res.success || !res.data) { wx.showToast({ title: '获取选手失败', icon: 'none' }); return; }
+      if (!res.success || !res.data) {
+        wx.showToast({ title: '该难度暂无可用选手，请换一个难度', icon: 'none' });
+        this.setData({ showDifficultySelection: true });
+        return;
+      }
       const target = res.data;
       const maxAttempts = this.data.gameMode === 'friend' ? MAX_PK_ATTEMPTS : UNLIMITED_ATTEMPTS;
       this.setData({
@@ -445,7 +449,11 @@ Page({
         searchQuery: '', searchResults: [], showAdModal: false,
         pkResult: null, myAttempts: 0, hintUsed: false, showHintModal: false, hintContent: '',
       });
-    } catch (err) { wx.hideLoading(); wx.showToast({ title: '加载失败', icon: 'none' }); }
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({ title: '加载失败，请重试', icon: 'none' });
+      this.setData({ showDifficultySelection: true });
+    }
   },
 
   onSearchInput(e: WechatMiniprogram.Input) {
