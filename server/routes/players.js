@@ -79,6 +79,7 @@ router.get('/pool', async (req, res, next) => {
       sql = `SELECT DISTINCT p.* FROM player p
              INNER JOIN team_ranking r ON r.team_name = p.current_team
              WHERE p.status = 'active'
+               AND p.position != 'coach'
                AND r.ranking <= 10
              ORDER BY p.id ASC`;
     } else if (difficulty === 'easy') {
@@ -86,11 +87,13 @@ router.get('/pool', async (req, res, next) => {
              WHERE major_appearances > 5
                AND current_team != ''
                AND status = 'active'
+               AND position != 'coach'
              ORDER BY id ASC`;
     } else if (difficulty === 'normal') {
       sql = `SELECT DISTINCT p.* FROM player p
              INNER JOIN team_ranking r ON r.team_name = p.current_team
              WHERE p.status = 'active'
+               AND p.position != 'coach'
                AND r.ranking <= 30
              ORDER BY p.id ASC`;
     } else if (difficulty === 'hard') {
@@ -193,6 +196,7 @@ router.get('/random-by-difficulty', async (req, res, next) => {
       sql = `SELECT DISTINCT p.* FROM player p
              INNER JOIN team_ranking r ON r.team_name = p.current_team
              WHERE p.status = 'active'
+               AND p.position != 'coach'
                AND r.ranking <= 10
              ORDER BY RAND() LIMIT 1`;
     } else if (difficulty === 'easy') {
@@ -200,11 +204,13 @@ router.get('/random-by-difficulty', async (req, res, next) => {
              WHERE major_appearances > 5
                AND current_team != ''
                AND status = 'active'
+               AND position != 'coach'
              ORDER BY RAND() LIMIT 1`;
     } else if (difficulty === 'normal') {
       sql = `SELECT DISTINCT p.* FROM player p
              INNER JOIN team_ranking r ON r.team_name = p.current_team
              WHERE p.status = 'active'
+               AND p.position != 'coach'
                AND r.ranking <= 30
              ORDER BY RAND() LIMIT 1`;
     } else if (difficulty === 'hard') {
