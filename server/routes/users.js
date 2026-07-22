@@ -279,8 +279,52 @@ router.post('/guess/record', authMiddleware, async (req, res, next) => {
 
     await query(updateSQL, updateParams);
 
+    // 更新难度解锁进度
+    if (difficulty) {
+      await query(
+        `INSERT INTO difficulty_progress (user_openid, difficulty, correct_count, total_games)
+         VALUES (?, ?, ?, 1)
+         ON DUPLICATE KEY UPDATE
+           correct_count = correct_count + ?,
+           total_games = total_games + 1`,
+        [req.userOpenid, difficulty, won ? 1 : 0, won ? 1 : 0]
+      );
+    }
+
     const [updated] = await query('SELECT * FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
     res.json({ code: 0, message: won ? '胜利记录已保存' : '记录已保存', data: userToDTO(updated[0]) });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// GET /api/users/guess/difficulty-progress
+// 返回用户所有难度的猜对次数（用于解锁判断）
+// 解锁顺序：trivial → easy → normal → hard → hell → challenge
+// 每档需前一个难度猜对 10 次才解锁
+// ============================================================
+router.get('/guess/difficulty-progress', authMiddleware, async (req, res, next) => {
+  try {
+    const DIFF_ORDER = ['trivial', 'easy', 'normal', 'hard', 'hell', 'challenge'];
+    const [rows] = await query(
+      'SELECT difficulty, correct_count FROM difficulty_progress WHERE user_openid = ?',
+      [req.userOpenid]
+    );
+    const progressMap = {};
+    for (const r of rows) progressMap[r.difficulty] = r.correct_count;
+
+    const result = DIFF_ORDER.map((diff, i) => {
+      const correct = progressMap[diff] || 0;
+      // 第一档（trivial）默认解锁；后续需要前一个猜对 >= 10
+      const unlocked = i === 0 ? true : (progressMap[DIFF_ORDER[i - 1]] || 0) >= 10;
+      return {
+        difficulty: diff,
+        correctCount: correct,
+        unlocked,
+        needPrevCorrect: 10
+      };
+    });
+
+    res.json({ code: 0, message: '', data: result });
   } catch (err) { next(err); }
 });
 

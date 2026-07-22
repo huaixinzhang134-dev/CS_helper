@@ -1,11 +1,9 @@
 <view class="container guess-page">
-  <!-- Background Image（分离渲染层，减少重绘） -->
   <image class="bg-image" src="/beijing.png" mode="aspectFill" />
-  <!-- 额外的隔离层，防止背景跟随输入重绘 -->
   <view class="bg-fix-layer"></view>
 
-  <!-- Game Mode Selection Modal -->
-  <view class="modal-mask" wx:if="{{showModeSelection}}" style="z-index: 100;">
+  <!-- Game Mode Selection -->
+  <view class="modal-mask" wx:if="{{showModeSelection}}" style="z-index:100;">
     <view class="modal-content">
       <view class="modal-title">选择游戏模式</view>
       <view class="mode-buttons">
@@ -24,37 +22,31 @@
           </view>
         </button>
       </view>
+      <!-- 玩法说明入口 -->
+      <view class="rules-entry" bindtap="onShowRules">
+        <text>📖 玩法说明 & 难度介绍</text>
+      </view>
     </view>
   </view>
 
-  <!-- Friend Invite Modal（房主的邀请弹窗） -->
-  <view class="modal-mask" wx:if="{{showFriendInvite && isRoomOwner}}" style="z-index: 100;">
+  <!-- Friend Invite Modal -->
+  <view class="modal-mask" wx:if="{{showFriendInvite && isRoomOwner}}" style="z-index:100;">
     <view class="modal-content">
       <view class="modal-title">等待对手加入...</view>
       <view class="modal-body" style="text-align:center;">
         <image src="/assets/icons/pk.png" mode="aspectFit" style="width:120rpx;height:120rpx;margin:20rpx auto;opacity:0.5;" />
-        <text style="display:block;margin:16rpx 0;font-size:26rpx;color:var(--text-secondary);">
-          点击下方按钮，分享给微信好友进行对战
-        </text>
-        <text style="display:block;font-size:22rpx;color:var(--text-muted);">
-          双方各 8 次猜测机会，猜同一选手
-        </text>
-        <text style="display:block;margin-top:10rpx;font-size:20rpx;color:var(--primary-color);">
-          房间号: {{pkRoomId}}
-        </text>
+        <text style="display:block;margin:16rpx 0;font-size:26rpx;color:var(--text-secondary);">点击下方按钮，分享给微信好友进行对战</text>
+        <text style="display:block;font-size:22rpx;color:var(--text-muted);">双方各 8 次猜测机会，猜同一选手</text>
+        <text style="display:block;margin-top:10rpx;font-size:20rpx;color:var(--primary-color);">房间号: {{pkRoomId}}</text>
       </view>
       <view class="modal-footer" style="flex-direction:column;gap:16rpx;">
-        <button class="btn-primary" open-type="share" style="width:100%;">
-          <text>📤 分享给好友</text>
-        </button>
-        <button class="btn-secondary" bindtap="cancelWaitForJoiner" style="width:100%;">
-          取消创建
-        </button>
+        <button class="btn-primary" open-type="share" style="width:100%;"><text>📤 分享给好友</text></button>
+        <button class="btn-secondary" bindtap="cancelWaitForJoiner" style="width:100%;">取消创建</button>
       </view>
     </view>
   </view>
 
-  <!-- PK Status Bar（游戏进行中，对手加入后才显示） -->
+  <!-- PK Status Bar -->
   <view class="pk-status" wx:if="{{gameMode === 'friend' && gameStatus === 'playing' && !showFriendInvite && opponentInfo}}">
     <view class="pk-player {{isRoomOwner ? 'pk-me' : ''}}">
       <image class="pk-avatar" src="{{myAvatar}}" mode="aspectFill"></image>
@@ -69,39 +61,45 @@
     </view>
   </view>
 
-  <!-- Difficulty Selection Modal -->
-  <view class="modal-mask" wx:if="{{showDifficultySelection}}" style="z-index: 99;">
-    <view class="modal-content">
+  <!-- ====== 2x3 难度选择网格 ====== -->
+  <view class="modal-mask" wx:if="{{showDifficultySelection}}" style="z-index:99;">
+    <view class="modal-content diff-modal">
       <view class="modal-title">选择难度</view>
-      <view class="mode-buttons">
-        <button class="mode-btn" bindtap="selectDifficulty" data-diff="trivial">
-          <text class="mode-icon">🌱</text>
-          <view class="mode-text">
-            <text class="mode-name">极简</text>
-            <text class="mode-desc">目标选手来自世界排名前 20 的战队</text>
+      <view class="diff-grid">
+        <view
+          class="diff-card {{item.unlocked ? '' : 'locked'}}"
+          wx:for="{{difficulties}}"
+          wx:key="key"
+          bindtap="selectDifficulty"
+          data-diff="{{item.key}}"
+        >
+          <view class="diff-icon">{{item.icon}}</view>
+          <view class="diff-name">{{item.name}}</view>
+          <view class="diff-desc">{{item.desc}}</view>
+          <view wx:if="{{!item.unlocked}}" class="diff-lock">
+            <text class="diff-lock-icon">🔒</text>
+            <text class="diff-lock-text">猜对10次解锁</text>
           </view>
-        </button>
-        <button class="mode-btn" bindtap="selectDifficulty" data-diff="easy">
-          <text class="mode-icon">🌟</text>
-          <view class="mode-text">
-            <text class="mode-name">简单</text>
-            <text class="mode-desc">选手参与Major次数 >= 5 次</text>
+          <view wx:else class="diff-progress">
+            <text class="diff-correct">✓ {{item.correctCount}}</text>
           </view>
-        </button>
-        <button class="mode-btn" bindtap="selectDifficulty" data-diff="hard">
-          <text class="mode-icon">⚔️</text>
-          <view class="mode-text">
-            <text class="mode-name">困难</text>
-            <text class="mode-desc">目标选手所属现役战队</text>
-          </view>
-        </button>
-        <button class="mode-btn" bindtap="selectDifficulty" data-diff="hell">
-          <text class="mode-icon">💀</text>
-          <view class="mode-text">
-            <text class="mode-name">地狱</text>
-            <text class="mode-desc">包含自由人/退役选手，范围最大</text>
-          </view>
-        </button>
+        </view>
+      </view>
+      <view class="modal-footer" style="justify-content:center;margin-top:20rpx;">
+        <button class="btn-secondary" bindtap="onShowRules" style="flex:none;padding:0 30rpx;">📖 玩法说明</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ====== 难度锁定弹窗 ====== -->
+  <view class="modal-mask" wx:if="{{showLockModal}}" bindtap="onLockModalClose" style="z-index:100;">
+    <view class="modal-content" catchtap="">
+      <view class="modal-title">🔒 难度未解锁</view>
+      <view class="modal-body" style="text-align:center;">
+        <text style="font-size:28rpx;color:var(--text-secondary);line-height:1.6;">{{lockMessage}}</text>
+      </view>
+      <view class="modal-footer" style="justify-content:center;">
+        <button class="btn-primary" bindtap="onLockModalClose">知道了</button>
       </view>
     </view>
   </view>
@@ -109,41 +107,23 @@
   <!-- Header -->
   <view class="header">
     <view class="title"><text class="highlight">弗一把</text></view>
-    <view
-      class="hint-btn {{hintUsed ? 'used' : ''}}"
-      wx:if="{{gameStatus === 'playing' && targetPlayer && myAttempts > 5}}"
-      bindtap="onGetHint"
-    >提示</view>
+    <view class="hint-btn {{hintUsed ? 'used' : ''}}" wx:if="{{gameStatus === 'playing' && targetPlayer && myAttempts > 5}}" bindtap="onGetHint">提示</view>
   </view>
 
   <!-- Game Board -->
   <view class="game-board">
-    <!-- Legend -->
     <view class="legend">
-      <view class="rule-btn" bindtap="onShowRules">玩法说明</view>
+      <view class="rule-btn" bindtap="onShowRules">📖 玩法说明</view>
     </view>
 
     <!-- Search Input -->
     <view class="search-section" wx:if="{{gameStatus === 'playing'}}">
       <view class="search-bar">
         <icon type="search" size="18" color="#aaa" />
-        <input 
-          class="search-input" 
-          placeholder="输入选手ID或姓名搜索" 
-          placeholder-class="placeholder"
-          bindinput="onSearchInput"
-          value="{{searchQuery}}"
-        />
+        <input class="search-input" placeholder="输入选手ID或姓名搜索" placeholder-class="placeholder" bindinput="onSearchInput" value="{{searchQuery}}" />
       </view>
-      <!-- Dropdown Results -->
-      <scroll-view scroll-y class="search-results" wx:if="{{searchResults.length > 0}}" bindscrolltolower="onSearchScrollToLower" lower-threshold="50" enhanced="{{true}}" show-scrollbar="{{false}}" enable-passive="{{true}}" scroll-with-animation="{{false}}">
-        <view
-          class="result-item"
-          wx:for="{{searchResults}}"
-          wx:key="_id"
-          catchtap="selectPlayer"
-          data-id="{{item._id}}"
-        >
+      <scroll-view scroll-y class="search-results" wx:if="{{searchResults.length > 0}}" bindscrolltolower="onSearchScrollToLower" lower-threshold="50">
+        <view class="result-item" wx:for="{{searchResults}}" wx:key="_id" catchtap="selectPlayer" data-id="{{item._id}}">
           <image class="player-avatar-sm" src="{{item.avatarUrl}}" mode="aspectFit" />
           <view class="result-info">
             <text class="player-name">{{item.name}}</text>
@@ -151,19 +131,15 @@
           </view>
           <text class="result-id">ID: {{item.playerId}}</text>
         </view>
-        <view class="loading-more" wx:if="{{searchLoading}}">
-          <text>加载中...</text>
-        </view>
-        <view class="no-more" wx:if="{{!searchHasMore && searchResults.length > 0 && !searchLoading}}">
-          <text>没有更多了</text>
-        </view>
+        <view class="loading-more" wx:if="{{searchLoading}}"><text>加载中...</text></view>
+        <view class="no-more" wx:if="{{!searchHasMore && searchResults.length > 0 && !searchLoading}}"><text>没有更多了</text></view>
       </scroll-view>
     </view>
 
-    <!-- Result Message -->
+    <!-- Result -->
     <view class="game-result" wx:if="{{gameStatus !== 'playing'}}">
       <view class="result-box">
-        <text wx:if="{{gameStatus === 'won'}}" class="result-text won">恭喜回答正确！</text>
+        <text wx:if="{{gameStatus === 'won'}}" class="result-text won">🎉 恭喜回答正确！</text>
         <text wx:if="{{gameStatus === 'lost'}}" class="result-text lost">正确答案: {{targetPlayer.name}}</text>
         <button class="btn-restart" bindtap="onResultRestart">下一局</button>
       </view>
@@ -176,40 +152,20 @@
       <view class="th col-country">国家</view>
       <view class="th col-age">年龄</view>
       <view class="th col-pos">位置</view>
-      <view class="th col-major">Major次数</view>
+      <view class="th col-major">Major</view>
     </view>
 
-    <!-- Guesses List -->
-    <scroll-view scroll-y class="guesses-list" enhanced="{{true}}" show-scrollbar="{{false}}" enable-passive="{{true}}" scroll-with-animation="{{false}}">
+    <scroll-view scroll-y class="guesses-list">
       <view class="guess-row" wx:for="{{guesses}}" wx:key="index">
-        <!-- Name -->
-        <view class="td col-name">
-          <text>{{item.player.name}}</text>
-        </view>
-        
-        <!-- Team -->
-        <view class="td col-team {{item.status.team}}">
-          <text>{{item.player.team}}</text>
-        </view>
-        
-        <!-- Country -->
-        <view class="td col-country {{item.status.country}}">
-          <text>{{item.player.country}}</text>
-        </view>
-        
-        <!-- Age -->
+        <view class="td col-name"><text>{{item.player.name}}</text></view>
+        <view class="td col-team {{item.status.team}}"><text>{{item.player.team}}</text></view>
+        <view class="td col-country {{item.status.country}}"><text>{{item.player.country}}</text></view>
         <view class="td col-age {{item.status.age}}">
           <text>{{item.player.age}}</text>
           <text wx:if="{{item.status.ageDir === 'up'}}" class="arrow">↑</text>
           <text wx:if="{{item.status.ageDir === 'down'}}" class="arrow">↓</text>
         </view>
-
-        <!-- Position -->
-        <view class="td col-pos {{item.status.position}}">
-          <text>{{item.player.position}}</text>
-        </view>
-
-        <!-- Major Appearances -->
+        <view class="td col-pos {{item.status.position}}"><text>{{item.player.position}}</text></view>
         <view class="td col-major {{item.status.major}}">
           <text>{{item.player.majorAppearances}}</text>
           <text wx:if="{{item.status.majorDir === 'up'}}" class="arrow">↑</text>
@@ -218,39 +174,22 @@
       </view>
     </scroll-view>
 
-    <!-- Attempts Indicator (only show for non-unlimited mode) -->
-    <view class="attempts-indicator" wx:if="{{gameMode !== 'personal'}}">
-      <view
-        class="attempt-box {{index < (10 - attemptsLeft) ? (gameStatus === 'won' && index === (10 - attemptsLeft - 1) ? 'success' : 'used') : ''}}"
-        wx:for="{{10}}"
-        wx:key="*this"
-      ></view>
-    </view>
-
-    <!-- Give Up Button - Personal Mode (页面底端) -->
     <button class="btn-give-up" wx:if="{{gameStatus === 'playing' && gameMode === 'personal'}}" bindtap="onGiveUp">服了，认输</button>
-
   </view>
 
-  <!-- PK 等待对手准备下一局 -->
-  <view class="modal-mask" wx:if="{{showPkWaittingNext}}" style="z-index: 100;">
+  <!-- PK 等待下一局 -->
+  <view class="modal-mask" wx:if="{{showPkWaittingNext}}" style="z-index:100;">
     <view class="modal-content">
       <view class="modal-title">等待对手</view>
       <view class="modal-body" style="text-align:center;">
-        <text style="display:block;margin:20rpx 0;font-size:28rpx;color:var(--text-secondary);">
-          {{myReady ? '已准备，等待对手点击再来一局...' : '准备中...'}}
-        </text>
-        <text style="display:block;margin:10rpx 0;font-size:24rpx;color:var(--text-muted);">
-          第 {{pkRound}} 局
-        </text>
+        <text style="display:block;margin:20rpx 0;font-size:28rpx;color:var(--text-secondary);">{{myReady ? '已准备，等待对手点击再来一局...' : '准备中...'}}</text>
+        <text style="display:block;margin:10rpx 0;font-size:24rpx;color:var(--text-muted);">第 {{pkRound}} 局</text>
       </view>
-      <view class="modal-footer">
-        <button class="btn-secondary" bindtap="onCancelWaitNext">取消等待</button>
-      </view>
+      <view class="modal-footer"><button class="btn-secondary" bindtap="onCancelWaitNext">取消等待</button></view>
     </view>
   </view>
 
-  <!-- Result Modal（猜对/猜错后弹出，点击空白可关闭） -->
+  <!-- Result Modal -->
   <view class="modal-mask" wx:if="{{showResultModal}}" bindtap="onResultMaskTap">
     <view class="modal-content" catchtap="onResultContentTap">
       <view class="modal-title">{{resultTitle}}</view>
@@ -265,9 +204,7 @@
           </view>
         </view>
       </view>
-      <view class="modal-footer">
-        <button class="btn-primary" bindtap="onResultRestart">再来一局</button>
-      </view>
+      <view class="modal-footer"><button class="btn-primary" bindtap="onResultRestart">再来一局</button></view>
     </view>
   </view>
 
@@ -275,36 +212,19 @@
   <view class="modal-mask" wx:if="{{showHintModal}}" bindtap="onHintMaskTap">
     <view class="modal-content hint-modal" catchtap="onHintContentTap">
       <view class="modal-title">💡 提示</view>
-      <view class="modal-body hint-body">
-        <text class="hint-text">{{hintContent}}</text>
-      </view>
-      <view class="modal-footer">
-        <button class="btn-primary hint-ok-btn" bindtap="onHintMaskTap">我知道了</button>
-      </view>
+      <view class="modal-body hint-body"><text class="hint-text">{{hintContent}}</text></view>
+      <view class="modal-footer"><button class="btn-primary hint-ok-btn" bindtap="onHintMaskTap">我知道了</button></view>
     </view>
   </view>
 
-  <!-- 玩法说明弹窗 -->
+  <!-- 玩法说明弹窗（含难度介绍） -->
   <view class="modal-mask" wx:if="{{showRulesModal}}" bindtap="onRulesMaskTap">
-    <view class="modal-content" catchtap="onRulesContentTap">
-      <view class="modal-title">玩法说明</view>
+    <view class="modal-content rules-modal" catchtap="onRulesContentTap">
+      <view class="modal-title">📖 玩法说明</view>
       <view class="modal-body rules-body">
         <text class="rules-text">{{rulesContent}}</text>
       </view>
-      <view class="modal-footer">
-        <button class="btn-primary" bindtap="onRulesClose">知道了</button>
-      </view>
+      <view class="modal-footer"><button class="btn-primary" bindtap="onRulesClose">知道了</button></view>
     </view>
   </view>
-  <!-- Ad Modal (预留) 暂时注释掉，广告是很之后的事 -->
-  <!-- <view class="modal-mask" wx:if="{{showAdModal}}">
-    <view class="modal-content">
-      <view class="modal-title">观看广告开始下一局？</view>
-      <view class="modal-body">每日免费次数已用完，观看视频获取更多机会。</view>
-      <view class="modal-footer">
-        <button class="btn-secondary" bindtap="onSkipAd">跳过(测试)</button>
-        <button class="btn-primary" bindtap="onWatchAd">观看视频</button>
-      </view>
-    </view>
-  </view> -->
 </view>

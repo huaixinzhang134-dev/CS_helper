@@ -353,28 +353,28 @@ router.post('/rooms/:id/next-round', async (req, res, next) => {
 // ======================== 工具函数 ========================
 
 /**
- * 根据难度从 player 表中随机选一个目标选手
- * trivial：选手现役队伍在世界排名前30的战队中
- * easy：   major_appearances >= 5（不限职业状态）
- * hard：有现役队伍即可（含无排名战队）
- * hell：所有选手（含自由人/退役）
+ * 根据难度从 player 表中随机选一个目标选手（6档难度）
  */
 async function selectTargetPlayer(difficulty) {
   let sql;
   if (difficulty === 'trivial') {
-    sql = `SELECT p.* FROM player p
-           WHERE p.current_team IN (
-             SELECT team_name FROM (SELECT team_name FROM team_ranking ORDER BY ranking ASC LIMIT 20) AS top20
-           )
+    sql = `SELECT DISTINCT p.* FROM player p
+           INNER JOIN team_ranking r ON r.team_name = p.current_team
+           WHERE p.status = 'active' AND r.ranking <= 10
            ORDER BY RAND() LIMIT 1`;
   } else if (difficulty === 'easy') {
     sql = `SELECT * FROM player
-           WHERE major_appearances >= 5
+           WHERE major_appearances > 5 AND current_team != '' AND status = 'active'
+           ORDER BY RAND() LIMIT 1`;
+  } else if (difficulty === 'normal') {
+    sql = `SELECT DISTINCT p.* FROM player p
+           INNER JOIN team_ranking r ON r.team_name = p.current_team
+           WHERE p.status = 'active' AND r.ranking <= 30
            ORDER BY RAND() LIMIT 1`;
   } else if (difficulty === 'hard') {
-    sql = `SELECT * FROM player
-           WHERE current_team IS NOT NULL AND current_team != ''
-           ORDER BY RAND() LIMIT 1`;
+    sql = `SELECT * FROM player WHERE major_appearances > 5 ORDER BY RAND() LIMIT 1`;
+  } else if (difficulty === 'hell') {
+    sql = `SELECT * FROM player WHERE major_appearances > 0 ORDER BY RAND() LIMIT 1`;
   } else {
     sql = 'SELECT * FROM player ORDER BY RAND() LIMIT 1';
   }
@@ -382,7 +382,6 @@ async function selectTargetPlayer(difficulty) {
   try {
     const [rows] = await query(sql);
     if (rows.length === 0) {
-      // 兜底：去掉所有条件再试
       const [fallback] = await query('SELECT * FROM player ORDER BY RAND() LIMIT 1');
       return fallback[0] || null;
     }

@@ -479,12 +479,16 @@ const App = {
   // ==================== 猜一猜 ====================
   renderGuess(container) {
     let state = this.state.guess || (this.state.guess = {});
+    if (!state._rulesShownOnce) {
+      state._rulesShownOnce = true;
+      setTimeout(() => this._showGuessRules(), 300);
+    }
     container.innerHTML = `
       <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
         <div><h1>弗一把</h1><span class="subtitle">猜选手游戏</span></div>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-ghost btn-sm" onclick="App.state.guess={};App.renderGuess(document.getElementById('pageContent'))">新游戏</button>
-          <button class="btn btn-ghost btn-sm" id="guessRulesBtn" onclick="App._showGuessRules()">玩法</button>
+          <button class="btn btn-ghost btn-sm" onclick="App._showGuessRules()">玩法</button>
         </div>
       </div>
       <div id="guessContent">
@@ -501,17 +505,19 @@ const App = {
           <h3 style="margin-bottom:12px;">选择模式</h3>
           <div style="display:flex;gap:8px;justify-content:center;">
             <button class="btn ${state.mode==='personal'?'btn-success':'btn-ghost'}" onclick="App.state.guess.mode='personal';App.renderGuess(document.getElementById('pageContent'))">个人练习</button>
-            <button class="btn ${state.mode==='friend'?'btn-success':'btn-ghost'}" onclick="App.showMiniProgramPrompt()">好友PK</button>
+            <button class="btn btn-ghost" onclick="App.showMiniProgramPrompt()">好友PK</button>
           </div>
         </div>
         ${state.mode ? `
         <div>
           <h3 style="margin-bottom:12px;">选择难度</h3>
-          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-            <button class="btn ${state.difficulty==='trivial'?'btn-success':'btn-ghost'}" onclick="App._startGuess('trivial')">🌱 极简</button>
-            <button class="btn ${state.difficulty==='easy'?'btn-success':'btn-ghost'}" onclick="App._startGuess('easy')">🌟 简单</button>
-            <button class="btn ${state.difficulty==='hard'?'btn-success':'btn-ghost'}" onclick="App._startGuess('hard')">⚔️ 困难</button>
-            <button class="btn ${state.difficulty==='hell'?'btn-success':'btn-ghost'}" onclick="App._startGuess('hell')">💀 地狱</button>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;max-width:600px;margin:0 auto;">
+            <button class="btn ${state.difficulty==='trivial'?'btn-success':'btn-ghost'}" onclick="App._startGuess('trivial')" style="margin:4px;min-width:120px;">🌱 极简<span style="font-size:11px;display:block;color:var(--text-muted);">排名前10队伍的选手</span></button>
+            <button class="btn ${state.difficulty==='easy'?'btn-success':'btn-ghost'}" onclick="App._startGuess('easy')" style="margin:4px;min-width:120px;">🌟 简单<span style="font-size:11px;display:block;color:var(--text-muted);">Major>5次有战队选手</span></button>
+            <button class="btn ${state.difficulty==='normal'?'btn-success':'btn-ghost'}" onclick="App._startGuess('normal')" style="margin:4px;min-width:120px;">⚔️ 普通<span style="font-size:11px;display:block;color:var(--text-muted);">排名前30队伍的选手</span></button>
+            <button class="btn ${state.difficulty==='hard'?'btn-success':'btn-ghost'}" onclick="App._startGuess('hard')" style="margin:4px;min-width:120px;">🔥 困难<span style="font-size:11px;display:block;color:var(--text-muted);">Major>5次含退役</span></button>
+            <button class="btn ${state.difficulty==='hell'?'btn-success':'btn-ghost'}" onclick="App._startGuess('hell')" style="margin:4px;min-width:120px;">💀 炼狱<span style="font-size:11px;display:block;color:var(--text-muted);">Major>0次无论是否现役</span></button>
+            <button class="btn ${state.difficulty==='challenge'?'btn-success':'btn-ghost'}" onclick="App._startGuess('challenge')" style="margin:4px;min-width:120px;">🏆 挑战<span style="font-size:11px;display:block;color:var(--text-muted);">所有选手无限制</span></button>
           </div>
         </div>` : ''}
       </div>
@@ -698,14 +704,32 @@ const App = {
   },
 
   _showGuessRules() {
-    alert(`猜选手游戏：点击搜索框输入选手ID（无大小写区分），选择你要猜测的选手，根据下方的信息提示猜出正确选手吧！
-
-绿色：该选手的此项信息正确
-黄色：该选手的此项信息接近正确（战队黄色→目标选手在该战队待过；国籍黄色→同V社赛区；年龄/Major差≤3）
-无色：该选手的此项信息不正确
-
-数值信息的上下箭头表示更大/更小
-选手位置包括：步枪手、狙击手、教练`);
+    var existing = document.getElementById('guessRulesModal');
+    if (existing) existing.remove();
+    var div = document.createElement('div');
+    div.id = 'guessRulesModal';
+    div.className = 'modal-mask';
+    div.style.cssText = 'display:flex;z-index:300;';
+    div.innerHTML = '<div class="modal-content" style="max-width:480px;">'
+      + '<div class="modal-title" style="font-size:18px;">📖 玩法说明</div>'
+      + '<div class="modal-body" style="text-align:left;white-space:pre-line;line-height:1.8;font-size:13px;max-height:60vh;overflow-y:auto;">'
+      + '🎮 选手猜猜看游戏\\n通过搜索选手并对比信息，猜出系统选中的目标选手！\\n\\n'
+      + '🟢 绿色 = 该信息正确\\n'
+      + '🟡 黄色 = 接近正确（战队→曾效力；国籍→同赛区；年龄/Major差≤3）\\n'
+      + '⚪ 无色 = 不正确\\n↑↓ 箭头表示数值比目标大/小\\n\\n'
+      + '📊 难度说明（共6档）\\n'
+      + '  极简：排名前10队伍的选手（不含教练）\\n'
+      + '  简单：Major>5次有战队选手（不含教练）\\n'
+      + '  普通：排名前30队伍的选手（不含教练）\\n'
+      + '  困难：Major>5次（含教练/自由人/退役）\\n'
+      + '  炼狱：Major>0次（无论是否现役）\\n'
+      + '  挑战：所有选手无限制'
+      + '</div>'
+      + '<div class="modal-footer" style="justify-content:center;">'
+      + '<button class="btn" onclick="this.closest(\'.modal-mask\').remove()">知道了</button>'
+      + '</div></div>';
+    div.addEventListener('click', function(e) { if (e.target === div) div.remove(); });
+    document.body.appendChild(div);
   },
 
   // ==================== 选手列表 ====================

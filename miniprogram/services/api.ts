@@ -587,6 +587,17 @@ export const submitGuessRecord = async (data: {
 };
 
 /**
+ * 获取各难度猜对次数（用于解锁判断）
+ */
+export const fetchDifficultyProgress = async (): Promise<{
+  success: boolean;
+  data: { difficulty: string; correctCount: number; unlocked: boolean; needPrevCorrect: number }[];
+}> => {
+  const res = await getAuth<any>('/users/guess/difficulty-progress');
+  return { success: !!res.data, data: res.data || [] };
+};
+
+/**
  * 获取排行榜（PK 或 Solo 胜率）
  */
 export const fetchRanking = async (
