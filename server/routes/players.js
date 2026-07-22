@@ -73,7 +73,7 @@ router.get('/', async (req, res, next) => {
  */
 router.get('/pool', async (req, res, next) => {
   try {
-    const difficulty = req.query.difficulty || 'hell';
+    const difficulty = req.query.difficulty || 'challenge';
     let sql;
     if (difficulty === 'trivial') {
       sql = `SELECT DISTINCT p.* FROM player p
@@ -187,21 +187,33 @@ router.get('/random', async (req, res, next) => {
  */
 router.get('/random-by-difficulty', async (req, res, next) => {
   try {
-    const difficulty = req.query.difficulty || 'hell';
+    const difficulty = req.query.difficulty || 'challenge';
     let sql;
     if (difficulty === 'trivial') {
       sql = `SELECT DISTINCT p.* FROM player p
              INNER JOIN team_ranking r ON r.team_name = p.current_team
-             WHERE p.status IN ('active','coach')
-               AND r.ranking <= 20
+             WHERE p.status = 'active'
+               AND r.ranking <= 10
              ORDER BY RAND() LIMIT 1`;
     } else if (difficulty === 'easy') {
       sql = `SELECT * FROM player
-             WHERE major_appearances >= 5
+             WHERE major_appearances > 5
+               AND current_team != ''
+               AND status = 'active'
+             ORDER BY RAND() LIMIT 1`;
+    } else if (difficulty === 'normal') {
+      sql = `SELECT DISTINCT p.* FROM player p
+             INNER JOIN team_ranking r ON r.team_name = p.current_team
+             WHERE p.status = 'active'
+               AND r.ranking <= 30
              ORDER BY RAND() LIMIT 1`;
     } else if (difficulty === 'hard') {
       sql = `SELECT * FROM player
-             WHERE status IN ('active','coach','free_agent')
+             WHERE major_appearances > 5
+             ORDER BY RAND() LIMIT 1`;
+    } else if (difficulty === 'hell') {
+      sql = `SELECT * FROM player
+             WHERE major_appearances > 0
              ORDER BY RAND() LIMIT 1`;
     } else {
       sql = 'SELECT * FROM player ORDER BY RAND() LIMIT 1';
