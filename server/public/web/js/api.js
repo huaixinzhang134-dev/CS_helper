@@ -76,9 +76,10 @@ const API = {
     return { success: res.code === 0, data: res.data || null };
   },
 
-  async searchPlayers(keyword, page = 0, pageSize = 20) {
+  async searchPlayers(keyword, page = 0, pageSize = 20, difficulty) {
     if (!keyword || !keyword.trim()) return { success: true, data: [], hasMore: false, total: 0 };
-    const qs = `q=${encodeURIComponent(keyword)}&page=${page}&pageSize=${pageSize}`;
+    let qs = `q=${encodeURIComponent(keyword)}&page=${page}&pageSize=${pageSize}`;
+    if (difficulty) qs += `&difficulty=${encodeURIComponent(difficulty)}`;
     const res = await fetch(`/api/players/search?${qs}`);
     const json = await res.json();
     if (json.code === 0) {

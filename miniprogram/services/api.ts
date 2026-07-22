@@ -229,18 +229,22 @@ export const fetchPlayerCount = async (): Promise<{ success: boolean; data: { to
 
 /**
  * 模糊搜索选手（name / real_name / game_id 前缀匹配）
+ * @param difficulty 可选，限定到指定难度选手池
  */
 export const searchPlayers = async (
   keyword: string,
   page: number = 0,
-  pageSize: number = 20
+  pageSize: number = 20,
+  difficulty?: string
 ): Promise<{ success: boolean; data: Player[]; hasMore: boolean; total?: number }> => {
   if (!keyword || !keyword.trim()) {
     return { success: true, data: [], hasMore: false };
   }
   // 手动请求以获取响应根层级的 total / hasMore（get 封装会丢失它们）
   return new Promise((resolve) => {
-    const qs = queryString({ q: keyword, page, pageSize });
+    const params: Record<string, any> = { q: keyword, page, pageSize };
+    if (difficulty) params.difficulty = difficulty;
+    const qs = queryString(params);
     wx.request({
       url: `${API_BASE}/players/search${qs}`,
       method: 'GET',

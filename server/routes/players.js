@@ -235,7 +235,7 @@ router.get('/random-by-difficulty', async (req, res, next) => {
 });
 
 /**
- * GET /api/players/search?q=&page=0&pageSize=20
+ * GET /api/players/search?q=&page=0&pageSize=20&difficulty=trivial
  * 前缀匹配 name / real_name / game_id
  *
  * 高级搜索参数（可选，与 q 可同时使用）：
@@ -245,6 +245,7 @@ router.get('/random-by-difficulty', async (req, res, next) => {
  *   country    — 国家（模糊匹配）
  *   team       — 所属战队（模糊匹配）
  *   formerTeam — 历史战队（搜索 former_teams JSON 数组）
+ *   difficulty — 可选，限定搜索范围到当前难度选手池
  *   当 q 和高级参数都未提供时返回空数组
  */
 router.get('/search', async (req, res, next) => {
@@ -256,6 +257,7 @@ router.get('/search', async (req, res, next) => {
     const country = (req.query.country || '').trim();
     const team = (req.query.team || '').trim();
     const formerTeam = (req.query.formerTeam || '').trim();
+    const difficulty = (req.query.difficulty || '').trim();
 
     const page = Math.max(parseInt(req.query.page || '0', 10), 0);
     const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
@@ -268,6 +270,8 @@ router.get('/search', async (req, res, next) => {
     // 动态构建 WHERE
     const conditions = [];
     const params = [];
+    let fromClause = 'player';
+    let joinClause = '';
 
     if (q) {
       const like = `${q}%`;
@@ -332,19 +336,39 @@ router.get('/search', async (req, res, next) => {
       params.push(formerTeam);
     }
 
+    // 可选：限定搜索到当前难度选手池
+    if (difficulty === 'trivial') {
+      fromClause = 'player p';
+      joinClause = 'INNER JOIN team_ranking r ON r.team_name = p.current_team';
+      conditions.push("p.status = 'active'", "p.position != 'coach'", 'r.ranking <= 10');
+    } else if (difficulty === 'easy') {
+      conditions.push("status = 'active'", "position != 'coach'", 'major_appearances > 5', "current_team != ''");
+    } else if (difficulty === 'normal') {
+      fromClause = 'player p';
+      joinClause = 'INNER JOIN team_ranking r ON r.team_name = p.current_team';
+      conditions.push("p.status = 'active'", "p.position != 'coach'", 'r.ranking <= 30');
+    } else if (difficulty === 'hard') {
+      conditions.push('major_appearances > 5');
+    } else if (difficulty === 'hell') {
+      conditions.push('major_appearances > 0');
+    }
+    // challenge 和未知难度不附加过滤
+
     const whereClause = conditions.join(' AND ');
+    const fromWithJoin = joinClause ? `${fromClause} ${joinClause}` : fromClause;
     const offset = page * pageSize;
 
     // 先查总数
     const [countRows] = await query(
-      `SELECT COUNT(*) AS total FROM player WHERE ${whereClause}`,
+      `SELECT COUNT(*) AS total FROM ${fromWithJoin} WHERE ${whereClause}`,
       params
     );
     const total = countRows[0].total;
 
     // 再查分页
+    const selectCols = fromClause === 'player p' ? 'p.*' : '*';
     const [rows] = await query(
-      `SELECT * FROM player WHERE ${whereClause} ORDER BY id ASC LIMIT ${pageSize} OFFSET ${offset}`,
+      `SELECT ${selectCols} FROM ${fromWithJoin} WHERE ${whereClause} ORDER BY id ASC LIMIT ${pageSize} OFFSET ${offset}`,
       params
     );
 

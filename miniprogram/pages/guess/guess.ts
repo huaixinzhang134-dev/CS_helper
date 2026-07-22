@@ -464,7 +464,7 @@ Page({
     (this as any).searchTimer = setTimeout(async () => {
       const q = (this.data as any)._pendingQuery || query;
       this.setData({ searchQuery: q, searchPage: 0, searchResults: [], searchLoading: true });
-      const res = await searchPlayers(q, 0, 20);
+      const res = await searchPlayers(q, 0, 20, this.data.difficulty);
       if (res.success && res.data.length > 0) {
         this.setData({ searchResults: res.data.map(p => ({ ...p, avatarUrl: normalizeAvatarUrl(p.avatar) })), searchPage: 0, searchHasMore: res.hasMore, searchLoading: false });
       } else { this.setData({ searchResults: [], searchHasMore: false, searchLoading: false }); }
@@ -475,7 +475,7 @@ Page({
     const { searchQuery, searchPage, searchHasMore, searchLoading } = this.data;
     if (!searchQuery || !searchHasMore || searchLoading) return;
     this.setData({ searchLoading: true });
-    searchPlayers(searchQuery, searchPage + 1, 20).then(res => {
+    searchPlayers(searchQuery, searchPage + 1, 20, this.data.difficulty).then(res => {
       if (res.success && res.data.length > 0) {
         this.setData({ searchResults: [...this.data.searchResults, ...res.data.map(p => ({ ...p, avatarUrl: normalizeAvatarUrl(p.avatar) }))], searchPage: searchPage + 1, searchHasMore: res.hasMore, searchLoading: false });
       } else { this.setData({ searchHasMore: false, searchLoading: false }); }

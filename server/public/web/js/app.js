@@ -607,7 +607,8 @@ const App = {
     const state = this.state.guess;
     if (this._guessTimer) clearTimeout(this._guessTimer);
     this._guessTimer = setTimeout(async () => {
-      const res = await API.searchPlayers(query, 0, 20);
+      const diff = this.state.guess.difficulty || '';
+      const res = await API.searchPlayers(query, 0, 20, diff);
       if (res.success && res.data.length) {
         results.innerHTML = '<div class="search-results">' +
           res.data.map(p => `<div class="search-result-item" onclick="App._guessSelect('${esc(p.playerId)}')">
