@@ -3,7 +3,7 @@
  * 上排：赛事中心/猜一猜/选手资料库
  * 下排：商城/我的
  */
-const VERSION = 'v1.5.0';
+const VERSION = 'v1.5.1';
 const VERSION_STORAGE_KEY = 'home_version_shown';
 
 Page({
@@ -13,11 +13,11 @@ Page({
     updateContent: `欢迎也感谢各位使用云雪CS助手${VERSION}！
 本次更新内容如下：
 
-1. 优化了版本更新弹窗的显示逻辑，现在每次进入首页都会检测弹窗，不再有部分设备不显示的问题
+1. 修复了部分真机上版本更新弹窗不显示的问题，现在小程序和网页端均可正常显示
 
-2. 网页端已同步更新，新增了版本更新公告弹窗功能，以及关于我们页面
+2. 网页端关于我们弹窗优化，改为页面内弹窗，体验更佳
 
-3. 在"关于我们"中增加了联系方式，方便大家反馈问题
+3. 在"关于我们"中增加了联系方式（联系电话：15909235312），方便大家反馈问题
 
 4. 修复了若干已知问题，提升了整体稳定性`,
 
@@ -77,8 +77,14 @@ Page({
    * 检查并显示版本更新公告
    */
   checkShowUpdate() {
-    const shown = wx.getStorageSync(VERSION_STORAGE_KEY);
-    if (shown !== VERSION) {
+    try {
+      const shown = wx.getStorageSync(VERSION_STORAGE_KEY);
+      // 确保类型安全比较：空值/未定义/类型不匹配都视作未读
+      if (shown === '' || shown === undefined || shown === null || shown !== VERSION) {
+        this.setData({ showUpdateModal: true });
+      }
+    } catch (e) {
+      console.warn('[版本检测] 读取存储失败，默认显示更新公告', e);
       this.setData({ showUpdateModal: true });
     }
   },

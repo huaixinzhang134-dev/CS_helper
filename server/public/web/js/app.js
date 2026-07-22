@@ -35,7 +35,31 @@ const App = {
   },
 
   _showAbout() {
-    alert('云雪CS助手 - 为CS玩家提供赛事查询、选手资料、竞猜互动等服务。\n\n联系电话：15909235312');
+    // 移除已存在的弹窗
+    const existing = document.getElementById('aboutModalOverlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'aboutModalOverlay';
+    overlay.className = 'modal-mask';
+    overlay.style.cssText = 'display:flex;z-index:300;';
+    overlay.innerHTML = `
+      <div class="modal-content" style="max-width:400px;text-align:center;">
+        <div class="modal-title" style="font-size:18px;margin-bottom:16px;">关于我们</div>
+        <div class="modal-body" style="white-space:pre-line;line-height:1.8;font-size:14px;">
+云雪CS助手 - 为CS玩家提供赛事查询、选手资料、竞猜互动等服务。
+
+联系电话：15909235312
+        </div>
+        <div class="modal-footer" style="justify-content:center;margin-top:16px;">
+          <button class="btn" onclick="this.closest('.modal-mask').remove()">关闭</button>
+        </div>
+      </div>
+    `;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+    document.body.appendChild(overlay);
   },
 
   // ==================== 路由 ====================
@@ -92,7 +116,7 @@ const App = {
   },
 
   // ==================== 首页 ====================
-  _homeVersion: 'v1.5.0',
+  _homeVersion: 'v1.5.1',
   _homeVersionKey: 'web_home_version_shown',
 
   renderHome(container) {
@@ -148,11 +172,11 @@ const App = {
 欢迎也感谢各位使用云雪CS助手${this._homeVersion}！
 本次更新内容如下：
 
-1. 优化了版本更新弹窗的显示逻辑，现在每次进入首页都会检测弹窗，不再有部分设备不显示的问题
+1. 修复了部分真机上版本更新弹窗不显示的问题，现在小程序和网页端均可正常显示
 
-2. 网页端已同步更新，新增了版本更新公告弹窗功能，以及关于我们页面
+2. 网页端关于我们弹窗优化，改为页面内弹窗，体验更佳
 
-3. 在"关于我们"中增加了联系方式，方便大家反馈问题
+3. 在"关于我们"中增加了联系方式（联系电话：15909235312），方便大家反馈问题
 
 4. 修复了若干已知问题，提升了整体稳定性
           </div>
