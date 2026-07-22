@@ -915,16 +915,9 @@ const App = {
     container.innerHTML = `
       <div class="page-header"><h1>我的</h1></div>
       <div class="user-header" style="flex-direction:column;text-align:center;padding:40px;">
-        <div style="margin:16px auto;width:160px;height:160px;background:#f0f0f0;border-radius:12px;display:flex;align-items:center;justify-content:center;border:2px dashed var(--border);">
-          <div style="text-align:center;color:var(--text-muted);font-size:12px;">
-            <div style="font-size:40px;margin-bottom:8px;">📱</div>
-            <div>微信小程序码</div>
-            <div style="font-size:10px;margin-top:4px;">（替换为实际小程序码图片）</div>
-          </div>
-        </div>
-        <h3 style="margin:12px 0 8px;">使用微信小程序</h3>
-        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">竞猜记录、代币管理、个人设置等<br>请在微信小程序中操作</p>
-        <p style="font-size:12px;color:var(--text-muted);">打开微信 → 搜索「云雪CS助手」</p>
+        <img src="/images/xcx-code.jpg" alt="微信小程序码" style="width:180px;height:180px;border-radius:12px;margin:16px auto;display:block;">
+        <h3 style="margin:12px 0 8px;">微信扫一扫</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">或搜索「云雪CS助手」进入小程序</p>
       </div>
       <div class="menu-list" style="margin-top:12px;max-width:400px;margin-left:auto;margin-right:auto;">
         <div class="menu-item" onclick="App._showAbout()">
