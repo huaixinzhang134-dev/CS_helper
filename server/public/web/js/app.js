@@ -116,7 +116,7 @@ const App = {
   },
 
   // ==================== 首页 ====================
-  _homeVersion: 'v1.5.1',
+  _homeVersion: 'v1.4.2',
   _homeVersionKey: 'web_home_version_shown',
 
   renderHome(container) {
@@ -170,15 +170,13 @@ const App = {
           <div class="modal-title" style="text-align:center;font-size:20px;">📢 版本更新公告</div>
           <div class="modal-body" style="max-height:50vh;overflow-y:auto;white-space:pre-line;line-height:1.8;font-size:14px;">
 欢迎也感谢各位使用云雪CS助手${this._homeVersion}！
-本次更新内容如下：
+本次更新如下内容：
 
-1. 修复了部分真机上版本更新弹窗不显示的问题，现在小程序和网页端均可正常显示
+1. 修复了战队排行榜无法正确显示战队赛区的问题
 
-2. 网页端关于我们弹窗优化，改为页面内弹窗，体验更佳
+2. 重构了难度选择，更偏向大众化，只有确保能够猜对较简单模式才会解锁高难模式
 
-3. 在"关于我们"中增加了联系方式（联系电话：15909235312），方便大家反馈问题
-
-4. 修复了若干已知问题，提升了整体稳定性
+3. 新上网页版助手：https://cshelper.yxcshelper.top/
           </div>
           <div class="modal-footer" style="justify-content:center;">
             <button class="btn" onclick="App._dismissHomeUpdate()">我收到</button>
