@@ -34,7 +34,7 @@ def main():
             if not line:
                 continue
             p = json.loads(line)
-            pid = p.get("name", "")  # HLTV nickname = game_id
+            pid = p.get("_id", "")  # HLTV 数字 ID = game_id
             s = p.get("status", "")
             if pid and s:
                 status_map[pid] = s
