@@ -21,7 +21,7 @@ Page({
 
 4. 修复了若干已知问题，提升了整体稳定性`,
 
-    // 上排三个
+    // 上排两个大框
     topMenus: [
       {
         id: 'events',
@@ -37,6 +37,9 @@ Page({
         page: '/pages/guess/guess',
         isTab: true,
       },
+    ],
+    // 下排三个小框
+    bottomMenus: [
       {
         id: 'players',
         title: '选手资料库',
@@ -44,9 +47,6 @@ Page({
         page: '/pages/player/list',
         isTab: true,
       },
-    ],
-    // 下排两个
-    bottomMenus: [
       {
         id: 'shop',
         title: '道具商城',

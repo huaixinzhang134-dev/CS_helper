@@ -67,16 +67,20 @@
   margin-bottom: 24rpx;
 }
 
-/* ========== 方框样式（上排三个） ========== */
-.item-third {
+/* ========== 方框样式（上排两个大框） ========== */
+.item-big {
+  width: calc((100% - 24rpx) / 2);
+  aspect-ratio: 2 / 1.2;
+}
+
+/* ========== 方框样式（下排三个小框） ========== */
+.item-small {
   width: calc((100% - 48rpx) / 3);
   aspect-ratio: 1 / 1;
 }
 
-/* ========== 方框样式（下排两个） ========== */
-.item-half {
-  width: calc((100% - 24rpx) / 2);
-  aspect-ratio: 1 / 1;
+.big-title {
+  font-size: 32rpx !important;
 }
 
 /* ========== 通用宫格方框样式 ========== */

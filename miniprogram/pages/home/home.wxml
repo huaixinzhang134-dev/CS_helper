@@ -10,24 +10,24 @@
     <text class="hero-desc">赛事查询 · 选手资料 · 趣味竞猜</text>
   </view>
 
-  <!-- 上排三个 -->
+  <!-- 上排两个大框 -->
   <view class="grid-row row-top">
     <view
-      class="grid-item item-third"
+      class="grid-item item-big"
       wx:for="{{topMenus}}"
       wx:key="id"
       data-item="{{item}}"
       catchtap="onTapMenu"
     >
-      <text class="grid-title">{{item.title}}</text>
+      <text class="grid-title big-title">{{item.title}}</text>
       <text class="grid-desc">{{item.desc}}</text>
     </view>
   </view>
 
-  <!-- 下排两个 -->
+  <!-- 下排三个小框 -->
   <view class="grid-row row-bottom">
     <view
-      class="grid-item item-half"
+      class="grid-item item-small"
       wx:for="{{bottomMenus}}"
       wx:key="id"
       data-item="{{item}}"
