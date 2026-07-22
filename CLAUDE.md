@@ -22,7 +22,6 @@ git push
 ## 部署信息
 | 项目 | 地址 |
 |------|------|
-| Railway 后台 | https://console.railway.app/project/pleasing-warmth |
 | 线上 API | https://cshelper.yxcshelper.top/api |
 | Web 前端（主站） | https://cshelper.yxcshelper.top/ |
 | 管理后台（网页版） | https://cshelper.yxcshelper.top/admin |
