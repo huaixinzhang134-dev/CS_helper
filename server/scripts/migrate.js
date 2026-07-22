@@ -14,11 +14,11 @@ const path = require('path');
 async function main() {
   // 与 server/db/pool.js 一致的连接参数
   const conn = await mysql.createConnection({
-    host: process.env.DB_HOST || process.env.MYSQLHOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '3306', 10),
-    user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
-    password: process.env.DB_PASS || process.env.MYSQLPASSWORD || '',
-    database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'cs_match_pro',
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '3306', 10),
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASS || '',
+    database: process.env.DB_NAME || 'cs_match_pro',
     ssl: process.env.SSL === 'true' ? { rejectUnauthorized: false } : undefined,
     charset: 'utf8mb4',
     multipleStatements: true,  // 允许一个 SQL 文件包含多条语句

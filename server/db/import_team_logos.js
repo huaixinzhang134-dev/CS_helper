@@ -1,5 +1,5 @@
 /**
- * 从 team.sql 文件中提取队标 URL，更新到 Railway 数据库
+ * 从 team.sql 文件中提取队标 URL，更新到数据库
  * 按 team.name 匹配，只更新 logo_url 字段
  *
  * 运行:
@@ -26,13 +26,13 @@ async function main() {
   console.log(`从 SQL 中提取 ${teams.length} 个队伍`);
 
   // 连接数据库
-  console.log(`正在连接 ${process.env.DB_HOST || 'hayabusa.proxy.rlwy.net'}:${process.env.DB_PORT || '16612'} ...`);
+  console.log(`正在连接 ${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || '3306'} ...`);
   const conn = await mysql.createConnection({
-    host: process.env.DB_HOST || process.env.MYSQLHOST || 'hayabusa.proxy.rlwy.net',
-    port: parseInt(process.env.DB_PORT || process.env.MYSQLPORT || '16612', 10),
-    user: process.env.DB_USER || process.env.MYSQLUSER || 'root',
-    password: process.env.DB_PASS || process.env.MYSQLPASSWORD || '',
-    database: process.env.DB_NAME || process.env.MYSQLDATABASE || 'railway',
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '3306', 10),
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASS || '',
+    database: process.env.DB_NAME || 'cs_match_pro',
     ssl: { rejectUnauthorized: false },
     connectTimeout: 15000,
   });

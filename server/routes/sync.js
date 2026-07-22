@@ -18,7 +18,7 @@ const { query } = require('../db/pool');
 
 /**
  * 安全格式化日期：mysql2 timezone=+08:00 将 MySQL DATE 解析为
- * UTC+8 Date 对象，内部 UTC 时间戳回退 8h。Railway Node.js 运行在
+ * UTC+8 Date 对象，内部 UTC 时间戳回退 8h。服务器可能运行在
  * UTC 时区，getDate() 取到的是错误的 UTC 日期。这里手动 +8h 恢复
  * 北京时间，再用 getUTC* 取日期，消除服务器时区影响。
  */

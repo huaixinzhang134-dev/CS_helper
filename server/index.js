@@ -23,7 +23,7 @@ const adminAuthRouter = require('./routes/admin-auth').router;
 const { setupWebSocket } = require('./ws');
 
 const app = express();
-app.enable('trust proxy');  // 信任 Railway 反向代理
+app.enable('trust proxy');  // 信任反向代理（Nginx 等）
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // 中间件

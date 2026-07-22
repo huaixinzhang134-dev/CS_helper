@@ -1,6 +1,6 @@
 -- ============================================================
 -- 更新所有战队队标为 HLTV CDN 正确格式（小尺寸去背景版）
--- 在 Railway MySQL 中执行
+-- 在 MySQL 中执行
 --
 -- 用法：
 --   mysql -h <host> -u <user> -p <database> < server/db/update_team_logos.sql

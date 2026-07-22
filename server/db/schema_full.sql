@@ -1,6 +1,6 @@
 -- ============================================================
 -- CS Match Pro 完整数据库结构（合并版）
--- 用于 Railway MySQL 初始化
+-- 用于阿里云 MySQL 初始化
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS cs_match_pro
@@ -120,6 +120,8 @@ CREATE TABLE IF NOT EXISTS player_comments (
   user_id         VARCHAR(64)     NOT NULL DEFAULT '',
   player_game_id  VARCHAR(64)     NOT NULL,
   content         VARCHAR(500)    NOT NULL,
+  status          ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  reviewed_by     VARCHAR(64)     NULL,
   created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_pc_player (player_game_id),
@@ -164,6 +166,14 @@ CREATE TABLE users (
   win_count       INT UNSIGNED    NOT NULL DEFAULT 0,
   total_games     INT UNSIGNED    NOT NULL DEFAULT 0,
   win_rate        DECIMAL(5,2)    NOT NULL DEFAULT 0.00,
+  pk_win_count    INT UNSIGNED    NOT NULL DEFAULT 0,
+  pk_total_games  INT UNSIGNED    NOT NULL DEFAULT 0,
+  pk_win_rate     DECIMAL(5,2)    NOT NULL DEFAULT 0.00,
+  solo_win_count  INT UNSIGNED    NOT NULL DEFAULT 0,
+  solo_total_games INT UNSIGNED   NOT NULL DEFAULT 0,
+  solo_win_rate   DECIMAL(5,2)    NOT NULL DEFAULT 0.00,
+  coins           INT UNSIGNED    NOT NULL DEFAULT 0,
+  total_coins_earned INT UNSIGNED NOT NULL DEFAULT 0,
   guess_records   JSON            NULL,
   created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -235,3 +245,156 @@ FROM team t
 LEFT JOIN team_member tm
        ON tm.team_id = t.id AND tm.is_current = 1
 GROUP BY t.id, t.name, t.region;
+
+-- ============================================================
+-- 9. 代币交易记录表  coin_transactions
+-- ============================================================
+DROP TABLE IF EXISTS coin_transactions;
+CREATE TABLE coin_transactions (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_openid     VARCHAR(64)     NOT NULL,
+  amount          INT             NOT NULL COMMENT '正数收入/负数支出',
+  balance_after   INT UNSIGNED    NOT NULL COMMENT '交易后余额',
+  type            VARCHAR(32)     NOT NULL COMMENT 'recharge/spend/activity/reward/admin',
+  description     VARCHAR(255)    NOT NULL DEFAULT '',
+  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_ct_user (user_openid),
+  KEY idx_ct_type (type),
+  KEY idx_ct_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='代币交易记录';
+
+-- ============================================================
+-- 10. 商城道具表  shop_items
+-- ============================================================
+DROP TABLE IF EXISTS shop_items;
+CREATE TABLE shop_items (
+  id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  name            VARCHAR(64)     NOT NULL,
+  description     VARCHAR(255)    NOT NULL DEFAULT '',
+  price           INT UNSIGNED    NOT NULL COMMENT '代币价格',
+  icon            VARCHAR(128)    NOT NULL DEFAULT '',
+  item_type       VARCHAR(32)     NOT NULL COMMENT 'hint_ticket/extra_attempt/...',
+  max_per_user    INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT '0=不限',
+  enabled         TINYINT(1)      NOT NULL DEFAULT 1,
+  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_shop_enabled (enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='商城道具';
+
+-- ============================================================
+-- 11. 用户道具库存表  user_items
+-- ============================================================
+DROP TABLE IF EXISTS user_items;
+CREATE TABLE user_items (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_openid     VARCHAR(64)     NOT NULL,
+  item_type       VARCHAR(32)     NOT NULL,
+  quantity        INT UNSIGNED    NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_item (user_openid, item_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='用户道具库存';
+
+-- ============================================================
+-- 12. 选手票选表  user_picks
+-- ============================================================
+DROP TABLE IF EXISTS user_picks;
+CREATE TABLE user_picks (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_openid     VARCHAR(64)     NOT NULL,
+  year            YEAR            NOT NULL COMMENT '猜测年份',
+  slot            TINYINT UNSIGNED NOT NULL COMMENT 'top1~30 序号',
+  submission_no   TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT '当前第几次提交',
+  player_game_id  VARCHAR(64)     NOT NULL DEFAULT '',
+  player_name     VARCHAR(64)     NOT NULL DEFAULT '',
+  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_up_user_slot (user_openid, year, slot),
+  KEY idx_up_player (player_game_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='选手票选（每slot独立，覆盖式提交）';
+
+-- ============================================================
+-- 13. 提交开关表  pick_config
+-- ============================================================
+DROP TABLE IF EXISTS pick_config;
+CREATE TABLE pick_config (
+  id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  year            YEAR            NOT NULL,
+  slot            TINYINT UNSIGNED NOT NULL COMMENT 'top1~30',
+  can_submit      TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '1=可提交 0=已关闭',
+  updated_by      VARCHAR(64)     NULL,
+  updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_pc_year_slot (year, slot)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='提交开关（管理员控制）';
+
+-- ============================================================
+-- 14. 管理员账户表  admin_users
+-- ============================================================
+DROP TABLE IF EXISTS admin_users;
+CREATE TABLE admin_users (
+  id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  username        VARCHAR(64)     NOT NULL,
+  password_hash   VARCHAR(64)     NOT NULL COMMENT 'MD5(password)',
+  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_admin_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='管理员账户';
+
+-- ============================================================
+-- 15. 年度官方Top30  official_top30
+-- ============================================================
+DROP TABLE IF EXISTS official_top30;
+CREATE TABLE official_top30 (
+  id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  year            YEAR            NOT NULL,
+  `rank`          TINYINT UNSIGNED NOT NULL COMMENT '排名 1-30',
+  player_game_id  VARCHAR(64)     NOT NULL DEFAULT '',
+  player_name     VARCHAR(64)     NOT NULL DEFAULT '',
+  set_by          VARCHAR(64)     NULL COMMENT '管理员openid',
+  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_ot_year_rank (year, `rank`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='年度官方Top30（管理员设定）';
+
+-- ============================================================
+-- 16. 发奖记录表  top30_awards
+-- ============================================================
+DROP TABLE IF EXISTS top30_awards;
+CREATE TABLE top30_awards (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  year            YEAR            NOT NULL,
+  user_openid     VARCHAR(64)     NOT NULL,
+  match_count     INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT '猜对人数',
+  reward_coins    INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT '奖励代币',
+  awarded_by      VARCHAR(64)     NULL COMMENT '管理员openid',
+  created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_ta_year_user (year, user_openid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='猜测发奖记录';
+
+-- ============================================================
+-- 默认数据
+-- ============================================================
+INSERT IGNORE INTO admin_users (username, password_hash) VALUES ('admin', MD5('7355608'));
+
+INSERT IGNORE INTO pick_config (year, slot, can_submit) VALUES
+(2026,1,1),(2026,2,1),(2026,3,1),(2026,4,1),(2026,5,1),
+(2026,6,1),(2026,7,1),(2026,8,1),(2026,9,1),(2026,10,1),
+(2026,11,1),(2026,12,1),(2026,13,1),(2026,14,1),(2026,15,1),
+(2026,16,1),(2026,17,1),(2026,18,1),(2026,19,1),(2026,20,1),
+(2026,21,1),(2026,22,1),(2026,23,1),(2026,24,1),(2026,25,1),
+(2026,26,1),(2026,27,1),(2026,28,1),(2026,29,1),(2026,30,1);
+
+INSERT INTO shop_items (name, description, price, icon, item_type, max_per_user) VALUES
+('提示券', '额外提示一次，提示一个你尚未猜对的数据项；若所有数据均已猜对则无法使用', 40, '/assets/icons/hint.png', 'hint_ticket', 0),
+('额外机会', '好友PK模式中增加3次猜测机会（一局有效）', 90, '/assets/icons/extra.png', 'extra_attempt', 0);
