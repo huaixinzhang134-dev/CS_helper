@@ -84,7 +84,7 @@ Page({
 
     // 难度选择
     showDifficultySelection: false,
-    difficulties: [] as any[],
+    difficulties: DIFFICULTIES.map((d, i) => ({ ...d, correctCount: 0, unlocked: i === 0 })),
     difficulty: '' as string,
 
     // 游戏模式
