@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-从 playerbase_clean.json 读取正确的 status 数据并更新 MySQL。
+从 playerbase.json（爬虫原始输出）读取正确的 status 数据并更新 MySQL。
 因为 import_to_sql.py 的 INSERT 语句漏掉了 status 字段。
 
 运行：
@@ -22,7 +22,7 @@ DB_CONFIG = {
     "charset": "utf8mb4",
 }
 
-JSON_PATH = os.path.join(os.path.dirname(__file__), "..", "crawler", "playerbase_clean.json")
+JSON_PATH = os.path.join(os.path.dirname(__file__), "..", "crawler", "playerbase.json")
 
 
 def main():
