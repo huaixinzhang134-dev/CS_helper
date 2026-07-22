@@ -30,6 +30,14 @@ const App = {
     document.getElementById('miniProgramModal').style.display = 'none';
   },
 
+  showMiniProgramPrompt() {
+    document.getElementById('miniProgramModal').style.display = 'flex';
+  },
+
+  _showAbout() {
+    alert('云雪CS助手 - 为CS玩家提供赛事查询、选手资料、竞猜互动等服务。\n\n联系电话：15909235312');
+  },
+
   // ==================== 路由 ====================
   handleRoute() {
     const hash = window.location.hash.slice(1) || 'home';
@@ -84,8 +92,11 @@ const App = {
   },
 
   // ==================== 首页 ====================
+  _homeVersion: 'v1.5.0',
+  _homeVersionKey: 'web_home_version_shown',
+
   renderHome(container) {
-    const version = 'v1.4.0';
+    const showUpdate = !localStorage.getItem(this._homeVersionKey) || localStorage.getItem(this._homeVersionKey) !== this._homeVersion;
     container.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;padding:40px 16px;position:relative;min-height:60vh;">
         <div style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.15;background:url('/beijing.png') center/cover no-repeat;pointer-events:none;"></div>
@@ -128,7 +139,35 @@ const App = {
         </div>
         <p style="margin-top:40px;font-size:12px;color:var(--text-muted);">为CS玩家提供一站式服务</p>
       </div>
+
+      ${showUpdate ? `
+      <div class="modal-mask" id="homeUpdateModal" style="display:flex;z-index:300;">
+        <div class="modal-content" style="max-width:480px;">
+          <div class="modal-title" style="text-align:center;font-size:20px;">📢 版本更新公告</div>
+          <div class="modal-body" style="max-height:50vh;overflow-y:auto;white-space:pre-line;line-height:1.8;font-size:14px;">
+欢迎也感谢各位使用云雪CS助手${this._homeVersion}！
+本次更新内容如下：
+
+1. 优化了版本更新弹窗的显示逻辑，现在每次进入首页都会检测弹窗，不再有部分设备不显示的问题
+
+2. 网页端已同步更新，新增了版本更新公告弹窗功能，以及关于我们页面
+
+3. 在"关于我们"中增加了联系方式，方便大家反馈问题
+
+4. 修复了若干已知问题，提升了整体稳定性
+          </div>
+          <div class="modal-footer" style="justify-content:center;">
+            <button class="btn" onclick="App._dismissHomeUpdate()">我收到</button>
+          </div>
+        </div>
+      </div>` : ''}
     `;
+  },
+
+  _dismissHomeUpdate() {
+    localStorage.setItem(App._homeVersionKey, App._homeVersion);
+    const modal = document.getElementById('homeUpdateModal');
+    if (modal) modal.style.display = 'none';
   },
 
   // ==================== 赛事中心 ====================

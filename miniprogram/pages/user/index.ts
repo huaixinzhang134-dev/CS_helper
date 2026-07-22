@@ -279,7 +279,7 @@ Page({
   onAbout() {
     wx.showModal({
       title: '关于我们',
-      content: '云雪CS助手 - 为CS玩家提供赛事查询、选手资料、竞猜互动等服务。',
+      content: '云雪CS助手 - 为CS玩家提供赛事查询、选手资料、竞猜互动等服务。\n\n联系电话：15909235312',
       showCancel: false
     });
   },

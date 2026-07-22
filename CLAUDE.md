@@ -23,11 +23,11 @@ git push
 | 项目 | 地址 |
 |------|------|
 | Railway 后台 | https://console.railway.app/project/pleasing-warmth |
-| 线上 API | https://cshelper-production.up.railway.app/api |
-| Web 前端（主站） | https://cshelper-production.up.railway.app/ |
-| 管理后台（网页版） | https://cshelper-production.up.railway.app/admin |
+| 线上 API | https://cshelper.yxcshelper.top/api |
+| Web 前端（主站） | https://cshelper.yxcshelper.top/ |
+| 管理后台（网页版） | https://cshelper.yxcshelper.top/admin |
 | 管理员账号 | admin / 7355608（数据库 admin_users 表 MD5 存储） |
-| MySQL 连接 | `railway variables` 查看凭据，`mysql.railway.internal` 仅内部可访 |
+| MySQL 连接 | 阿里云轻量服务器 localhost:3306，用户 root，密码见 .env |
 
 ## 数据库表（共 16 表 + 2 视图）
 
@@ -101,7 +101,7 @@ git push
 
 ## 管理后台（网页版 2026-07-14）
 
-- 独立网页：https://cshelper-production.up.railway.app/admin
+- 独立网页：https://cshelper.yxcshelper.top/admin
 - 后端鉴权：`/api/admin/login` 验证 admin_users 表
 - 功能：用户管理、评论审核、猜测管理（开关/Top30设定/核对发奖）
 - 小程序内 admin 页面已改为迁移提示

@@ -2,6 +2,6 @@
   <view class="redirect-box">
     <text class="redirect-title">管理后台已迁移</text>
     <text class="redirect-desc">请通过电脑浏览器访问以下地址进行管理操作：</text>
-    <text class="redirect-url">https://cshelper-production.up.railway.app/admin</text>
+    <text class="redirect-url">https://cshelper.yxcshelper.top/admin</text>
   </view>
 </view>
