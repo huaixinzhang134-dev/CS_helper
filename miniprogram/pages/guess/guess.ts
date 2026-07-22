@@ -226,6 +226,13 @@ Page({
   selectDifficulty(e: any) {
     const diff = e.currentTarget.dataset.diff;
     const item = this.data.difficulties.find((d: any) => d.key === diff);
+    // 好友PK不设难度限制，直接跳过解锁检查
+    if (this.data.gameMode === 'friend') {
+      this.setData({ difficulty: diff, showDifficultySelection: false });
+      if (!this.data.userInfo) this.loginForFriendPK();
+      else this.createPkRoomOnServer(diff);
+      return;
+    }
     if (!item || !item.unlocked) {
       this.setData({
         showLockModal: true,
