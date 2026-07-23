@@ -14,7 +14,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { query } = require('../db/pool');
+const { query: queryNoBinlog } = require('../db/pool');
 
 /**
  * 安全格式化日期：mysql2 timezone=+08:00 将 MySQL DATE 解析为
@@ -44,14 +44,14 @@ async function resolveTeamId(teamName, logoUrl) {
 
   const name = teamName.trim();
 
-  const [rows] = await query('SELECT id, logo_url FROM team WHERE name = ? LIMIT 1', [name]);
+  const [rows] = await queryNoBinlog('SELECT id, logo_url FROM team WHERE name = ? LIMIT 1', [name]);
   if (rows.length > 0) {
     // 不覆盖已有队标：5eplay 的 logo 是 5e 域名，HLTV CDN URL 才是正确的
     // 队标由 ranking.yml 爬虫（crawl_ranking.js）从 HLTV 获取
     return rows[0].id;
   }
 
-  const [result] = await query(
+  const [result] = await queryNoBinlog(
     'INSERT INTO team (name, region, member_count, logo_url) VALUES (?, ?, 0, ?)',
     [name, 'Other', '']  // 新队伍也不写 5eplay 的 logo，等 HLTV 爬虫来补充
   );
@@ -154,19 +154,19 @@ async function resolvePlayerGameId(playerName, teamName) {
   if (!playerName) return '';
   try {
     // 精确匹配：选手名 + 当前战队
-    const [rows] = await query(
+    const [rows] = await queryNoBinlog(
       'SELECT game_id FROM player WHERE name = ? AND current_team = ? LIMIT 1',
       [playerName, teamName]
     );
     if (rows.length > 0) return rows[0].game_id;
     // 模糊匹配：选手名 + 战队名包含
-    const [rows2] = await query(
+    const [rows2] = await queryNoBinlog(
       'SELECT game_id FROM player WHERE name = ? AND current_team LIKE ? LIMIT 1',
       [playerName, `%${teamName}%`]
     );
     if (rows2.length > 0) return rows2[0].game_id;
     // 兜底：仅按选手名匹配
-    const [rows3] = await query(
+    const [rows3] = await queryNoBinlog(
       'SELECT game_id FROM player WHERE name = ? LIMIT 1',
       [playerName]
     );
@@ -184,7 +184,7 @@ async function saveMatchPlayers(matchId, playerStats) {
   if (!Array.isArray(playerStats) || playerStats.length === 0) return;
 
   // 先清除旧数据（支持爬虫重跑）
-  await query('DELETE FROM match_players WHERE match_id = ?', [matchId]);
+  await queryNoBinlog('DELETE FROM match_players WHERE match_id = ?', [matchId]);
 
   let count = 0;
   for (const raw of playerStats) {
@@ -200,7 +200,7 @@ async function saveMatchPlayers(matchId, playerStats) {
     }
 
     try {
-      await query(
+      await queryNoBinlog(
         `INSERT INTO match_players
          (match_id, player_game_id, player_name, team_name,
           kills, deaths, assists, rating, adr, plus_minus, raw_data)
@@ -273,14 +273,14 @@ async function upsertMatch(m, req) {
   let existingId = null;
 
   if (fields.eplay_id) {
-    const [rows] = await query('SELECT id FROM matches WHERE eplay_id = ? LIMIT 1', [fields.eplay_id]);
+    const [rows] = await queryNoBinlog('SELECT id FROM matches WHERE eplay_id = ? LIMIT 1', [fields.eplay_id]);
     if (rows.length > 0) existingId = rows[0].id;
   }
 
   // ----- 3. 无 eplay_id 或没找到，按 (date, team1, team2) 回退匹配 -----
   //     不排除 legacy 行，防止爬虫时间修改后重复插入
   if (!existingId && fields.match_date && team1Id && team2Id) {
-    const [rows] = await query(
+    const [rows] = await queryNoBinlog(
       `SELECT id FROM matches
        WHERE match_date = ? AND team1_id = ? AND team2_id = ?
        ORDER BY match_time = ? DESC, id DESC
@@ -296,7 +296,7 @@ async function upsertMatch(m, req) {
 
   if (existingId) {
     // ---- UPDATE：全字段覆盖 ----
-    await query(
+    await queryNoBinlog(
       `UPDATE matches SET
         eplay_id = ?, match_date = ?, match_time = ?, match_type = ?,
         team1_id = ?, team2_id = ?, team1_score = ?, team2_score = ?,
@@ -313,7 +313,7 @@ async function upsertMatch(m, req) {
     console.log(`[sync] 更新 #${existingId}: ${m.team1} vs ${m.team2} [${fields.status}]`);
   } else {
     // ---- INSERT ----
-    const [insertResult] = await query(
+    const [insertResult] = await queryNoBinlog(
       `INSERT INTO matches
        (eplay_id, match_date, match_time, match_type, team1_id, team2_id,
         team1_score, team2_score, round_scores, event_name, status, tab)
@@ -370,7 +370,7 @@ router.post('/', async (req, res, next) => {
 
     // ----- WS 广播：推全量 -----
     try {
-      const [allRows] = await query(
+      const [allRows] = await queryNoBinlog(
         `SELECT m.*, ta.name AS teamA_name, tb.name AS teamB_name,
                 ta.logo_url AS teamA_logo, tb.logo_url AS teamB_logo
          FROM matches m
@@ -406,7 +406,7 @@ router.post('/', async (req, res, next) => {
     //     旧数据使用 UTC 时间，新数据使用 UTC+8，需要清理旧行
     try {
       // 1. 同一 eplay_id 多行 → 保留 updated_at 最新那条
-      const [r1] = await query(
+      const [r1] = await queryNoBinlog(
         `DELETE m1 FROM matches m1
          INNER JOIN matches m2
          ON m1.eplay_id IS NOT NULL AND m1.eplay_id = m2.eplay_id
@@ -415,7 +415,7 @@ router.post('/', async (req, res, next) => {
       if (r1.affectedRows > 0) console.log(`[sync] 清理 ${r1.affectedRows} 条 eplay_id 重复`);
 
       // 2. 同一天+同对手+同赛事，时间相差 8h → 保留较晚（UTC+8）的
-      const [r2] = await query(
+      const [r2] = await queryNoBinlog(
         `DELETE m1 FROM matches m1
          INNER JOIN matches m2
          ON m1.match_date = m2.match_date

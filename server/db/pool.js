@@ -62,6 +62,7 @@ async function queryNoBinlog(sql, params = []) {
         values: params,
         timeout
       });
+      await connection.execute('SET SESSION sql_log_bin = 1');
       return [rows, fields];
     } finally {
       connection.release();
