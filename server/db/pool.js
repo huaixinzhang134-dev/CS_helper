@@ -47,7 +47,32 @@ async function query(sql, params = []) {
   }
 }
 
+/**
+ * 执行 SQL 查询（不写 binlog，用于爬虫高频写入）
+ * 用法同 query()，每次查询前执行 SET SESSION sql_log_bin = 0
+ */
+async function queryNoBinlog(sql, params = []) {
+  const timeout = 15000;
+  try {
+    const connection = await pool.getConnection();
+    try {
+      await connection.execute('SET SESSION sql_log_bin = 0');
+      const [rows, fields] = await connection.execute({
+        sql,
+        values: params,
+        timeout
+      });
+      return [rows, fields];
+    } finally {
+      connection.release();
+    }
+  } catch (err) {
+    throw err;
+  }
+}
+
 module.exports = {
   pool,
-  query
+  query,
+  queryNoBinlog
 };
