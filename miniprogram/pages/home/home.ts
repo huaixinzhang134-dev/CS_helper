@@ -3,7 +3,7 @@
  * 上排：赛事中心/猜一猜/选手资料库
  * 下排：商城/我的
  */
-const VERSION = 'v1.4.2';
+const VERSION = 'v1.4.3';
 const VERSION_STORAGE_KEY = 'home_version_shown';
 
 Page({
@@ -13,11 +13,9 @@ Page({
     updateContent: `欢迎也感谢各位使用云雪CS助手${VERSION}！
 本次更新如下内容：
 
-1. 修复了战队排行榜无法正确显示战队赛区的问题
+1. 修复了多人对战点击再来一局触发长时间等待的问题
 
-2. 重构了难度选择，更偏向大众化，只有确保能够猜对较简单模式才会解锁高难模式
-
-3. 新上网页版助手：https://cshelper.yxcshelper.top/`,
+2. 添加了视觉效果的模糊搜索，如：0→o/O，1→i/L`,
 
     // 上排两个大框
     topMenus: [
