@@ -164,7 +164,7 @@ Page({
       wx.request({
         url: `${API_BASE}${path}${qs ? '?' + qs : ''}`,
         method: 'GET',
-        timeout: 15000,
+        timeout: 18000,
         success: (r: any) => {
           const body = r.data;
           if (body && body.code === 0) {
