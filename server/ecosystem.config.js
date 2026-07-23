@@ -52,7 +52,7 @@ module.exports = {
       exec_mode: 'fork',
       env: {
         NODE_ENV: 'production',
-        API_BASE: 'http://127.0.0.1:3000',
+        API_BASE: 'http://127.0.0.1:3001',
         CRAWLER_INTERVAL: '60000'
       },
       max_memory_restart: '150M',
