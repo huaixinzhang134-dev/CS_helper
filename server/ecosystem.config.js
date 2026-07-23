@@ -26,7 +26,7 @@ module.exports = {
       exec_mode: 'fork',
       env: {
         NODE_ENV: 'production',
-        PORT: '3000'
+        PORT: '3001'
       },
       // 内存超过 200MB 自动重启
       max_memory_restart: '200M',
