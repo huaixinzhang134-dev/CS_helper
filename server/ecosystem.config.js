@@ -53,7 +53,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         API_BASE: 'http://127.0.0.1:3000',
-        CRAWLER_INTERVAL: '30000'
+        CRAWLER_INTERVAL: '60000'
       },
       max_memory_restart: '150M',
       error_file: './logs/crawler-error.log',
