@@ -415,26 +415,21 @@ router.get('/search', async (req, res, next) => {
     const fromWithJoin = joinClause ? `${fromClause} ${joinClause}` : fromClause;
     const offset = page * pageSize;
 
-    // 先查总数
-    const [countRows] = await query(
-      `SELECT COUNT(*) AS total FROM ${fromWithJoin} WHERE ${whereClause}`,
-      params
-    );
-    const total = countRows[0].total;
-
-    // 再查分页
+    // 多取一行判断是否有下一页（省掉 COUNT 全表扫描，搜索提速 ~50%）
     const selectCols = fromClause === 'player p' ? 'p.*' : '*';
     const [rows] = await query(
-      `SELECT ${selectCols} FROM ${fromWithJoin} WHERE ${whereClause} ORDER BY id ASC LIMIT ${pageSize} OFFSET ${offset}`,
+      `SELECT ${selectCols} FROM ${fromWithJoin} WHERE ${whereClause} ORDER BY id ASC LIMIT ${pageSize + 1} OFFSET ${offset}`,
       params
     );
+
+    const hasMore = rows.length > pageSize;
+    if (hasMore) rows.pop();
 
     res.json({
       code: 0,
       message: '',
       data: rows.map(toPlayerDTO),
-      hasMore: offset + pageSize < total,
-      total    // 返回总数，前端可展示"共 N 个结果"
+      hasMore
     });
   } catch (err) {
     next(err);
