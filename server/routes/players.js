@@ -27,6 +27,41 @@ function toPlayerDTO(row) {
   };
 }
 
+/**
+ * 生成搜索词的视觉混淆变体（不区分大小写）
+ *   1 ↔ i ↔ l   （例如 b1t ↔ bit ↔ blt）
+ *   0 ↔ o       （例如 m0nsey ↔ monsey）
+ * 返回去重后的变体数组，原始查询的小写形式排第一
+ */
+function generateSearchVariants(q) {
+  const GROUP_1IL = ['1', 'i', 'l'];
+  const GROUP_0O  = ['0', 'o'];
+
+  const lower = q.toLowerCase();
+  let variants = [''];
+
+  for (const ch of lower) {
+    let alts;
+    if (GROUP_1IL.includes(ch)) {
+      alts = GROUP_1IL;
+    } else if (GROUP_0O.includes(ch)) {
+      alts = GROUP_0O;
+    } else {
+      alts = [ch];
+    }
+
+    const next = [];
+    for (const v of variants) {
+      for (const alt of alts) {
+        next.push(v + alt);
+      }
+    }
+    variants = next;
+  }
+
+  return [...new Set(variants)];
+}
+
 function safeParseArray(json) {
   // mysql2 在部分版本中会自动解析 JSON 列为数组，此时无需再 parse
   if (Array.isArray(json)) return json;
@@ -274,14 +309,32 @@ router.get('/search', async (req, res, next) => {
     let joinClause = '';
 
     if (q) {
+      // 保留原始前缀模糊搜索
       const like = `${q}%`;
       conditions.push('(name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
       params.push(like, like, like);
+      // 额外追加 1↔i↔l、0↔o 视觉混淆变体（排除与原始查询小写相同的）
+      const variants = generateSearchVariants(q);
+      const lowerQ = q.toLowerCase();
+      for (const v of variants) {
+        if (v === lowerQ) continue;
+        const vLike = `${v}%`;
+        conditions.push('(name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
+        params.push(vLike, vLike, vLike);
+      }
     }
     if (name) {
-      // 模糊匹配游戏 ID（name 字段实际存的是游戏昵称）
+      // 保留原始模糊匹配
       conditions.push('name LIKE ?');
       params.push(`%${name}%`);
+      // 额外追加视觉混淆变体
+      const variants = generateSearchVariants(name);
+      const lowerName = name.toLowerCase();
+      for (const v of variants) {
+        if (v === lowerName) continue;
+        conditions.push('name LIKE ?');
+        params.push(`%${v}%`);
+      }
     }
     if (ageMin !== undefined) {
       conditions.push('age >= ?');
