@@ -303,6 +303,15 @@ router.post('/rooms/:id/next-round', async (req, res, next) => {
       return res.status(404).json({ code: 404, message: '房间不存在或已过期', data: null });
     }
 
+    // 如果双方标志都已重置（对手已经触发过 /next-round），
+    // 直接返回当前回合数据，避免重复调用报错
+    if (!room.creatorReadyForNext && !room.joinerReadyForNext) {
+      return res.json({
+        code: 0,
+        data: { round: room.round, targetPlayer: room.targetPlayer },
+      });
+    }
+
     if (!room.creatorReadyForNext || !room.joinerReadyForNext) {
       return res.status(400).json({ code: 400, message: '双方未都准备', data: null });
     }

@@ -579,6 +579,14 @@ Page({
         const res = await getPkRoom(this.data.pkRoomId);
         if (!res.success || !res.data) return;
         const room = res.data;
+        const currentRound = room.round || 1;
+        // 如果新一轮已经开始了（对手触发了 next-round 并重置了 ready 标志），
+        // 直接用房间里的新目标进入下一局，不再调用 /next-round（会因标志已重置而失败）
+        if (currentRound > this.data.pkRound) {
+          this._stopPollingForNextPKRound();
+          this._applyNextRoundFromRoom(room);
+          return;
+        }
         const myRole = this.data.isRoomOwner ? 'creator' : 'joiner';
         const oppRole = this.data.isRoomOwner ? 'joiner' : 'creator';
         const oppReady = oppRole === 'joiner' ? room.joinerReadyForNext : room.creatorReadyForNext;
@@ -610,6 +618,21 @@ Page({
       });
       this._startPollingForPkProgress();
     } catch (err) { wx.hideLoading(); wx.showToast({ title: '加载失败', icon: 'none' }); }
+  },
+
+  /** 当对手已触发下一局时，直接用房间数据进入新回合（不再调 /next-round） */
+  _applyNextRoundFromRoom(room: any) {
+    this._stopPollingForPkProgress();
+    this._stopPollingForPkResult();
+    const target = room.targetPlayer;
+    this.setData({
+      targetPlayer: target, targetAvatarUrl: normalizeAvatarUrl(target?.avatar),
+      guesses: [], attemptsLeft: MAX_PK_ATTEMPTS, gameStatus: 'playing', myAttempts: 0, opponentAttempts: 0,
+      hintUsed: false, showHintModal: false, hintContent: '',
+      pkRound: room.round || (this.data.pkRound + 1), showPkWaittingNext: false, myReady: false, pkResult: null, showResultModal: false,
+    });
+    wx.showToast({ title: '对手已准备，开始新一局！', icon: 'success' });
+    this._startPollingForPkProgress();
   },
 
   onCancelWaitNext() {
