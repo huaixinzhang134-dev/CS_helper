@@ -309,9 +309,9 @@ router.get('/search', async (req, res, next) => {
     let joinClause = '';
 
     if (q) {
-      // 所有 q 变体 OR 在一起，作为一个整体条件组
+      // 所有 q 变体 OR 在一起，作为一个整体条件组（包含匹配：搜 kk 可命中 BELCHONOKK）
       const qOrClauses = [];
-      const like = `${q}%`;
+      const like = `%${q}%`;
       qOrClauses.push('(name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
       params.push(like, like, like);
       // 额外追加 1↔i↔l、0↔o 视觉混淆变体（排除与原始查询小写相同的）
@@ -319,7 +319,7 @@ router.get('/search', async (req, res, next) => {
       const lowerQ = q.toLowerCase();
       for (const v of variants) {
         if (v === lowerQ) continue;
-        const vLike = `${v}%`;
+        const vLike = `%${v}%`;
         qOrClauses.push('(name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
         params.push(vLike, vLike, vLike);
       }
