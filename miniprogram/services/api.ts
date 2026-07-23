@@ -51,6 +51,7 @@ function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, dat
       url: `${API_BASE}${path}`,
       method,
       data,
+      timeout: 15000,
       header: { 'content-type': 'application/json' },
       success: (res: any) => {
         const body = res.data as ApiResp<T>;
@@ -89,6 +90,7 @@ function requestWithToken<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: st
       url: `${API_BASE}${path}`,
       method,
       data: reqData,
+      timeout: 15000,
       header: {
         'content-type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -248,6 +250,7 @@ export const searchPlayers = async (
     wx.request({
       url: `${API_BASE}/players/search${qs}`,
       method: 'GET',
+      timeout: 15000,
       header: { 'content-type': 'application/json' },
       success: (res: any) => {
         const body = res.data;
@@ -294,6 +297,7 @@ export const advancedSearchPlayers = async (
     wx.request({
       url: `${API_BASE}/players/search${qs}`,
       method: 'GET',
+      timeout: 15000,
       header: { 'content-type': 'application/json' },
       success: (res: any) => {
         const body = res.data;

@@ -309,9 +309,10 @@ router.get('/search', async (req, res, next) => {
     let joinClause = '';
 
     if (q) {
-      // 保留原始前缀模糊搜索
+      // 所有 q 变体 OR 在一起，作为一个整体条件组
+      const qOrClauses = [];
       const like = `${q}%`;
-      conditions.push('(name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
+      qOrClauses.push('(name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
       params.push(like, like, like);
       // 额外追加 1↔i↔l、0↔o 视觉混淆变体（排除与原始查询小写相同的）
       const variants = generateSearchVariants(q);
@@ -319,22 +320,25 @@ router.get('/search', async (req, res, next) => {
       for (const v of variants) {
         if (v === lowerQ) continue;
         const vLike = `${v}%`;
-        conditions.push('(name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
+        qOrClauses.push('(name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
         params.push(vLike, vLike, vLike);
       }
+      conditions.push(`(${qOrClauses.join(' OR ')})`);
     }
     if (name) {
-      // 保留原始模糊匹配
-      conditions.push('name LIKE ?');
+      // 所有 name 变体 OR 在一起，作为一个整体条件组
+      const nameOrClauses = [];
+      nameOrClauses.push('name LIKE ?');
       params.push(`%${name}%`);
       // 额外追加视觉混淆变体
       const variants = generateSearchVariants(name);
       const lowerName = name.toLowerCase();
       for (const v of variants) {
         if (v === lowerName) continue;
-        conditions.push('name LIKE ?');
+        nameOrClauses.push('name LIKE ?');
         params.push(`%${v}%`);
       }
+      conditions.push(`(${nameOrClauses.join(' OR ')})`);
     }
     if (ageMin !== undefined) {
       conditions.push('age >= ?');

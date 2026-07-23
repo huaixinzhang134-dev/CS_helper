@@ -95,8 +95,15 @@ router.post('/login', async (req, res, next) => {
     let openid;
 
     if (WX_APPID && WX_SECRET) {
-      const resp = await fetch(buildWxUrl(code));
-      const wxData = await resp.json();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      let wxData;
+      try {
+        const resp = await fetch(buildWxUrl(code), { signal: controller.signal });
+        wxData = await resp.json();
+      } finally {
+        clearTimeout(timeout);
+      }
       if (wxData.errcode) {
         console.error('[wx login error]', wxData);
         return res.status(400).json({ code: 400, message: wxData.errmsg || '微信登录失败', data: null });
