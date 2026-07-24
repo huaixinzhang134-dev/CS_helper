@@ -525,6 +525,10 @@ Page({
     if (player._id === target._id) {
       newStatus = 'won';
       if (this.data.gameMode === 'friend') { pkResult = { type: 'win', message: `胜利！你在第${myAttempts}次猜中了！` }; this.reportPkGameResult(true, myAttempts); }
+    } else if (this.data.gameMode === 'friend' && myAttempts >= MAX_PK_ATTEMPTS && newStatus !== 'won') {
+      newStatus = 'lost';
+      pkResult = { type: 'lose', message: `已达${MAX_PK_ATTEMPTS}次上限，正确答案: ${target.name}` };
+      this.reportPkGameResult(false, myAttempts);
     }
 
     this.setData({ guesses: newGuesses, gameStatus: newStatus, myAttempts, pkResult });
