@@ -7,6 +7,7 @@ const GRADE_OPTIONS = [
   { value: 3, label: 'B' },
   { value: 7, label: 'C' },
   { value: 8, label: 'D' },
+  { value: 0, label: '未分级' },
 ];
 
 const GRADE_COLORS: Record<number, string> = { 1: '#ff4757', 2: '#ff6b81', 3: '#ffa502', 7: '#2ed573', 8: '#70a1ff' };
@@ -41,8 +42,8 @@ Page({
       if (res.success) {
         const events = (res.data || []).map(ev => ({
           ...ev,
-          gradeLabel: GRADE_LABELS[ev.grade ?? -1] || '',
-          badgeColor: GRADE_COLORS[ev.grade ?? -1] || '#999',
+          gradeLabel: (ev.grade && GRADE_LABELS[ev.grade]) || '',
+          badgeColor: (ev.grade && GRADE_COLORS[ev.grade]) || '#999',
         }));
         this.setData({ events });
       }

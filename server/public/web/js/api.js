@@ -127,7 +127,7 @@ const API = {
   // ================== 比赛 API ==================
 
   async fetchMatchEvents(grade) {
-    const params = grade ? { grade } : {};
+    const params = grade !== undefined ? { grade } : {};
     const res = await this.get('/matches/events', params);
     return { success: res.code === 0, data: res.data || [] };
   },

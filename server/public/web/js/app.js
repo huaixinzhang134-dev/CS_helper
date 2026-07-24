@@ -201,10 +201,11 @@ const App = {
     { value: 3, label: 'B' },
     { value: 7, label: 'C' },
     { value: 8, label: 'D' },
+    { value: 0, label: '未分级' },
   ],
 
   _gradeBadge(grade) {
-    if (grade == null) return '';
+    if (grade == null || grade === 0) return '';
     const map = { 1:'S', 2:'A', 3:'B', 7:'C', 8:'D', 9:'其他' };
     const label = map[grade] || '';
     if (!label) return '';

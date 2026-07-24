@@ -105,8 +105,12 @@ router.get('/events', async (req, res, next) => {
                FROM matches`;
     const params = [];
     if (gradeFilter) {
-      sql += ' WHERE event_grade = ?';
-      params.push(gradeFilter);
+      if (gradeFilter === 0) {
+        sql += ' WHERE event_grade IS NULL';
+      } else {
+        sql += ' WHERE event_grade = ?';
+        params.push(gradeFilter);
+      }
     }
     sql += ' GROUP BY event_name ORDER BY latestDate DESC';
     const [rows] = await query(sql, params);

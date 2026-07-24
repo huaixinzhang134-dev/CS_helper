@@ -343,7 +343,7 @@ export interface MatchEvent {
 }
 
 export const fetchMatchEvents = async (grade?: number): Promise<{ success: boolean; data: MatchEvent[] }> => {
-  const params = grade ? { grade: String(grade) } : {};
+  const params = grade !== undefined ? { grade: String(grade) } : {};
   const res = await get<MatchEvent[]>('/matches/events', params);
   return { success: res.success, data: res.data ?? [] };
 };
