@@ -674,6 +674,26 @@ Page({
   onHintMaskTap() { this.setData({ showHintModal: false }); },
   onHintContentTap() {},
 
+  // ============ 难度选择 ============
+  onChangeDifficulty() {
+    if (this.data.gameMode !== 'personal') return;
+    // 重置游戏状态，回到难度选择界面
+    this.setData({
+      targetPlayer: null,
+      targetAvatarUrl: '',
+      guesses: [],
+      attemptsLeft: UNLIMITED_ATTEMPTS,
+      gameStatus: 'playing',
+      searchQuery: '',
+      searchResults: [],
+      hintUsed: false,
+      showHintModal: false,
+      hintContent: '',
+      showDifficultySelection: true,
+    });
+    this.loadDifficultyProgress();
+  },
+
   // ============ 玩法说明 ============
   onShowRules() { this.setData({ showRulesModal: true }); },
   onRulesMaskTap() { this.setData({ showRulesModal: false }); },

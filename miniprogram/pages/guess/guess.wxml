@@ -113,6 +113,7 @@
   <!-- Game Board -->
   <view class="game-board">
     <view class="legend">
+      <view class="rule-btn" wx:if="{{gameMode === 'personal'}}" bindtap="onChangeDifficulty">🎯 难度选择</view>
       <view class="rule-btn" bindtap="onShowRules">📖 玩法说明</view>
     </view>
 
