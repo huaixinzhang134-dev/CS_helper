@@ -414,6 +414,7 @@ Page({
           pkRoomId: roomId, isRoomOwner: false, opponentInfo: room.creator,
           opponentName: room.creator?.nickname || '对手', opponentAvatar: room.creator?.avatar || '/assets/icons/user.png',
           targetPlayer: target, targetAvatarUrl: normalizeAvatarUrl(target.avatar),
+          difficulty: room.difficulty || '',  // 保存难度，确保搜索时按当前选手池过滤
           guesses: [], attemptsLeft: MAX_PK_ATTEMPTS, gameStatus: 'playing', myAttempts: 0,
           hintUsed: false, showHintModal: false, hintContent: '',
           showModeSelection: false,
