@@ -520,7 +520,7 @@ const App = {
         <div><h1>弗一把</h1><span class="subtitle">猜选手游戏</span></div>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-ghost btn-sm" onclick="App.state.guess={};App.renderGuess(document.getElementById('pageContent'))">新游戏</button>
-          <button class="btn btn-ghost btn-sm" onclick="App.state.guess={};App.renderGuess(document.getElementById('pageContent'))">难度选择</button>
+          <button class="btn btn-ghost btn-sm" onclick="App._showDifficultyOverlay()">难度选择</button>
           <button class="btn btn-ghost btn-sm" onclick="App._showGuessRules()">玩法</button>
         </div>
       </div>
@@ -795,6 +795,30 @@ const App = {
       // PK模式目前存储在内存/服务端，前端告知用户
       alert('已使用额外机会，请通知对手继续游戏');
     }
+  },
+
+  _showDifficultyOverlay() {
+    var existing = document.getElementById('guessDifficultyModal');
+    if (existing) existing.remove();
+    var div = document.createElement('div');
+    div.id = 'guessDifficultyModal';
+    div.className = 'modal-mask';
+    div.style.cssText = 'display:flex;z-index:300;';
+    div.innerHTML = '<div class="modal-content" style="max-width:400px;" onclick="event.stopPropagation()">'
+      + '<div class="modal-title" style="font-size:16px;">🎯 选择难度</div>'
+      + '<div class="modal-body" style="text-align:center;padding:12px 0;">'
+      + '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">'
+      + ['trivial|🌱 极简', 'easy|🌟 简单', 'normal|⚔️ 普通', 'hard|🔥 困难', 'hell|💀 炼狱', 'challenge|🏆 挑战']
+        .map(s => {
+          var parts = s.split('|');
+          return '<button class="btn" style="margin:4px;min-width:100px;" onclick="App._startGuess(\'' + parts[0] + '\');this.closest(\'.modal-mask\').remove()">' + parts[1] + '</button>';
+        }).join('')
+      + '</div></div>'
+      + '<div class="modal-footer"><button class="btn btn-sm" onclick="this.closest(\'.modal-mask\').remove()">取消</button></div>'
+      + '</div>';
+    // 点击遮罩关闭
+    div.addEventListener('click', function() { this.remove(); });
+    document.body.insertAdjacentElement('beforeend', div);
   },
 
   _showGuessRules() {
