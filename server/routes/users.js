@@ -385,11 +385,11 @@ router.get('/ranking', async (req, res, next) => {
                CASE WHEN ${totalCol} > 0 THEN ${rateCol} ELSE win_rate END AS win_rate
              FROM users
              WHERE ${totalCol} > 0 OR total_games > 0
-             ORDER BY win_rate DESC LIMIT 100`;
+             ORDER BY win_rate DESC, total_games DESC LIMIT 100`;
     } else {
       sql = `SELECT openid, nickname, avatar_url, win_count, total_games, win_rate
              FROM users WHERE total_games > 0
-             ORDER BY win_rate DESC LIMIT 100`;
+             ORDER BY win_rate DESC, total_games DESC LIMIT 100`;
     }
 
     const [rows] = await query(sql);

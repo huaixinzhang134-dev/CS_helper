@@ -486,6 +486,7 @@ const App = {
         <div><h1>弗一把</h1><span class="subtitle">猜选手游戏</span></div>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-ghost btn-sm" onclick="App.state.guess={};App.renderGuess(document.getElementById('pageContent'))">新游戏</button>
+          <button class="btn btn-ghost btn-sm" onclick="App.state.guess={};App.renderGuess(document.getElementById('pageContent'))">难度选择</button>
           <button class="btn btn-ghost btn-sm" onclick="App._showGuessRules()">玩法</button>
         </div>
       </div>
