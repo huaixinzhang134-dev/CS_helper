@@ -368,7 +368,8 @@ async function selectTargetPlayer(difficulty) {
   let sql;
   if (difficulty === 'trivial') {
     sql = `SELECT DISTINCT p.* FROM player p
-           INNER JOIN team_ranking r ON r.team_name = p.current_team
+           INNER JOIN team t ON t.name = p.current_team
+	             INNER JOIN team_ranking r ON r.team_name = t.name
            WHERE p.status = 'active' AND r.ranking <= 10
            ORDER BY RAND() LIMIT 1`;
   } else if (difficulty === 'easy') {
@@ -377,7 +378,8 @@ async function selectTargetPlayer(difficulty) {
            ORDER BY RAND() LIMIT 1`;
   } else if (difficulty === 'normal') {
     sql = `SELECT DISTINCT p.* FROM player p
-           INNER JOIN team_ranking r ON r.team_name = p.current_team
+           INNER JOIN team t ON t.name = p.current_team
+	             INNER JOIN team_ranking r ON r.team_name = t.name
            WHERE p.status = 'active' AND r.ranking <= 30
            ORDER BY RAND() LIMIT 1`;
   } else if (difficulty === 'hard') {

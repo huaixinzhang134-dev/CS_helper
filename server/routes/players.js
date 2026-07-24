@@ -112,7 +112,8 @@ router.get('/pool', async (req, res, next) => {
     let sql;
     if (difficulty === 'trivial') {
       sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team_ranking r ON r.team_name = p.current_team
+             INNER JOIN team t ON t.name = p.current_team
+	             INNER JOIN team_ranking r ON r.team_name = t.name
              WHERE p.status = 'active'
                AND p.position != 'coach'
                AND r.ranking <= 10
@@ -126,7 +127,8 @@ router.get('/pool', async (req, res, next) => {
              ORDER BY id ASC`;
     } else if (difficulty === 'normal') {
       sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team_ranking r ON r.team_name = p.current_team
+             INNER JOIN team t ON t.name = p.current_team
+	             INNER JOIN team_ranking r ON r.team_name = t.name
              WHERE p.status = 'active'
                AND p.position != 'coach'
                AND r.ranking <= 30
@@ -229,7 +231,8 @@ router.get('/random-by-difficulty', async (req, res, next) => {
     let sql;
     if (difficulty === 'trivial') {
       sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team_ranking r ON r.team_name = p.current_team
+             INNER JOIN team t ON t.name = p.current_team
+	             INNER JOIN team_ranking r ON r.team_name = t.name
              WHERE p.status = 'active'
                AND p.position != 'coach'
                AND r.ranking <= 10
@@ -243,7 +246,8 @@ router.get('/random-by-difficulty', async (req, res, next) => {
              ORDER BY RAND() LIMIT 1`;
     } else if (difficulty === 'normal') {
       sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team_ranking r ON r.team_name = p.current_team
+             INNER JOIN team t ON t.name = p.current_team
+	             INNER JOIN team_ranking r ON r.team_name = t.name
              WHERE p.status = 'active'
                AND p.position != 'coach'
                AND r.ranking <= 30
@@ -396,13 +400,13 @@ router.get('/search', async (req, res, next) => {
     // 可选：限定搜索到当前难度选手池
     if (difficulty === 'trivial') {
       fromClause = 'player p';
-      joinClause = 'INNER JOIN team_ranking r ON r.team_name = p.current_team';
+      joinClause = 'INNER JOIN team t ON t.name = p.current_team INNER JOIN team_ranking r ON r.team_name = t.name';
       conditions.push("p.status = 'active'", "p.position != 'coach'", 'r.ranking <= 10');
     } else if (difficulty === 'easy') {
       conditions.push("status = 'active'", "position != 'coach'", 'major_appearances > 5', "current_team != ''");
     } else if (difficulty === 'normal') {
       fromClause = 'player p';
-      joinClause = 'INNER JOIN team_ranking r ON r.team_name = p.current_team';
+      joinClause = 'INNER JOIN team t ON t.name = p.current_team INNER JOIN team_ranking r ON r.team_name = t.name';
       conditions.push("p.status = 'active'", "p.position != 'coach'", 'r.ranking <= 30');
     } else if (difficulty === 'hard') {
       conditions.push('major_appearances > 5');
