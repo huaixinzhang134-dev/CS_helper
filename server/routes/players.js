@@ -312,11 +312,15 @@ router.get('/search', async (req, res, next) => {
     let fromClause = 'player';
     let joinClause = '';
 
+    // trivial/normal 难度会 JOIN team 表（含 name 列），
+    // 之后所有列引用需加 p. 前缀避免歧义
+    const colPrefix = (difficulty === 'trivial' || difficulty === 'normal') ? 'p.' : '';
+
     if (q) {
       // 所有 q 变体 OR 在一起，作为一个整体条件组（包含匹配：搜 kk 可命中 BELCHONOKK）
       const qOrClauses = [];
       const like = `%${q}%`;
-      qOrClauses.push('(name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
+      qOrClauses.push('(' + colPrefix + 'name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
       params.push(like, like, like);
       // 额外追加 1↔i↔l、0↔o 视觉混淆变体（排除与原始查询小写相同的）
       const variants = generateSearchVariants(q);
@@ -324,7 +328,7 @@ router.get('/search', async (req, res, next) => {
       for (const v of variants) {
         if (v === lowerQ) continue;
         const vLike = `%${v}%`;
-        qOrClauses.push('(name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
+        qOrClauses.push('(' + colPrefix + 'name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
         params.push(vLike, vLike, vLike);
       }
       conditions.push(`(${qOrClauses.join(' OR ')})`);
@@ -332,14 +336,14 @@ router.get('/search', async (req, res, next) => {
     if (name) {
       // 所有 name 变体 OR 在一起，作为一个整体条件组
       const nameOrClauses = [];
-      nameOrClauses.push('name LIKE ?');
+      nameOrClauses.push(colPrefix + 'name LIKE ?');
       params.push(`%${name}%`);
       // 额外追加视觉混淆变体
       const variants = generateSearchVariants(name);
       const lowerName = name.toLowerCase();
       for (const v of variants) {
         if (v === lowerName) continue;
-        nameOrClauses.push('name LIKE ?');
+        nameOrClauses.push(colPrefix + 'name LIKE ?');
         params.push(`%${v}%`);
       }
       conditions.push(`(${nameOrClauses.join(' OR ')})`);
@@ -384,7 +388,7 @@ router.get('/search', async (req, res, next) => {
           searchValues.push(cn);
         }
       }
-      const countryClauses = searchValues.map(() => 'country LIKE ?');
+      const countryClauses = searchValues.map(() => colPrefix + 'country LIKE ?');
       conditions.push(`(${countryClauses.join(' OR ')})`);
       searchValues.forEach(v => params.push(`%${v}%`));
     }
@@ -422,7 +426,7 @@ router.get('/search', async (req, res, next) => {
     // 多取一行判断是否有下一页（省掉 COUNT 全表扫描，搜索提速 ~50%）
     const selectCols = fromClause === 'player p' ? 'p.*' : '*';
     const [rows] = await query(
-      `SELECT ${selectCols} FROM ${fromWithJoin} WHERE ${whereClause} ORDER BY id ASC LIMIT ${pageSize + 1} OFFSET ${offset}`,
+      `SELECT ${selectCols} FROM ${fromWithJoin} WHERE ${whereClause} ORDER BY ${colPrefix}id ASC LIMIT ${pageSize + 1} OFFSET ${offset}`,
       params
     );
 
