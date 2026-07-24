@@ -683,20 +683,25 @@ Page({
 
   // ============ 道具系统 ============
   async onShowItems() {
-    const token = wx.getStorageSync('token');
-    if (!token) { wx.showToast({ title: '请先登录', icon: 'none' }); return; }
-    const res = await fetchUserItems();
-    const items = (res.success ? res.data || [] : []).filter(i => i.quantity > 0);
-    const LABELS: Record<string, string> = { hint_ticket: '提示券', extra_chance: '额外机会' };
-    const DESCS: Record<string, string> = { hint_ticket: '获得一条关于目标选手的提示信息', extra_chance: 'PK模式中增加一次猜测机会' };
-    this.setData({
-      showItemModal: true,
-      userItems: items.map(i => ({
-        ...i,
-        itemLabel: LABELS[i.itemType] || i.itemType,
-        desc: DESCS[i.itemType] || '',
-      }))
-    });
+    try {
+      const token = wx.getStorageSync('token');
+      if (!token) { wx.showToast({ title: '请先登录', icon: 'none' }); return; }
+      const res = await fetchUserItems();
+      const items = (res.success ? res.data || [] : []).filter(i => i.quantity > 0);
+      if (!items.length) { wx.showToast({ title: '暂无可用道具', icon: 'none' }); return; }
+      const LABELS: Record<string, string> = { hint_ticket: '提示券', extra_chance: '额外机会' };
+      const DESCS: Record<string, string> = { hint_ticket: '获得一条关于目标选手的提示信息', extra_chance: 'PK模式中增加一次猜测机会' };
+      this.setData({
+        showItemModal: true,
+        userItems: items.map(i => ({
+          ...i,
+          itemLabel: LABELS[i.itemType] || i.itemType,
+          desc: DESCS[i.itemType] || '',
+        }))
+      });
+    } catch (e) {
+      wx.showToast({ title: '加载道具失败', icon: 'none' });
+    }
   },
 
   async onUseItem(e: any) {
@@ -732,11 +737,15 @@ Page({
   onItemModalClose() { this.setData({ showItemModal: false }); },
 
   async loadUserItemCount() {
-    const token = wx.getStorageSync('token');
-    if (!token) { this.setData({ userItemCount: 0 }); return; }
-    const res = await fetchUserItems();
-    const count = (res.success ? res.data || [] : []).reduce((sum, i) => sum + i.quantity, 0);
-    this.setData({ userItemCount: count });
+    try {
+      const token = wx.getStorageSync('token');
+      if (!token) { this.setData({ userItemCount: 0 }); return; }
+      const res = await fetchUserItems();
+      const count = (res.success ? res.data || [] : []).reduce((sum, i) => sum + i.quantity, 0);
+      this.setData({ userItemCount: count });
+    } catch (e) {
+      this.setData({ userItemCount: 0 });
+    }
   },
 
   // ============ 难度选择 ============
