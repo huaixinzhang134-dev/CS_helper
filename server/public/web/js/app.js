@@ -116,7 +116,7 @@ const App = {
   },
 
   // ==================== 首页 ====================
-  _homeVersion: 'v1.4.2',
+  _homeVersion: 'v1.4.5',
   _homeVersionKey: 'web_home_version_shown',
 
   renderHome(container) {
