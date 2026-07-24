@@ -28,6 +28,7 @@ export interface Match {
   event: string;
   roundName?: string;
   status: 'Live' | 'Upcoming' | 'Finished';
+  grade?: number;
   teamA: { name: string; logo: string; score: number };
   teamB: { name: string; logo: string; score: number };
   time: string;
@@ -338,10 +339,12 @@ export interface MatchEvent {
   name: string;
   matchCount: number;
   latestDate: string;
+  grade?: number;
 }
 
-export const fetchMatchEvents = async (): Promise<{ success: boolean; data: MatchEvent[] }> => {
-  const res = await get<MatchEvent[]>('/matches/events');
+export const fetchMatchEvents = async (grade?: number): Promise<{ success: boolean; data: MatchEvent[] }> => {
+  const params = grade ? { grade: String(grade) } : {};
+  const res = await get<MatchEvent[]>('/matches/events', params);
   return { success: res.success, data: res.data ?? [] };
 };
 

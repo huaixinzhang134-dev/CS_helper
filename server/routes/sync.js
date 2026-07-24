@@ -252,6 +252,7 @@ function prepareMatchFields(m, team1Id, team2Id) {
     team2_score: score2,
     round_scores: roundScoresJson,
     event_name: (m.eventName || '').slice(0, 256),
+    event_grade: m.grade != null ? parseInt(m.grade, 10) : null,
     status: mapStatus(m.status),
     tab: m.roundName || ''
   };
@@ -300,12 +301,12 @@ async function upsertMatch(m, req) {
       `UPDATE matches SET
         eplay_id = ?, match_date = ?, match_time = ?, match_type = ?,
         team1_id = ?, team2_id = ?, team1_score = ?, team2_score = ?,
-        round_scores = ?, event_name = ?, status = ?, tab = ?
+        round_scores = ?, event_name = ?, event_grade = ?, status = ?, tab = ?
        WHERE id = ?`,
       [
         fields.eplay_id, fields.match_date, fields.match_time, fields.match_type,
         fields.team1_id, fields.team2_id, fields.team1_score, fields.team2_score,
-        fields.round_scores, fields.event_name, fields.status, fields.tab,
+        fields.round_scores, fields.event_name, fields.event_grade, fields.status, fields.tab,
         existingId
       ]
     );
@@ -316,12 +317,12 @@ async function upsertMatch(m, req) {
     const [insertResult] = await queryNoBinlog(
       `INSERT INTO matches
        (eplay_id, match_date, match_time, match_type, team1_id, team2_id,
-        team1_score, team2_score, round_scores, event_name, status, tab)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        team1_score, team2_score, round_scores, event_name, event_grade, status, tab)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         fields.eplay_id, fields.match_date, fields.match_time, fields.match_type,
         fields.team1_id, fields.team2_id, fields.team1_score, fields.team2_score,
-        fields.round_scores, fields.event_name, fields.status, fields.tab
+        fields.round_scores, fields.event_name, fields.event_grade, fields.status, fields.tab
       ]
     );
     matchId = insertResult.insertId;

@@ -376,6 +376,12 @@ function normalizeMatch(raw) {
       playerStats = raw.stats;
     }
 
+    // 提取赛事等级（5eplay grade: 1=S级, 2=A级, 3=B级, 7=C级, 8=D级, 9=其他）
+    const grade = info.grade != null ? Number(info.grade)
+                : raw.grade != null ? Number(raw.grade)
+                : (raw.tt_info && raw.tt_info.grade != null) ? Number(raw.tt_info.grade)
+                : null;
+
     // 如果有 maps/roundScores 但没有 playerStats，至少返回 roundScores
     const result = {
       date: normalizeDate(date),
@@ -389,6 +395,7 @@ function normalizeMatch(raw) {
       team2Score: team2Score != null ? Number(team2Score) : null,
       eventName: String(eventName).trim(),
       roundName: roundName,
+      grade: grade,
       status: normalizeStatus(status, team1Score, team2Score)
     };
 

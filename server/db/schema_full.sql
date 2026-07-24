@@ -97,6 +97,7 @@ CREATE TABLE matches (
   team2_score     INT             NULL,
   round_scores    JSON            NULL,
   event_name      VARCHAR(256)    NOT NULL DEFAULT '',
+  event_grade     TINYINT UNSIGNED NULL DEFAULT NULL COMMENT '赛事等级: 1=S 2=A 3=B 7=C 8=D 9=其他',
   status          VARCHAR(16)     NOT NULL DEFAULT 'upcoming',
   tab             VARCHAR(32)     NOT NULL DEFAULT '',
   updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP

@@ -63,6 +63,10 @@ function toMatchDTO(row, baseUrl) {
       ? `${fmtDate(row.match_date)}T${fmtTime(row.match_time)}`
       : ''
   };
+  // 赛事等级
+  if (row.event_grade != null) {
+    dto.grade = parseInt(row.event_grade, 10);
+  }
   // 附加局分数据（用于详情页展示小分）
   if (row.round_scores) {
     try {
@@ -95,12 +99,19 @@ function isRoundName(name) {
  */
 router.get('/events', async (req, res, next) => {
   try {
-    const [rows] = await query(
-      `SELECT event_name AS name, COUNT(*) AS matchCount, MAX(match_date) AS latestDate
-       FROM matches GROUP BY event_name ORDER BY latestDate DESC`
-    );
+    const gradeFilter = req.query.grade ? parseInt(req.query.grade, 10) : null;
+    let sql = `SELECT event_name AS name, COUNT(*) AS matchCount, MAX(match_date) AS latestDate,
+                      MAX(event_grade) AS grade
+               FROM matches`;
+    const params = [];
+    if (gradeFilter) {
+      sql += ' WHERE event_grade = ?';
+      params.push(gradeFilter);
+    }
+    sql += ' GROUP BY event_name ORDER BY latestDate DESC';
+    const [rows] = await query(sql, params);
     const filtered = rows.filter(r => !isRoundName(r.name))
-      .map(r => ({ ...r, latestDate: fmtDate(r.latestDate) }));
+      .map(r => ({ ...r, latestDate: fmtDate(r.latestDate), grade: r.grade ? parseInt(r.grade, 10) : null }));
     res.json({ code: 0, message: '', data: filtered });
   } catch (err) {
     next(err);

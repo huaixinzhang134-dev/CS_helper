@@ -192,32 +192,65 @@ const App = {
     if (modal) modal.style.display = 'none';
   },
 
+  // 等级标签映射
+  _gradeFilter: null,
+  _gradeOptions: [
+    { value: null, label: '全部' },
+    { value: 1, label: 'S' },
+    { value: 2, label: 'A' },
+    { value: 3, label: 'B' },
+    { value: 7, label: 'C' },
+    { value: 8, label: 'D' },
+  ],
+
+  _gradeBadge(grade) {
+    if (grade == null) return '';
+    const map = { 1:'S', 2:'A', 3:'B', 7:'C', 8:'D', 9:'其他' };
+    const label = map[grade] || '';
+    if (!label) return '';
+    const colors = { 1:'#ff4757', 2:'#ff6b81', 3:'#ffa502', 7:'#2ed573', 8:'#70a1ff' };
+    return '<span class="grade-badge" style="display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:3px;color:#fff;background:' + (colors[grade]||'#999') + ';margin-left:6px;vertical-align:middle;">' + label + '</span>';
+  },
+
   // ==================== 赛事中心 ====================
   async renderEvents(container) {
-    container.innerHTML = '<div class="page-header"><h1>赛事中心</h1><span class="subtitle">按赛事分类浏览</span></div><div class="loading">加载中</div>';
+    let html = '<div class="page-header"><h1>赛事中心</h1><span class="subtitle">按赛事分类浏览</span></div>';
+    html += '<div class="grade-filter" style="display:flex;gap:6px;padding:8px 16px;overflow-x:auto;flex-wrap:wrap;">';
+    this._gradeOptions.forEach(opt => {
+      const active = this._gradeFilter === opt.value;
+      html += '<button class="btn btn-xs ' + (active ? 'btn-success' : 'btn-ghost') + '" onclick="App._gradeFilter=' + (opt.value === null ? 'null' : opt.value) + ';App.renderEvents(document.getElementById(&quot;pageContent&quot;))">' + opt.label + '</button>';
+    });
+    html += '</div><div id="eventsList" class="loading">加载中</div>';
+    container.innerHTML = html;
     try {
-      const res = await API.fetchMatchEvents();
+      const res = await API.fetchMatchEvents(this._gradeFilter);
       if (!res.success || !res.data.length) {
-        container.innerHTML += '<div class="empty-state">暂无赛事数据</div>';
+        container.querySelector('#eventsList').outerHTML = '<div class="empty-state">暂无赛事数据</div>';
         return;
       }
-      let html = '<div class="event-list">';
+      this._eventsGradeCache = res.data;
+      let listHtml = '<div class="event-list">';
       res.data.forEach(ev => {
-        html += `<div class="event-item" onclick="App.goTo('match',{event:'${encodeURIComponent(ev.name)}'})">
-          <div><div class="event-name">${esc(ev.name)}</div>
-          <div class="event-meta">${ev.matchCount} 场比赛 · 最近: ${formatDate(ev.latestDate)}</div></div>
-          <span class="event-arrow">›</span>
-        </div>`;
+        listHtml += '<div class="event-item" onclick="App.goTo(&quot;match&quot;,{event:&quot;' + encodeURIComponent(ev.name) + '&quot;})">' +
+          '<div><div class="event-name">' + esc(ev.name) + this._gradeBadge(ev.grade) + '</div>' +
+          '<div class="event-meta">' + ev.matchCount + ' 场比赛 · 最近: ' + formatDate(ev.latestDate) + '</div></div>' +
+          '<span class="event-arrow">›</span></div>';
       });
-      html += '</div>';
-      container.querySelector('.page-header').insertAdjacentHTML('afterend', html);
-    } catch (e) { container.innerHTML += '<div class="empty-state">加载失败</div>'; }
+      listHtml += '</div>';
+      container.querySelector('#eventsList').outerHTML = listHtml;
+    } catch (e) { container.querySelector('#eventsList').outerHTML = '<div class="empty-state">加载失败</div>'; }
   },
 
   // ==================== 比赛列表 ====================
   async renderMatchList(container, query) {
     const eventName = query.event ? decodeURIComponent(query.event) : '';
-    container.innerHTML = `<div class="page-header"><h1>${esc(eventName || '全部赛事')}</h1></div><div class="loading">加载中</div>`;
+    let headerLabel = esc(eventName || '全部赛事');
+    // 如果是从赛事中心进入，尝试获取当前赛事的等级标签
+    if (eventName && this._eventsGradeCache) {
+      const ev = this._eventsGradeCache.find(e => e.name === eventName);
+      if (ev && ev.grade) headerLabel += this._gradeBadge(ev.grade);
+    }
+    container.innerHTML = `<div class="page-header"><h1>${headerLabel}</h1></div><div class="loading">加载中</div>`;
     try {
       const res = await API.fetchMatches(eventName || undefined);
       if (!res.success || !res.data.length) {
