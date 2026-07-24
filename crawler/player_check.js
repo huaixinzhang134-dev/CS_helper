@@ -147,8 +147,15 @@ function parsePositionFromHtml(html) {
 async function evaluateRatioAndCorrect(htmlPosition) {
   try {
     const ratioValue = await page.evaluate(() => {
-      const el = document.querySelector('#infoBox > div.g-grid.stats-matches > div:nth-child(1) > div.playerpage-container.playerpage-container-attributes > div:nth-child(7) > div.player-stat-top > span > p > b');
-      return el ? parseFloat(el.textContent.trim()) : null;
+      const statsTop = document.querySelectorAll('.playerpage-container-attributes .player-stat-top');
+      for (const st of statsTop) {
+        const label = st.querySelector('span > p')?.textContent?.trim() || '';
+        if (label.includes('Sniping') || label.includes('sniping')) {
+          const valEl = st.querySelector('b');
+          return valEl ? parseFloat(valEl.textContent.trim()) : null;
+        }
+      }
+      return null;
     });
     if (ratioValue !== null && ratioValue > 65) return { position: '狙击手', ratioValue, corrected: true };
     return { position: htmlPosition, ratioValue, corrected: false };

@@ -343,11 +343,18 @@ async function fetchPlayerDetails(playerUrl, playerId, playerName, archiveType) 
           }
         }
 
-        // 查找 Sniping 数据（与 player_check.js 选择器一致，已验证可用）
-        // HTML: #infoBox > ... > div.player-stat-top > span > p > b (百分比数字)
-        const sniperEl = document.querySelector('#infoBox > div.g-grid.stats-matches > div:nth-child(1) > div.playerpage-container.playerpage-container-attributes > div:nth-child(7) > div.player-stat-top > span > p > b');
-        if (sniperEl) {
-          result.sniping = parseFloat(sniperEl.textContent.trim());
+        // 查找 Sniping 数据：遍历所有 .player-stat-top，按标签文字匹配（与 rating/firepower 一致）
+        // 避免 nth-child 写死路径因不同选手属性数量不同而失效
+        const statsTop = document.querySelectorAll('.playerpage-container-attributes .player-stat-top');
+        for (const st of statsTop) {
+          const label = st.querySelector('span > p')?.textContent?.trim() || '';
+          if (label.includes('Sniping') || label.includes('sniping')) {
+            const valEl = st.querySelector('b');
+            if (valEl) {
+              result.sniping = parseFloat(valEl.textContent.trim());
+            }
+            break;
+          }
         }
 
         return result;
