@@ -624,9 +624,10 @@ const App = {
         ${Array.from({length:maxAttempts},(_,i)=>`<div class="attempt-box ${i < state.attempts ? (state.gameStatus==='won'&&i===state.attempts-1?'success':'used'):''}"></div>`).join('')}
       </div>` : ''}
       ${state.gameStatus === 'playing' ? `
-      <div style="text-align:center;margin-top:12px;">
+      <div style="text-align:center;margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
         <button class="btn btn-ghost btn-sm" onclick="App._guessGiveUp()">服了，认输</button>
-        ${state.attempts > 5 && !state.hintUsed ? `<button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="App._guessHint()">💡 提示</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="App._showGuessItems()">🧰 道具</button>
+        ${state.attempts > 5 && !state.hintUsed ? `<button class="btn btn-ghost btn-sm" onclick="App._guessHint()">💡 提示</button>` : ''}
       </div>` : ''}
       ${state.hintContent ? `<div class="card" style="margin-top:12px;text-align:center;color:var(--accent);font-size:14px;">💡 ${esc(state.hintContent)}</div>` : ''}
     `;
@@ -734,6 +735,65 @@ const App = {
     state.hintContent = hints[Math.floor(Math.random() * hints.length)];
     state.hintUsed = true;
     this.renderGuess(document.getElementById('pageContent'));
+  },
+
+  async _showGuessItems() {
+    if (!this.user) { alert('请先登录'); return; }
+    const res = await API.fetchUserItems();
+    const items = res.success ? res.data.filter(i => i.quantity > 0) : [];
+    if (!items.length) { alert('暂无可用道具，请在商城购买'); return; }
+
+    const itemLabels = { hint_ticket: '💡 提示券', extra_chance: '🔄 额外机会' };
+    const itemDescs = { hint_ticket: '获得一条关于目标选手的提示信息', extra_chance: 'PK模式中增加一次猜测机会（限好友PK）' };
+
+    const existing = document.getElementById('guessItemsModal');
+    if (existing) existing.remove();
+
+    const div = document.createElement('div');
+    div.id = 'guessItemsModal';
+    div.className = 'modal-mask';
+    div.style.cssText = 'display:flex;z-index:300;';
+    div.innerHTML = '<div class="modal-content" style="max-width:360px;">'
+      + '<div class="modal-title" style="font-size:16px;">🎒 道具背包</div>'
+      + '<div class="modal-body" style="text-align:left;padding:8px 0;">'
+      + items.map(i => '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">'
+        + '<div><div style="font-size:14px;font-weight:500;">' + (itemLabels[i.itemType] || i.itemType) + '</div>'
+        + '<div style="font-size:11px;color:var(--text-muted);">' + (itemDescs[i.itemType] || '') + '</div></div>'
+        + '<div style="text-align:right;"><div style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;">x' + i.quantity + '</div>'
+        + '<button class="btn btn-sm btn-success" onclick="App._useGuessItem(\'' + i.itemType + '\');this.closest(\'.modal-mask\').remove()">使用</button></div>'
+        + '</div>').join('')
+      + '</div>'
+      + '<div class="modal-footer"><button class="btn btn-sm" onclick="this.closest(\'.modal-mask\').remove()">关闭</button></div>'
+      + '</div>';
+    document.body.insertAdjacentElement('beforeend', div);
+  },
+
+  async _useGuessItem(itemType) {
+    const state = this.state.guess;
+    if (!state || !state.target) return;
+
+    if (itemType === 'hint_ticket') {
+      // 使用提示券 → 获取提示
+      const res = await API.useItem('hint_ticket');
+      if (res.code !== 0) { alert(res.message || '使用失败'); return; }
+      const target = state.target;
+      const hints = [];
+      if (target.team) hints.push('该选手的战队为：' + target.team);
+      if (target.country) hints.push('该选手的国家为：' + target.country);
+      if (target.age != null) hints.push('该选手的年龄为：' + target.age);
+      if (target.majorAppearances != null) hints.push('该选手的Major参赛次数为：' + target.majorAppearances);
+      if (!hints.length) { alert('暂无可用提示信息'); return; }
+      state.hintContent = hints[Math.floor(Math.random() * hints.length)];
+      state.hintUsed = true;
+      this.renderGuess(document.getElementById('pageContent'));
+    } else if (itemType === 'extra_chance') {
+      // 额外机会：仅PK模式有效
+      if (state.mode !== 'friend') { alert('额外机会仅限好友PK模式使用'); return; }
+      const res = await API.useItem('extra_chance');
+      if (res.code !== 0) { alert(res.message || '使用失败'); return; }
+      // PK模式目前存储在内存/服务端，前端告知用户
+      alert('已使用额外机会，请通知对手继续游戏');
+    }
   },
 
   _showGuessRules() {

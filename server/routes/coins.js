@@ -261,4 +261,35 @@ router.get('/items', authMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ============================================================
+// POST /api/coins/items/use - 使用道具
+// Body: { itemType }
+// 返回: { success, itemType, quantity (剩余) }
+// ============================================================
+router.post('/items/use', authMiddleware, async (req, res, next) => {
+  try {
+    const { itemType } = req.body || {};
+    if (!itemType) return res.status(400).json({ code: 400, message: 'itemType 必填', data: null });
+
+    const [rows] = await query(
+      'SELECT * FROM user_items WHERE user_openid = ? AND item_type = ?',
+      [req.userOpenid, itemType]
+    );
+    if (!rows[0] || rows[0].quantity <= 0) {
+      return res.status(400).json({ code: 400, message: '道具不足', data: null });
+    }
+
+    // 扣减道具
+    const newQty = rows[0].quantity - 1;
+    if (newQty <= 0) {
+      await query('DELETE FROM user_items WHERE user_openid = ? AND item_type = ?', [req.userOpenid, itemType]);
+    } else {
+      await query('UPDATE user_items SET quantity = ? WHERE user_openid = ? AND item_type = ?',
+        [newQty, req.userOpenid, itemType]);
+    }
+
+    res.json({ code: 0, message: '使用成功', data: { itemType, quantity: newQty > 0 ? newQty : 0 } });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

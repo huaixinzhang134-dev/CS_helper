@@ -208,6 +208,10 @@ const API = {
     return this.post('/coins/shop/buy', { itemId, quantity });
   },
 
+  async useItem(itemType) {
+    return this.post('/coins/items/use', { itemType });
+  },
+
   // ================== 年度猜测 API ==================
 
   async submitPick(slot, playerGameId, playerName, year = 2026) {
