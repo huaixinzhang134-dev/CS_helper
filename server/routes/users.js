@@ -298,6 +298,25 @@ router.post('/guess/record', authMiddleware, async (req, res, next) => {
       );
     }
 
+    // 单人模式猜对 → 代币奖励
+    if (won && mode === 'personal' && difficulty) {
+      const COIN_MAP = { trivial: 1, easy: 3, normal: 5, hard: 8, hell: 15, challenge: 40 };
+      const reward = COIN_MAP[difficulty];
+      if (reward) {
+        const [u] = await query('SELECT coins, total_coins_earned FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
+        const curCoins = u[0]?.coins || 0;
+        const curEarned = u[0]?.total_coins_earned || 0;
+        await query(
+          'UPDATE users SET coins = ?, total_coins_earned = ? WHERE openid = ?',
+          [curCoins + reward, curEarned + reward, req.userOpenid]
+        );
+        await query(
+          'INSERT INTO coin_transactions (user_openid, amount, balance_after, type, description) VALUES (?, ?, ?, ?, ?)',
+          [req.userOpenid, reward, curCoins + reward, 'guess_reward', '单人' + difficulty + '难度猜对奖励']
+        );
+      }
+    }
+
     const [updated] = await query('SELECT * FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
     res.json({ code: 0, message: won ? '胜利记录已保存' : '记录已保存', data: userToDTO(updated[0]) });
   } catch (err) { next(err); }
