@@ -815,6 +815,11 @@ export const fetchUserItems = async (): Promise<{ success: boolean; data: UserIt
   return { success: res.success, data: res.data ?? [] };
 };
 
+export const useItem = async (itemType: string): Promise<{ success: boolean; message: string }> => {
+  const res = await postAuth<any>('/coins/items/use', { itemType });
+  return { success: res.code === 0, message: res.message || '' };
+};
+
 // ============================================================
 // 猜测 API
 // ============================================================

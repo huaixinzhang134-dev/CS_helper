@@ -107,7 +107,10 @@
   <!-- Header -->
   <view class="header">
     <view class="title"><text class="highlight">弗一把</text></view>
-    <view class="hint-btn {{hintUsed ? 'used' : ''}}" wx:if="{{gameStatus === 'playing' && targetPlayer && myAttempts > 5}}" bindtap="onGetHint">提示</view>
+    <view class="header-btns" style="display:flex;align-items:center;gap:8rpx;">
+      <view class="hint-btn" wx:if="{{gameStatus === 'playing' && targetPlayer && userItemCount > 0}}" bindtap="onShowItems">道具</view>
+      <view class="hint-btn {{hintUsed ? 'used' : ''}}" wx:if="{{gameStatus === 'playing' && targetPlayer && myAttempts > 5}}" bindtap="onGetHint">提示</view>
+    </view>
   </view>
 
   <!-- Game Board -->
@@ -206,6 +209,27 @@
         </view>
       </view>
       <view class="modal-footer"><button class="btn-primary" bindtap="onResultRestart">再来一局</button></view>
+    </view>
+  </view>
+
+  <!-- Item Modal -->
+  <view class="modal-mask" wx:if="{{showItemModal}}" bindtap="onItemModalClose">
+    <view class="modal-content" catchtap="">
+      <view class="modal-title">🎒 道具背包</view>
+      <view class="modal-body" style="text-align:left;padding:8rpx 0;">
+        <view wx:for="{{userItems}}" wx:key="itemType" style="display:flex;align-items:center;justify-content:space-between;padding:16rpx 0;border-bottom:1px solid var(--border);">
+          <view>
+            <text style="font-size:28rpx;font-weight:500;">{{item.itemLabel}}</text>
+            <text style="display:block;font-size:22rpx;color:var(--text-muted);margin-top:4rpx;">{{item.desc}}</text>
+          </view>
+          <view style="text-align:right;">
+            <text style="display:block;font-size:26rpx;color:var(--text-secondary);margin-bottom:8rpx;">x{{item.quantity}}</text>
+            <button class="btn-primary" style="font-size:22rpx;padding:4rpx 20rpx;" bindtap="onUseItem" data-type="{{item.itemType}}">使用</button>
+          </view>
+        </view>
+        <view wx:if="{{userItems.length === 0}}" style="text-align:center;padding:40rpx 0;color:var(--text-muted);font-size:26rpx;">暂无可用道具</view>
+      </view>
+      <view class="modal-footer"><button class="btn-secondary" bindtap="onItemModalClose">关闭</button></view>
     </view>
   </view>
 

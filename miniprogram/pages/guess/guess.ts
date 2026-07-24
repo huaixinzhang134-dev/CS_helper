@@ -1,4 +1,4 @@
-import { fetchRandomPlayerByDifficulty, searchPlayers, submitGuessRecord, fetchDifficultyProgress, createPkRoom, joinPkRoom, getPkRoom, reportPkResult, reportPkAttempt, readyForNextRound, startNextRound, Player } from '../../services/api';
+import { fetchRandomPlayerByDifficulty, searchPlayers, submitGuessRecord, fetchDifficultyProgress, createPkRoom, joinPkRoom, getPkRoom, reportPkResult, reportPkAttempt, readyForNextRound, startNextRound, Player, fetchUserItems, useItem } from '../../services/api';
 import { STATIC_BASE } from '../../config';
 
 const SILHOUETTE_URLS = [
@@ -119,6 +119,11 @@ Page({
     // 难度锁定弹窗
     showLockModal: false,
     lockMessage: '',
+
+    // 道具系统
+    showItemModal: false,
+    userItems: [] as { itemType: string; quantity: number; itemLabel: string; desc: string }[],
+    userItemCount: 0,
   },
 
   onLoad(options: any) {
@@ -450,6 +455,8 @@ Page({
         searchQuery: '', searchResults: [], showAdModal: false,
         pkResult: null, myAttempts: 0, hintUsed: false, showHintModal: false, hintContent: '',
       });
+      // 加载道具数量
+      this.loadUserItemCount();
     } catch (err) {
       wx.hideLoading();
       wx.showToast({ title: '加载失败，请重试', icon: 'none' });
@@ -673,6 +680,64 @@ Page({
 
   onHintMaskTap() { this.setData({ showHintModal: false }); },
   onHintContentTap() {},
+
+  // ============ 道具系统 ============
+  async onShowItems() {
+    const token = wx.getStorageSync('token');
+    if (!token) { wx.showToast({ title: '请先登录', icon: 'none' }); return; }
+    const res = await fetchUserItems();
+    const items = (res.success ? res.data || [] : []).filter(i => i.quantity > 0);
+    const LABELS: Record<string, string> = { hint_ticket: '提示券', extra_chance: '额外机会' };
+    const DESCS: Record<string, string> = { hint_ticket: '获得一条关于目标选手的提示信息', extra_chance: 'PK模式中增加一次猜测机会' };
+    this.setData({
+      showItemModal: true,
+      userItems: items.map(i => ({
+        ...i,
+        itemLabel: LABELS[i.itemType] || i.itemType,
+        desc: DESCS[i.itemType] || '',
+      }))
+    });
+  },
+
+  async onUseItem(e: any) {
+    const itemType = e.currentTarget.dataset.type;
+    if (itemType === 'hint_ticket') {
+      const res = await useItem('hint_ticket');
+      if (!res.success) { wx.showToast({ title: res.message || '使用失败', icon: 'none' }); return; }
+      const target = this.data.targetPlayer;
+      if (!target) return;
+      const hints: string[] = [];
+      if (target.team) hints.push(`该选手的战队为：${target.team}`);
+      if (target.country) hints.push(`该选手的国家为：${target.country}`);
+      if (target.age != null) hints.push(`该选手的年龄为：${target.age}`);
+      if (target.majorAppearances != null) hints.push(`该选手的Major参赛次数为：${target.majorAppearances}`);
+      if (!hints.length) { wx.showToast({ title: '暂无可用提示', icon: 'none' }); return; }
+      const hint = hints[Math.floor(Math.random() * hints.length)];
+      this.setData({
+        showItemModal: false,
+        hintUsed: true,
+        showHintModal: true,
+        hintContent: hint,
+        userItemCount: this.data.userItemCount - 1,
+      });
+    } else if (itemType === 'extra_chance') {
+      if (this.data.gameMode !== 'friend') { wx.showToast({ title: '仅好友PK模式可用', icon: 'none' }); return; }
+      const res = await useItem('extra_chance');
+      if (!res.success) { wx.showToast({ title: res.message || '使用失败', icon: 'none' }); return; }
+      this.setData({ showItemModal: false });
+      wx.showToast({ title: '已使用额外机会', icon: 'none' });
+    }
+  },
+
+  onItemModalClose() { this.setData({ showItemModal: false }); },
+
+  async loadUserItemCount() {
+    const token = wx.getStorageSync('token');
+    if (!token) { this.setData({ userItemCount: 0 }); return; }
+    const res = await fetchUserItems();
+    const count = (res.success ? res.data || [] : []).reduce((sum, i) => sum + i.quantity, 0);
+    this.setData({ userItemCount: count });
+  },
 
   // ============ 难度选择 ============
   onChangeDifficulty() {
