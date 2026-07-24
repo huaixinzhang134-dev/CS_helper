@@ -53,7 +53,7 @@
           class="search-item {{selectedPlayer && selectedPlayer.playerId === item.playerId ? 'active' : ''}}"
           wx:for="{{searchResults}}"
           wx:key="_id"
-          data-player="{{item}}"
+          data-player-id="{{item.playerId}}"
           catchtap="onSelectPlayer"
         >
           <text class="search-player-name">{{item.name}}</text>

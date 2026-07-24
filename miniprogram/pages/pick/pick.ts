@@ -111,11 +111,16 @@ Page({
 
   /** 点选选手 → 暂存到 selectedPlayer，不立即提交 */
   onSelectPlayer(e: WechatMiniprogram.TouchEvent) {
-    const player = e.currentTarget.dataset.player as Player;
+    const playerId = e.currentTarget?.dataset?.playerId as string;
     const slot = this.data.activeSlot;
+    if (!playerId || !slot) return;
+
+    // 从 searchResults 中查找完整的选手信息
+    const player = this.data.searchResults.find(p => p.playerId === playerId);
+    if (!player) return;
 
     // 检查是否在其他 slot 已选
-    const existing = this.data.slots.find(s => s.playerGameId === player.playerId && s.slot !== slot);
+    const existing = this.data.slots.find(s => s.playerGameId === playerId && s.slot !== slot);
     if (existing) {
       wx.showToast({ title: `该选手已在 Top${existing.slot}`, icon: 'none' });
       return;
