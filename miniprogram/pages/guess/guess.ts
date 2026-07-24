@@ -740,23 +740,15 @@ Page({
   },
 
   // ============ 难度选择 ============
-  onChangeDifficulty() {
+  async onChangeDifficulty() {
     if (this.data.gameMode !== 'personal') return;
-    // 重置游戏状态，回到难度选择界面
-    this.setData({
-      targetPlayer: null,
-      targetAvatarUrl: '',
-      guesses: [],
-      attemptsLeft: UNLIMITED_ATTEMPTS,
-      gameStatus: 'playing',
-      searchQuery: '',
-      searchResults: [],
-      hintUsed: false,
-      showHintModal: false,
-      hintContent: '',
-      showDifficultySelection: true,
-    });
-    this.loadDifficultyProgress();
+    // 弹出难度选择弹窗（覆盖层，不重置游戏状态）
+    await this.loadDifficultyProgress();
+    this.setData({ showDifficultySelection: true });
+  },
+
+  onCloseDifficultySelection() {
+    this.setData({ showDifficultySelection: false });
   },
 
   // ============ 玩法说明 ============

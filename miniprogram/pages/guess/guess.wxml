@@ -62,8 +62,8 @@
   </view>
 
   <!-- ====== 2x3 难度选择网格 ====== -->
-  <view class="modal-mask" wx:if="{{showDifficultySelection}}" style="z-index:99;">
-    <view class="modal-content diff-modal">
+  <view class="modal-mask" wx:if="{{showDifficultySelection}}" style="z-index:99;" bindtap="onCloseDifficultySelection">
+    <view class="modal-content diff-modal" catchtap="">
       <view class="modal-title">选择难度</view>
       <view class="diff-grid">
         <view
