@@ -227,7 +227,8 @@
 }
 
 .search-results {
-  max-height: 50vh;
+  flex: 1;
+  min-height: 0;
 }
 
 .search-item {
@@ -279,6 +280,7 @@
   padding: 20rpx 0 0;
   border-top: 1rpx solid var(--border-color);
   margin-top: 16rpx;
+  flex-shrink: 0;
 }
 
 .selected-hint {
