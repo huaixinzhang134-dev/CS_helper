@@ -26,6 +26,8 @@ Page({
 
     // 暂存当前选择的选手（选选手后不立即提交，需点击"提交"按钮）
     selectedPlayer: null as { playerId: string; name: string } | null,
+    // 搜索请求版本号，用于丢弃过期响应的竞态防护
+    searchVersion: 0,
   },
 
   onLoad() {
@@ -99,13 +101,24 @@ Page({
     this.setData({ searchQuery: query });
     if ((this as any).searchTimer) clearTimeout((this as any).searchTimer);
     if (!query) { this.setData({ searchResults: [] }); return; }
+
+    // 递增版本号，用于在异步回调中判断响应是否已过期
+    const thisVersion = this.data.searchVersion + 1;
+    this.setData({ searchVersion: thisVersion });
+
     (this as any).searchTimer = setTimeout(async () => {
       this.setData({ searchLoading: true });
       const res = await searchPlayers(query, 0, 30);
-      this.setData({
-        searchResults: res.success && res.data ? res.data.map(p => ({ ...p, avatarUrl: p.avatar || '' })) : [],
-        searchLoading: false,
-      });
+      // 竞态防护：只有当前版本号匹配时才更新搜索结果
+      if (this.data.searchVersion === thisVersion) {
+        this.setData({
+          searchResults: res.success && res.data ? res.data.map(p => ({ ...p, avatarUrl: p.avatar || '' })) : [],
+          searchLoading: false,
+        });
+      } else {
+        // 过期响应，忽略
+        this.setData({ searchLoading: false });
+      }
     }, 300);
   },
 
@@ -113,11 +126,18 @@ Page({
   onSelectPlayer(e: WechatMiniprogram.TouchEvent) {
     const playerId = e.currentTarget?.dataset?.playerId as string;
     const slot = this.data.activeSlot;
-    if (!playerId || !slot) return;
+    if (!playerId || !slot) {
+      console.warn('[pick] onSelectPlayer 缺少 playerId 或 slot', { playerId, slot });
+      return;
+    }
 
     // 从 searchResults 中查找完整的选手信息
     const player = this.data.searchResults.find(p => p.playerId === playerId);
-    if (!player) return;
+    if (!player) {
+      console.warn('[pick] 选手未在 searchResults 中找到', { playerId, searchResultsLen: this.data.searchResults.length });
+      wx.showToast({ title: '搜索结果已过期，请重新搜索', icon: 'none' });
+      return;
+    }
 
     // 检查是否在其他 slot 已选
     const existing = this.data.slots.find(s => s.playerGameId === playerId && s.slot !== slot);

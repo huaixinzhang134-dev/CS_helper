@@ -81,10 +81,10 @@ def insert_players(cur, players: list):
     sql = """
         INSERT INTO player
           (game_id, name, real_name, age, country, country_code,
-           current_team, former_teams, region,
+           current_team, former_teams, region, status,
            major_appearances, position, rating, sniping, avatar)
         VALUES
-          (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+          (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
           name=VALUES(name),
           real_name=VALUES(real_name),
@@ -94,6 +94,7 @@ def insert_players(cur, players: list):
           current_team=VALUES(current_team),
           former_teams=VALUES(former_teams),
           region=VALUES(region),
+          status=VALUES(status),
           major_appearances=VALUES(major_appearances),
           position=VALUES(position),
           rating=VALUES(rating),
@@ -112,6 +113,7 @@ def insert_players(cur, players: list):
             p.get("team", "") or "",
             json.dumps(p.get("formerTeams") or [], ensure_ascii=False),
             p.get("region", "Other"),
+            p.get("status", "unknown"),
             safe_int(p.get("majorAppearances")),
             p.get("position", ""),
             safe_float(p.get("rating")),
