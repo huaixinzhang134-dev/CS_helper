@@ -16,6 +16,7 @@ git push
 - `server/` — Express 后端（Node.js + MySQL）
 - `server/public/web/` — **Web 前端 SPA**（手机号登录，替代小程序）
 - `crawler/` — HLTV / 5eplay 爬虫脚本
+  - `playerbase_checking.js` — 选手位置检测 → **只改 `playerbase.json`**，不涉及数据库
 - `scripts/` — 数据导入脚本
 - `.github/workflows/` — GitHub Actions 自动化工作流
 
