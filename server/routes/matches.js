@@ -35,7 +35,9 @@ function fmtTime(t) {
 
 function logoToPng(url, baseUrl) {
   if (!url) return '';
-  return url;
+  // 通过 /api/logo 代理，自动将 HLTV SVG 队标转为 PNG
+  // 微信小程序 <image> 不支持 SVG，必须经服务端转换
+  return `${baseUrl}/api/logo?url=${encodeURIComponent(url)}`;
 }
 
 /**

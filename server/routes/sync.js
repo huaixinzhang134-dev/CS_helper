@@ -46,16 +46,21 @@ async function resolveTeamId(teamName, logoUrl) {
 
   const [rows] = await queryNoBinlog('SELECT id, logo_url FROM team WHERE name = ? LIMIT 1', [name]);
   if (rows.length > 0) {
-    // 不覆盖已有队标：5eplay 的 logo 是 5e 域名，HLTV CDN URL 才是正确的
-    // 队标由 ranking.yml 爬虫（crawl_ranking.js）从 HLTV 获取
+    // 队伍已有 HLTV 队标时不覆盖（HLTV CDN URL 比 5eplay 更稳定）
+    // 但没有队标时，用 5eplay 提供的 logo 作为兜底
+    if (!rows[0].logo_url && logoUrl) {
+      await queryNoBinlog('UPDATE team SET logo_url = ? WHERE id = ?', [logoUrl, rows[0].id]);
+      console.log(`[sync] 补充队标: ${name} ← 5eplay`);
+    }
     return rows[0].id;
   }
 
+  // 新队伍：有 5eplay logo 就用，没有则留空等待 HLTV 爬虫补充
   const [result] = await queryNoBinlog(
     'INSERT INTO team (name, region, member_count, logo_url) VALUES (?, ?, 0, ?)',
-    [name, 'Other', '']  // 新队伍也不写 5eplay 的 logo，等 HLTV 爬虫来补充
+    [name, 'Other', logoUrl || '']
   );
-  console.log(`[sync] 自动创建新战队: ${name} (id=${result.insertId})`);
+  console.log(`[sync] 自动创建新战队: ${name} (id=${result.insertId})${logoUrl ? ' [有队标]' : ''}`);
   return result.insertId;
 }
 
@@ -73,12 +78,14 @@ function fmtTime(t) {
   return s;
 }
 
-function proxyLogo(url) {
+function proxyLogo(url, baseUrl) {
   if (!url) return '';
-  return url;
+  // 通过 /api/logo 代理，自动将 HLTV SVG 队标转为 PNG
+  // 微信小程序 <image> 不支持 SVG，必须经服务端转换
+  return `${baseUrl}/api/logo?url=${encodeURIComponent(url)}`;
 }
 
-function toMatchDTO(row) {
+function toMatchDTO(row, baseUrl) {
   return {
     _id: String(row.id),
     eplayId: row.eplay_id || '',
@@ -86,12 +93,12 @@ function toMatchDTO(row) {
     status: row.status || 'Upcoming',
     teamA: {
       name: row.teamA_name || row.team_a_name || '',
-      logo: proxyLogo(row.teamA_logo),
+      logo: proxyLogo(row.teamA_logo, baseUrl),
       score: row.team1_score || 0
     },
     teamB: {
       name: row.teamB_name || row.team_b_name || '',
-      logo: proxyLogo(row.teamB_logo),
+      logo: proxyLogo(row.teamB_logo, baseUrl),
       score: row.team2_score || 0
     },
     time: row.match_date && row.match_time
@@ -388,7 +395,8 @@ router.post('/', async (req, res, next) => {
 
       const broadcastGlobal = req.app.get('broadcastGlobal');
       if (broadcastGlobal) {
-        broadcastGlobal(allRows.map(toMatchDTO));
+        const baseUrl = req.protocol + '://' + req.get('host');
+        broadcastGlobal(allRows.map(r => toMatchDTO(r, baseUrl)));
       }
 
       // 逐场广播新增/更新的比赛
