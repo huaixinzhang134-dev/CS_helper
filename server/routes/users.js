@@ -381,8 +381,8 @@ router.get('/guess/records', authMiddleware, async (req, res, next) => {
 
 // ============================================================
 // GET /api/users/ranking?mode=pk|solo
-// 返回所有用户的胜率排行榜
-// 优先使用迁移后的分模式统计列，无数据时回退到总胜率
+// 返回有该模式数据用户的胜率排行榜
+// 封神榜分开显示 PK 和 Solo 数据，不互相回退
 // ============================================================
 router.get('/ranking', async (req, res, next) => {
   try {
@@ -397,17 +397,17 @@ router.get('/ranking', async (req, res, next) => {
 
     let sql;
     if (hasMigrated) {
-      // 优先使用分模式统计列；无数据时回退到总胜率
+      // 封神榜：只展示有该模式数据的用户，不回退总胜率
+      // "我的"页面头部依然使用总胜率（走 userToDTO）
       sql = `SELECT openid, nickname, avatar_url,
-               CASE WHEN ${totalCol} > 0 THEN ${winCol} ELSE win_count END AS win_count,
-               CASE WHEN ${totalCol} > 0 THEN ${totalCol} ELSE total_games END AS total_games,
-               CASE WHEN ${totalCol} > 0 THEN ${rateCol} ELSE win_rate END AS win_rate
+               ${winCol} AS win_count,
+               ${totalCol} AS total_games,
+               ${rateCol} AS win_rate
              FROM users
-             WHERE ${totalCol} > 0 OR total_games > 0
-             ORDER BY
-               CASE WHEN ${totalCol} > 0 THEN ${rateCol} ELSE win_rate END DESC,
-               CASE WHEN ${totalCol} > 0 THEN ${totalCol} ELSE total_games END DESC
+             WHERE ${totalCol} > 0
+             ORDER BY ${rateCol} DESC, ${totalCol} DESC
              LIMIT 100`;
+
     } else {
       sql = `SELECT openid, nickname, avatar_url, win_count, total_games, win_rate
              FROM users WHERE total_games > 0
