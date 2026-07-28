@@ -19,6 +19,7 @@ const usersRouter = require('./routes/users');
 const coinsRouter = require('./routes/coins');
 const picksRouter = require('./routes/picks');
 const adminAuthRouter = require('./routes/admin-auth').router;
+const nicknamesRouter = require('./routes/nicknames');
 
 const { setupWebSocket } = require('./ws');
 
@@ -75,8 +76,12 @@ app.use('/api/coins', coinsRouter);
 // 年度猜测
 app.use('/api/picks', picksRouter);
 
-// 管理员登录
+// 绰号建议系统（用户提交）
+app.use('/api/nicknames', nicknamesRouter);
+
+// 管理员登录 + 管理员绰号审核
 app.use('/api/admin', adminAuthRouter);
+app.use('/api/admin', nicknamesRouter);
 
 // 管理后台网页
 app.use('/admin', require('./routes/admin-web'));
