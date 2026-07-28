@@ -4,6 +4,12 @@ const router = express.Router();
 
 const { query } = require('../db/pool');
 
+/** 将队标 URL 包装为 /api/logo 代理（小程序不支持 SVG，转换为 PNG） */
+function logoToPng(url, baseUrl) {
+  if (!url) return '';
+  return `${baseUrl}/api/logo?url=${encodeURIComponent(url)}`;
+}
+
 /**
  * GET /api/teams/ranked
  * 返回 team_ranking 表中所有队伍的名称列表
@@ -31,6 +37,7 @@ router.get('/ranked', async (req, res, next) => {
  */
 router.get('/ranking', async (req, res, next) => {
   try {
+    const baseUrl = req.protocol + '://' + req.get('host');
     const region = (req.query.region || 'all').trim();
     const page = Math.max(parseInt(req.query.page || '0', 10), 0);
     const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
@@ -75,7 +82,7 @@ router.get('/ranking', async (req, res, next) => {
         teamName: r.team_name,
         ranking: r.ranking,
         points: r.points,
-        logoUrl: r.team_logo_url || r.logo_url || '',
+        logoUrl: logoToPng(r.team_logo_url || r.logo_url || '', baseUrl),
         region: r.region || 'Other'
       })),
       hasMore: offset + pageSize < total,
