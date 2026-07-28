@@ -60,7 +60,9 @@ function switchTab(tab) {
   document.getElementById(`tab-${tab}`).style.display = 'block';
 
   if (tab === 'users') loadUsers();
+  else if (tab === 'players') loadPlayers();
   else if (tab === 'comments') loadComments();
+  else if (tab === 'nicknames') loadNicknames();
   else if (tab === 'votes') { loadSlotConfig(); loadWinners(); }
 }
 
@@ -82,8 +84,23 @@ async function loadUsers() {
         <button class="btn-del" onclick="deleteUser('${esc(u.openid)}')">删除</button>
       </td>
     </tr>`).join('');
-    document.getElementById('userPagination').textContent = `共 ${data.total} 条`;
+    renderUserPagination(data.total);
   } catch (e) { showError(e); }
+}
+
+function renderUserPagination(total) {
+  const pageSize = 20;
+  const totalPages = Math.ceil(total / pageSize);
+  const el = document.getElementById('userPagination');
+  let html = `<span>共 ${total} 条，第 ${userPage + 1}/${totalPages} 页</span>`;
+  html += `<button class="btn-page" onclick="goUserPage(${userPage - 1})" ${userPage <= 0 ? 'disabled' : ''}>上一页</button>`;
+  html += `<button class="btn-page" onclick="goUserPage(${userPage + 1})" ${userPage >= totalPages - 1 ? 'disabled' : ''}>下一页</button>`;
+  el.innerHTML = html;
+}
+
+function goUserPage(page) {
+  userPage = Math.max(0, page);
+  loadUsers();
 }
 
 function openUserModal(openid, nickname, coins) {
@@ -117,12 +134,97 @@ async function deleteUser(openid) {
   } catch (e) { alert(e.message); }
 }
 
+// ==================== 选手管理 ====================
+let playerPage = 0;
+let playerSearchTimer = null;
+
+function debouncePlayerSearch() {
+  clearTimeout(playerSearchTimer);
+  playerSearchTimer = setTimeout(() => { playerPage = 0; loadPlayers(); }, 300);
+}
+
+async function loadPlayers() {
+  const q = document.getElementById('playerSearch')?.value || '';
+  try {
+    const data = await API.getAdminPlayers(playerPage, 20, q);
+    const tbody = document.getElementById('playerTableBody');
+    const STATUS_MAP = { active: '现役', retired: '退役', coach: '教练', free_agent: '自由人', unknown: '未知' };
+    tbody.innerHTML = (data.list || []).map(p => `<tr>
+      <td>${p.playerId}</td>
+      <td><strong>${esc(p.name)}</strong></td>
+      <td>${esc(p.realName || '-')}</td>
+      <td>${esc(p.team || '-')}</td>
+      <td>${p.position || '-'}</td>
+      <td>${STATUS_MAP[p.status] || p.status}</td>
+      <td>${p.rating || '-'}</td>
+      <td>
+        <button class="btn-edit" onclick="openPlayerModal('${esc(p.playerId)}')">编辑</button>
+      </td>
+    </tr>`).join('');
+    renderPlayerPagination(data.total || 0);
+  } catch (e) { showError(e); }
+}
+
+function renderPlayerPagination(total) {
+  const pageSize = 20;
+  const totalPages = Math.ceil(total / pageSize) || 1;
+  const el = document.getElementById('playerPagination');
+  if (total === 0) { el.innerHTML = '暂无选手数据'; return; }
+  el.innerHTML = `<span>共 ${total} 条，第 ${playerPage + 1}/${totalPages} 页</span>
+    <button class="btn-page" onclick="goPlayerPage(${playerPage - 1})" ${playerPage <= 0 ? 'disabled' : ''}>上一页</button>
+    <button class="btn-page" onclick="goPlayerPage(${playerPage + 1})" ${playerPage >= totalPages - 1 ? 'disabled' : ''}>下一页</button>`;
+}
+
+function goPlayerPage(page) {
+  playerPage = Math.max(0, page);
+  loadPlayers();
+}
+
+async function openPlayerModal(playerId) {
+  try {
+    // 通过搜索API获取选手详情
+    const data = await API.getAdminPlayers(0, 1, playerId);
+    const p = (data.list || []).find(x => x.playerId === playerId);
+    if (!p) { alert('选手不存在'); return; }
+    document.getElementById('editPlayerId').value = p.playerId;
+    document.getElementById('editPlayerName').value = p.name || '';
+    document.getElementById('editPlayerRealName').value = p.realName || '';
+    document.getElementById('editPlayerTeam').value = p.team || '';
+    document.getElementById('editPlayerPosition').value = p.position || '步枪手';
+    document.getElementById('editPlayerStatus').value = p.status || 'active';
+    document.getElementById('editPlayerRating').value = p.rating || 0;
+    document.getElementById('editPlayerSniping').value = p.sniping || 0;
+    document.getElementById('editPlayerMajor').value = p.majorAppearances || 0;
+    document.getElementById('playerModal').style.display = 'flex';
+  } catch (e) { alert(e.message); }
+}
+
+async function savePlayer() {
+  const playerId = document.getElementById('editPlayerId').value;
+  const data = {
+    name: document.getElementById('editPlayerName').value.trim(),
+    realName: document.getElementById('editPlayerRealName').value.trim(),
+    team: document.getElementById('editPlayerTeam').value.trim(),
+    position: document.getElementById('editPlayerPosition').value,
+    status: document.getElementById('editPlayerStatus').value,
+    rating: parseFloat(document.getElementById('editPlayerRating').value) || 0,
+    sniping: parseInt(document.getElementById('editPlayerSniping').value) || 0,
+    majorAppearances: parseInt(document.getElementById('editPlayerMajor').value) || 0,
+  };
+  try {
+    await API.updateAdminPlayer(playerId, data);
+    alert('更新成功');
+    closeModal('playerModal');
+    loadPlayers();
+  } catch (e) { alert(e.message); }
+}
+
 // ==================== 评论审核 ====================
 async function loadComments() {
   try {
     const data = await API.getPendingComments(commentPage, 20);
     const tbody = document.getElementById('commentTableBody');
-    tbody.innerHTML = data.list.map(c => `<tr>
+    tbody.innerHTML = (data.list || []).map(c => `<tr>
       <td>${esc(c.userName)}</td>
       <td>${esc(c.playerGameId)}</td>
       <td>${esc(c.content)}</td>
@@ -132,8 +234,23 @@ async function loadComments() {
         <button class="btn-reject" onclick="reviewComment('${c._id}','rejected')">驳回</button>
       </td>
     </tr>`).join('');
-    document.getElementById('commentPagination').textContent = data.list.length === 0 ? '暂无待审核评论' : `共 ${data.total} 条待审核`;
+    renderCommentPagination(data.total || 0);
   } catch (e) { showError(e); }
+}
+
+function renderCommentPagination(total) {
+  const pageSize = 20;
+  const totalPages = Math.ceil(total / pageSize) || 1;
+  const el = document.getElementById('commentPagination');
+  if (total === 0) { el.innerHTML = '暂无待审核评论'; return; }
+  el.innerHTML = `<span>共 ${total} 条，第 ${commentPage + 1}/${totalPages} 页</span>
+    <button class="btn-page" onclick="goCommentPage(${commentPage - 1})" ${commentPage <= 0 ? 'disabled' : ''}>上一页</button>
+    <button class="btn-page" onclick="goCommentPage(${commentPage + 1})" ${commentPage >= totalPages - 1 ? 'disabled' : ''}>下一页</button>`;
+}
+
+function goCommentPage(page) {
+  commentPage = Math.max(0, page);
+  loadComments();
 }
 
 async function reviewComment(id, status) {
@@ -254,6 +371,49 @@ async function awardCoins() {
     const data = await API.awardPicks(2026, threshold, 10);
     document.getElementById('awardResult').innerHTML =
       `<span class="success">已向 ${data.awardedUsers} 人发放 ${data.totalCoinsAwarded} 代币</span>`;
+  } catch (e) { alert(e.message); }
+}
+
+// ==================== 绰号审核 ====================
+let nicknamePage = 0;
+
+async function loadNicknames() {
+  const status = document.getElementById('nicknameFilter').value;
+  try {
+    const data = await API.getNicknames(status, nicknamePage, 20);
+    const tbody = document.getElementById('nicknameTableBody');
+    const STATUS_MAP = { pending: '待审核', approved: '已通过', rejected: '已拒绝' };
+    tbody.innerHTML = (data.data || []).map(n => `<tr>
+      <td>${n.id}</td>
+      <td>${n.targetType === 'player' ? '选手' : '战队'}</td>
+      <td>${esc(n.targetId)}</td>
+      <td><strong>${esc(n.alias)}</strong></td>
+      <td>${esc(n.submitterName)}</td>
+      <td>${STATUS_MAP[n.status] || n.status}</td>
+      <td>${n.createdAt}</td>
+      <td>
+        ${n.status === 'pending'
+          ? `<button class="btn-approve" onclick="approveNickname(${n.id})">通过</button>
+             <button class="btn-reject" onclick="rejectNickname(${n.id})">驳回</button>`
+          : '<span style="color:var(--text-muted)">已处理</span>'}
+      </td>
+    </tr>`).join('');
+    document.getElementById('nicknamePagination').textContent =
+      data.data.length === 0 ? '暂无数据' : `共 ${data.total} 条`;
+  } catch (e) { showError(e); }
+}
+
+async function approveNickname(id) {
+  try {
+    await API.approveNickname(id);
+    loadNicknames();
+  } catch (e) { alert(e.message); }
+}
+
+async function rejectNickname(id) {
+  try {
+    await API.rejectNickname(id);
+    loadNicknames();
   } catch (e) { alert(e.message); }
 }
 

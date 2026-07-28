@@ -40,4 +40,13 @@ const API = {
   setOfficialTop30(year, winners) { return this.post('/api/picks/admin/official', { year, winners, adminOpenid: 'admin' }); },
   checkPicks(year = 2026, threshold = 15, page = 0) { return this.get(`/api/picks/admin/check?year=${year}&matchThreshold=${threshold}&page=${page}`); },
   awardPicks(year = 2026, threshold = 15, coinsPerMatch = 10) { return this.post('/api/picks/admin/award', { year, matchThreshold: threshold, coinsPerMatch, adminOpenid: 'admin' }); },
+
+  // 选手管理
+  getAdminPlayers(page = 0, pageSize = 20, q = '') { return this.get(`/api/players/admin/list?page=${page}&pageSize=${pageSize}&q=${encodeURIComponent(q)}`); },
+  updateAdminPlayer(playerId, data) { return this.put(`/api/players/admin/${encodeURIComponent(playerId)}`, data); },
+
+  // 绰号审核
+  getNicknames(status = 'pending', page = 0, pageSize = 20) { return this.get(`/api/admin/nicknames?status=${status}&page=${page}&pageSize=${pageSize}`); },
+  approveNickname(id) { return this.post(`/api/admin/nicknames/${id}/approve`); },
+  rejectNickname(id) { return this.post(`/api/admin/nicknames/${id}/reject`); },
 };

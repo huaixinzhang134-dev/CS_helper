@@ -9,7 +9,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 /* Form */
 .form-group { margin-bottom: 16px; }
 .form-group label { display: block; margin-bottom: 6px; color: #aaa; font-size: 14px; }
-.form-group input, .form-row input { width: 100%; padding: 12px; background: #0f111a; border: 1px solid #2a2d3e; border-radius: 8px; color: #e0e0e0; font-size: 14px; }
+.form-group input, .form-row input, .form-group select { width: 100%; padding: 12px; background: #0f111a; border: 1px solid #2a2d3e; border-radius: 8px; color: #e0e0e0; font-size: 14px; }
+.form-group select { appearance: auto; }
 .form-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .form-row label { color: #aaa; font-size: 14px; }
 input:focus { outline: none; border-color: #0066cc; }
@@ -49,7 +50,9 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 .btn-reject { background: #8b1a1a; padding: 4px 12px; font-size: 12px; }
 
 /* Pagination */
-.pagination { margin-top: 16px; text-align: center; color: #888; font-size: 13px; }
+.pagination { margin-top: 16px; text-align: center; color: #888; font-size: 13px; display: flex; justify-content: center; align-items: center; gap: 8px; }
+.btn-page { background: #333; padding: 6px 16px; font-size: 12px; border-radius: 6px; }
+.btn-page[disabled] { opacity: 0.3; cursor: not-allowed; }
 
 /* Slot Switch Grid */
 .slot-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
@@ -77,6 +80,8 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 /* Modal */
 .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 100; }
 .modal-content { background: #1a1d2e; padding: 30px; border-radius: 12px; width: 400px; border: 1px solid #2a2d3e; }
+.modal-lg { width: 600px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .modal-content h3 { margin-bottom: 20px; }
 .close { float: right; cursor: pointer; font-size: 24px; color: #888; }
 

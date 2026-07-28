@@ -8,7 +8,7 @@ const { query } = require('../db/pool');
  * 数据库行 → 前端 Player DTO
  */
 function toPlayerDTO(row) {
-  return {
+  const dto = {
     _id: String(row.id),                  // 兼容旧前端
     playerId: row.game_id,               // 业务 ID（HLTV 数字）
     name: row.name,
@@ -25,6 +25,13 @@ function toPlayerDTO(row) {
     rating: Number(row.rating) || 0,
     avatar: row.avatar || ''
   };
+  // 绰号
+  if (row.alias) {
+    try {
+      dto.aliases = typeof row.alias === 'string' ? JSON.parse(row.alias) : row.alias;
+    } catch (_) { dto.aliases = []; }
+  }
+  return dto;
 }
 
 /**
@@ -572,6 +579,92 @@ router.delete('/:playerId', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// ============================================================
+// 管理员：选手列表（分页 + 搜索）
+// GET /api/players/admin/list?page=0&pageSize=20&q=
+// ============================================================
+router.get('/admin/list', async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page || '0', 10), 0);
+    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
+    const offset = page * pageSize;
+    const q = (req.query.q || '').trim();
+
+    let whereSql = '';
+    const params = [];
+    if (q) {
+      whereSql = 'WHERE name LIKE ? OR real_name LIKE ? OR game_id LIKE ?';
+      const like = `%${q}%`;
+      params.push(like, like, like);
+    }
+
+    const [countRows] = await query(
+      `SELECT COUNT(*) AS total FROM player ${whereSql}`, params
+    );
+    const total = countRows[0].total;
+
+    const [rows] = await query(
+      `SELECT * FROM player ${whereSql} ORDER BY id ASC LIMIT ${pageSize} OFFSET ${offset}`,
+      params
+    );
+
+    res.json({
+      code: 0, message: '',
+      data: {
+        list: rows.map(toPlayerDTO),
+        total,
+        page,
+        pageSize,
+      }
+    });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// 管理员：更新选手信息
+// PUT /api/players/admin/:playerId
+// Body: 可更新字段（如 name, realName, team, status, position, rating 等）
+// ============================================================
+router.put('/admin/:playerId', async (req, res, next) => {
+  try {
+    const { playerId } = req.params;
+    const allowedFields = ['name', 'realName', 'team', 'status', 'position', 'rating', 'sniping', 'majorAppearances', 'country', 'alias'];
+    const updates = [];
+    const params = [];
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        // 驼峰 → 下划线映射
+        const colMap = {
+          realName: 'real_name',
+          majorAppearances: 'major_appearances',
+        };
+        const col = colMap[field] || field;
+        updates.push(`${col} = ?`);
+        params.push(req.body[field]);
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ code: 400, message: '没有需要更新的字段' });
+    }
+
+    params.push(playerId);
+    const [result] = await query(
+      `UPDATE player SET ${updates.join(', ')} WHERE game_id = ?`,
+      params
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ code: 404, message: '选手不存在' });
+    }
+
+    // 返回更新后的选手数据
+    const [rows] = await query('SELECT * FROM player WHERE game_id = ? LIMIT 1', [playerId]);
+    res.json({ code: 0, message: '更新成功', data: rows[0] ? toPlayerDTO(rows[0]) : null });
+  } catch (err) { next(err); }
 });
 
 module.exports = router;
