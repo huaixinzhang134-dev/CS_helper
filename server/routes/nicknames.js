@@ -47,7 +47,8 @@ router.post('/suggest', authMiddleware, async (req, res, next) => {
 
     // 检查目标是否存在
     const table = targetType === 'player' ? 'player' : 'team';
-    const idField = targetType === 'player' ? '_id' : 'id';
+    // 两端表都用 id 做主键（player._id 是后端响应的 JS 别名，不是数据库列名）
+    const idField = 'id';
     const [rows] = await query(
       `SELECT id FROM ${table} WHERE ${idField} = ? LIMIT 1`,
       [targetId]
@@ -131,7 +132,8 @@ router.post('/nicknames/:id/approve', adminAuth, async (req, res, next) => {
 
     // 获取当前 alias，追加新绰号
     const table = suggestion.target_type === 'player' ? 'player' : 'team';
-    const idField = suggestion.target_type === 'player' ? '_id' : 'id';
+    // 两端表都用 id 做主键（player._id 是后端响应的 JS 别名，不是数据库列名）
+    const idField = 'id';
     const [targetRows] = await query(
       `SELECT alias FROM ${table} WHERE ${idField} = ? LIMIT 1`,
       [suggestion.target_id]
