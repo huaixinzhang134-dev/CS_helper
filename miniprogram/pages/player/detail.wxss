@@ -233,3 +233,120 @@
   color: var(--primary-color);
   font-weight: bold;
 }
+
+/* ====== 绰号展示 ====== */
+.alias-section {
+  margin-top: 30rpx;
+  padding: 20rpx 0;
+  border-top: 1rpx solid var(--border-color);
+}
+
+.alias-label {
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  margin-bottom: 12rpx;
+  display: block;
+}
+
+.alias-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.alias-tag {
+  font-size: 24rpx;
+  color: var(--primary-color);
+  background: rgba(0, 102, 204, 0.1);
+  border: 1rpx solid rgba(0, 102, 204, 0.3);
+  padding: 6rpx 18rpx;
+  border-radius: 8rpx;
+}
+
+/* ====== 提交绰号 ====== */
+.action-bar {
+  margin-top: 40rpx;
+  text-align: center;
+}
+
+.btn-nickname {
+  background: var(--bg-card);
+  border: 1rpx solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 28rpx;
+  padding: 20rpx 40rpx;
+  border-radius: 12rpx;
+}
+
+.btn-nickname:active {
+  opacity: 0.7;
+}
+
+/* ====== 弹窗遮罩 ====== */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--modal-backdrop);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: var(--modal-bg);
+  border-radius: 20rpx;
+  width: 600rpx;
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.nickname-modal {
+  padding: 40rpx;
+}
+
+.nickname-input {
+  background: var(--bg-input);
+  border: 1rpx solid var(--border-color);
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  font-size: 32rpx;
+  color: var(--text-primary);
+  margin: 30rpx 0;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 20rpx;
+  justify-content: flex-end;
+  padding: 20rpx 0 0;
+  margin-top: 20rpx;
+  border-top: 1rpx solid var(--border-color);
+}
+
+.btn-secondary {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1rpx solid var(--border-color);
+  padding: 16rpx 40rpx;
+  border-radius: 10rpx;
+  font-size: 28rpx;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  padding: 16rpx 40rpx;
+  border-radius: 10rpx;
+  font-size: 28rpx;
+}
+
+.btn-primary[disabled] {
+  opacity: 0.6;
+}

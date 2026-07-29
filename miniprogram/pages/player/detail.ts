@@ -1,4 +1,4 @@
-import { fetchPlayerDetail, Player } from '../../services/api';
+import { fetchPlayerDetail, suggestNickname, Player } from '../../services/api';
 import { STATIC_BASE } from '../../config';
 
 // HLTV 占位剪影 URL
@@ -31,7 +31,11 @@ const STATUS_MAP: Record<string, string> = {
 Page({
   data: {
     loading: true,
-    player: null as (Player & { avatarUrl?: string; statusText?: string }) | null
+    player: null as (Player & { avatarUrl?: string; statusText?: string }) | null,
+    // 绰号
+    showNicknameModal: false,
+    nicknameDraft: '',
+    submittingNickname: false
   },
 
   onLoad(options: any) {
@@ -60,6 +64,57 @@ Page({
       wx.showToast({ title: '加载失败', icon: 'none' });
     } finally {
       this.setData({ loading: false });
+    }
+  },
+
+  // 空方法，用于 catchtap 阻止事件冒泡
+  noop() {},
+
+  // ============ 绰号 ============
+
+  onSuggestNickname() {
+    const token = wx.getStorageSync('token');
+    if (!token) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    this.setData({ showNicknameModal: true, nicknameDraft: '' });
+  },
+
+  onCloseNicknameModal() {
+    this.setData({ showNicknameModal: false, nicknameDraft: '' });
+  },
+
+  onNicknameInput(e: any) {
+    this.setData({ nicknameDraft: e.detail.value });
+  },
+
+  async onSubmitNickname() {
+    const player = this.data.player;
+    if (!player) return;
+    const alias = this.data.nicknameDraft.trim();
+    if (!alias) {
+      wx.showToast({ title: '请输入绰号', icon: 'none' });
+      return;
+    }
+
+    this.setData({ submittingNickname: true });
+    try {
+      const res = await suggestNickname({
+        targetType: 'player',
+        targetId: player._id || player.playerId || '',
+        alias
+      });
+      if (res.success) {
+        wx.showToast({ title: '提交成功，等待审核', icon: 'success' });
+        this.setData({ showNicknameModal: false, nicknameDraft: '' });
+      } else {
+        wx.showToast({ title: res.message || '提交失败', icon: 'none' });
+      }
+    } catch (err) {
+      wx.showToast({ title: '网络异常', icon: 'none' });
+    } finally {
+      this.setData({ submittingNickname: false });
     }
   }
 });

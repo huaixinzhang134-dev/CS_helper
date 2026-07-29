@@ -54,6 +54,31 @@
           <text class="stats-detail-value">{{player.rating}}</text>
     </view>
   </view>
+
+  <!-- 绰号展示 -->
+  <view class="alias-section" wx:if="{{player.aliases && player.aliases.length > 0}}">
+    <text class="alias-label">绰号/别称</text>
+    <view class="alias-tags">
+      <text class="alias-tag" wx:for="{{player.aliases}}" wx:key="*this">{{item}}</text>
+    </view>
+  </view>
+
+  <!-- 提交绰号 -->
+  <view class="action-bar">
+    <button class="btn-nickname" bindtap="onSuggestNickname">📝 提交绰号</button>
+  </view>
+</view>
+
+<!-- 绰号弹窗 -->
+<view class="modal-mask" wx:if="{{showNicknameModal}}" bindtap="onCloseNicknameModal">
+  <view class="modal-content nickname-modal" catchtap="noop">
+    <view class="modal-title">提交「{{player.name}}」的绰号</view>
+    <input class="nickname-input" placeholder="输入你知道的绰号（如：虾哥）" value="{{nicknameDraft}}" bindinput="onNicknameInput" maxlength="50" />
+    <view class="modal-footer">
+      <button class="btn-secondary" bindtap="onCloseNicknameModal">取消</button>
+      <button class="btn-primary" bindtap="onSubmitNickname" disabled="{{submittingNickname}}">{{submittingNickname ? '提交中...' : '提交'}}</button>
+    </view>
+  </view>
 </view>
 
 <view class="loading" wx:if="{{loading}}">
