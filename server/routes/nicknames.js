@@ -96,21 +96,20 @@ router.get('/nicknames', adminAuth, async (req, res, next) => {
       params
     );
 
+    const list = rows.map(r => ({
+      id: r.id,
+      targetType: r.target_type,
+      targetId: r.target_id,
+      alias: r.alias,
+      submitterOpenid: r.submitter_openid,
+      submitterName: r.submitter_name || '未知用户',
+      status: r.status,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    }));
     res.json({
       code: 0, message: '',
-      data: rows.map(r => ({
-        id: r.id,
-        targetType: r.target_type,
-        targetId: r.target_id,
-        alias: r.alias,
-        submitterOpenid: r.submitter_openid,
-        submitterName: r.submitter_name || '未知用户',
-        status: r.status,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
-      })),
-      total,
-      hasMore: offset + pageSize < total,
+      data: { data: list, total, hasMore: offset + pageSize < total },
     });
   } catch (err) { next(err); }
 });
