@@ -61,6 +61,7 @@ function switchTab(tab) {
 
   if (tab === 'users') loadUsers();
   else if (tab === 'players') loadPlayers();
+  else if (tab === 'teams') loadTeams();
   else if (tab === 'comments') loadComments();
   else if (tab === 'nicknames') loadNicknames();
   else if (tab === 'votes') { loadSlotConfig(); loadWinners(); }
@@ -216,6 +217,79 @@ async function savePlayer() {
     alert('更新成功');
     closeModal('playerModal');
     loadPlayers();
+  } catch (e) { alert(e.message); }
+}
+
+// ==================== 战队管理 ====================
+let teamPage = 0;
+let teamSearchTimer = null;
+
+function debounceTeamSearch() {
+  clearTimeout(teamSearchTimer);
+  teamSearchTimer = setTimeout(() => { teamPage = 0; loadTeams(); }, 300);
+}
+
+async function loadTeams() {
+  const q = document.getElementById('teamSearch')?.value || '';
+  try {
+    const data = await API.getAdminTeams(teamPage, 20, q);
+    const tbody = document.getElementById('teamTableBody');
+    const REGION_MAP = { Europe: '欧洲', Americas: '美洲', Asia: '亚洲', Other: '其他' };
+    tbody.innerHTML = (data.list || []).map(t => `<tr>
+      <td>${t.id}</td>
+      <td><strong>${esc(t.name)}</strong></td>
+      <td>${REGION_MAP[t.region] || t.region}</td>
+      <td>${t.memberCount}</td>
+      <td>${t.logoUrl ? `<img src="${esc(t.logoUrl)}" style="height:24px;width:auto">` : '-'}</td>
+      <td>
+        <button class="btn-edit" onclick="openTeamModal(${t.id})">编辑</button>
+      </td>
+    </tr>`).join('');
+    renderTeamPagination(data.total || 0);
+  } catch (e) { showError(e); }
+}
+
+function renderTeamPagination(total) {
+  const pageSize = 20;
+  const totalPages = Math.ceil(total / pageSize) || 1;
+  const el = document.getElementById('teamPagination');
+  if (total === 0) { el.innerHTML = '暂无战队数据'; return; }
+  el.innerHTML = `<span>共 ${total} 条，第 ${teamPage + 1}/${totalPages} 页</span>
+    <button class="btn-page" onclick="goTeamPage(${teamPage - 1})" ${teamPage <= 0 ? 'disabled' : ''}>上一页</button>
+    <button class="btn-page" onclick="goTeamPage(${teamPage + 1})" ${teamPage >= totalPages - 1 ? 'disabled' : ''}>下一页</button>`;
+}
+
+function goTeamPage(page) {
+  teamPage = Math.max(0, page);
+  loadTeams();
+}
+
+async function openTeamModal(teamId) {
+  try {
+    const data = await API.getAdminTeams(0, 1, String(teamId));
+    const t = (data.list || []).find(x => x.id === teamId);
+    if (!t) { alert('战队不存在'); return; }
+    document.getElementById('editTeamId').value = t.id;
+    document.getElementById('editTeamName').value = t.name || '';
+    document.getElementById('editTeamRegion').value = t.region || 'Other';
+    document.getElementById('editTeamLogoUrl').value = t.logoUrl || '';
+    document.getElementById('teamModal').style.display = 'flex';
+  } catch (e) { alert(e.message); }
+}
+
+async function saveTeam() {
+  const teamId = document.getElementById('editTeamId').value;
+  const data = {
+    name: document.getElementById('editTeamName').value.trim(),
+    region: document.getElementById('editTeamRegion').value,
+    logoUrl: document.getElementById('editTeamLogoUrl').value.trim(),
+  };
+  if (!data.name) { alert('队名不能为空'); return; }
+  try {
+    await API.updateAdminTeam(teamId, data);
+    alert('更新成功');
+    closeModal('teamModal');
+    loadTeams();
   } catch (e) { alert(e.message); }
 }
 

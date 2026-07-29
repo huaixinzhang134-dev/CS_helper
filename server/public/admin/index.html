@@ -36,6 +36,7 @@
       <div class="tabs">
         <button class="tab active" data-tab="users" onclick="switchTab('users')">用户管理</button>
         <button class="tab" data-tab="players" onclick="switchTab('players')">选手管理</button>
+        <button class="tab" data-tab="teams" onclick="switchTab('teams')">战队管理</button>
         <button class="tab" data-tab="comments" onclick="switchTab('comments')">评论审核</button>
         <button class="tab" data-tab="votes" onclick="switchTab('votes')">猜测管理</button>
         <button class="tab" data-tab="nicknames" onclick="switchTab('nicknames')">绰号审核</button>
@@ -93,6 +94,37 @@
           </div>
           <input type="hidden" id="editPlayerId">
           <button onclick="savePlayer()">保存</button>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-teams" style="display:none">
+        <div class="toolbar">
+          <input type="text" id="teamSearch" placeholder="搜索战队..." oninput="debounceTeamSearch()">
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>队名</th><th>赛区</th><th>当前成员数</th><th>Logo</th><th>操作</th></tr></thead>
+          <tbody id="teamTableBody"></tbody>
+        </table>
+        <div class="pagination" id="teamPagination"></div>
+      </div>
+
+      <!-- 编辑战队弹窗 -->
+      <div id="teamModal" class="modal" style="display:none">
+        <div class="modal-content">
+          <span class="close" onclick="closeModal('teamModal')">&times;</span>
+          <h3>编辑战队</h3>
+          <div class="form-group"><label>队名</label><input type="text" id="editTeamName"></div>
+          <div class="form-group"><label>赛区</label>
+            <select id="editTeamRegion">
+              <option value="Europe">Europe</option>
+              <option value="Americas">Americas</option>
+              <option value="Asia">Asia</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Logo URL</label><input type="text" id="editTeamLogoUrl" placeholder="https://..."></div>
+          <input type="hidden" id="editTeamId">
+          <button onclick="saveTeam()">保存</button>
         </div>
       </div>
 

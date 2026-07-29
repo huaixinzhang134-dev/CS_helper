@@ -93,4 +93,98 @@ router.get('/ranking', async (req, res, next) => {
   }
 });
 
+// ============================================================
+// Admin: 战队管理
+// ============================================================
+
+/**
+ * GET /api/teams/admin/list?page=0&pageSize=20&q=
+ */
+router.get('/admin/list', async (req, res, next) => {
+  try {
+    const page = Math.max(parseInt(req.query.page || '0', 10), 0);
+    const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
+    const offset = page * pageSize;
+    const q = (req.query.q || '').trim();
+
+    let whereSql = '';
+    const params = [];
+    if (q) {
+      whereSql = 'WHERE name LIKE ?';
+      params.push(`%${q}%`);
+    }
+
+    const [countRows] = await query(
+      `SELECT COUNT(*) AS total FROM team ${whereSql}`, params
+    );
+    const total = countRows[0].total;
+
+    const [rows] = await query(
+      `SELECT t.*,
+              (SELECT COUNT(*) FROM team_member WHERE team_id = t.id AND is_current = 1) AS current_members
+       FROM team t ${whereSql}
+       ORDER BY t.id ASC LIMIT ${pageSize} OFFSET ${offset}`,
+      params
+    );
+
+    res.json({
+      code: 0, message: '',
+      data: {
+        list: rows.map(r => ({
+          id: r.id,
+          name: r.name,
+          logoUrl: r.logo_url || '',
+          region: r.region || 'Other',
+          regionPlayerCount: r.region_player_count || 0,
+          memberCount: r.current_members || 0,
+        })),
+        total,
+        page,
+        pageSize,
+        hasMore: offset + pageSize < total,
+      }
+    });
+  } catch (err) { next(err); }
+});
+
+/**
+ * PUT /api/teams/admin/:teamId
+ * Body: { name?, region?, logoUrl? }
+ */
+router.put('/admin/:teamId', async (req, res, next) => {
+  try {
+    const teamId = req.params.teamId;
+    const allowedFields = ['name', 'region', 'logoUrl'];
+    const colMap = { logoUrl: 'logo_url' };
+    const updates = [];
+    const params = [];
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        const col = colMap[field] || field;
+        updates.push(`${col} = ?`);
+        params.push(req.body[field]);
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ code: 400, message: '没有需要更新的字段' });
+    }
+
+    params.push(teamId);
+    const [result] = await query(
+      `UPDATE team SET ${updates.join(', ')} WHERE id = ?`,
+      params
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ code: 404, message: '战队不存在' });
+    }
+
+    res.json({ code: 0, message: '更新成功' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
