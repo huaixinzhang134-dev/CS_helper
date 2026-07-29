@@ -3,10 +3,11 @@
  * 导入初始绰号数据到数据库
  *
  * 从 nicknames.json 读取已知绰号，写入 team/player 表的 alias 字段
+ * 匹配规则：精确 → 忽略大小写 → 去除词组前缀（Team/Clan/Esports/Gaming）
  *
  * 用法：
  *   DB_PASS=Yx201005 node scripts/import_nicknames.js
- *   DB_PASS=Yx201005 node scripts/import_nicknames.js --dry-run   # 只预览不写入
+ *   DB_PASS=Yx201005 node scripts/import_nicknames.js --dry-run
  */
 
 const fs = require('fs');
@@ -51,24 +52,40 @@ async function main() {
     }
   }
 
-  // ---- 导入战队绰号 ----
+  // ---- 导入战队绰号（支持模糊匹配） ----
+  // 先获取所有数据库中的战队名
+  const [allTeams] = await conn.execute("SELECT id, name FROM team");
+  const [allRankings] = await conn.execute(
+    "SELECT DISTINCT team_name FROM team_ranking"
+  );
+  const dbTeamNames = allTeams.map(r => r.name);
+  const rankingNames = allRankings.map(r => r.team_name);
+
   console.log(`\n==> 导入 ${data.teams.length} 个战队绰号...`);
   for (const t of data.teams) {
     const aliases = JSON.stringify(t.aliases);
-    if (dryRun) {
-      console.log(`  [预览] ${t.name} → ${t.aliases.join(', ')}`);
+    const matchedName = fuzzyMatch(t.name, dbTeamNames, rankingNames);
+
+    if (!matchedName) {
+      teamNotFound++;
+      console.log(`  ? ${t.name} 未在数据库中找到`);
       continue;
     }
+    if (dryRun) {
+      console.log(`  [预览] ${t.name} → ${t.aliases.join(', ')} (→ ${matchedName})`);
+      continue;
+    }
+
     const [result] = await conn.execute(
       "UPDATE team SET alias = ? WHERE name = ?",
-      [aliases, t.name]
+      [aliases, matchedName]
     );
     if (result.affectedRows > 0) {
       teamUpdated++;
-      console.log(`  ✓ ${t.name} → ${t.aliases.join(', ')}`);
+      console.log(`  ✓ ${t.name} → ${t.aliases.join(', ')} (匹配: ${matchedName})`);
     } else {
       teamNotFound++;
-      console.log(`  ? ${t.name} 未在数据库中找到`);
+      console.log(`  ? ${t.name} 匹配到 ${matchedName} 但更新失败`);
     }
   }
 
@@ -77,6 +94,66 @@ async function main() {
   console.log(`\n=== 导入完成 ===`);
   console.log(`选手: ${playerUpdated} 更新, ${playerNotFound} 未匹配`);
   console.log(`战队: ${teamUpdated} 更新, ${teamNotFound} 未匹配`);
+}
+
+/**
+ * 模糊匹配队名：精确 → 忽略大小写 → 去前缀再忽略大小写 → team_ranking 表匹配
+ */
+function fuzzyMatch(name, dbTeamNames, rankingNames) {
+  // 1. 精确匹配
+  if (dbTeamNames.includes(name)) return name;
+
+  const lowerName = name.toLowerCase();
+
+  // 2. 忽略大小写匹配
+  const exactCi = dbTeamNames.find(n => n.toLowerCase() === lowerName);
+  if (exactCi) return exactCi;
+
+  // 3. 去常见前缀后匹配（忽略大小写）
+  const prefixes = ['Team ', 'Clan ', 'Esports ', 'Gaming '];
+  for (const prefix of prefixes) {
+    if (!lowerName.startsWith(prefix.toLowerCase())) continue;
+    const strippedName = name.slice(prefix.length);
+    const strippedLower = strippedName.toLowerCase();
+    const strippedCi = dbTeamNames.find(n => n.toLowerCase() === strippedLower);
+    if (strippedCi) return strippedCi;
+  }
+
+  // 4. 反过来：DB 不带前缀，JSON 带了全名 → 给 DB 加前缀再匹配
+  // 例如 JSON "FaZe Clan" → DB 可能是 "FaZe"
+  // 去掉前缀后和 DB 名匹配，再按 DB 原始名去找
+  for (const prefix of prefixes) {
+    if (!lowerName.startsWith(prefix.toLowerCase())) continue;
+    const stripped = name.slice(prefix.length);
+    // 精确匹配剩余部分
+    if (dbTeamNames.includes(stripped)) return stripped;
+    // 忽略大小写匹配剩余部分
+    const found = dbTeamNames.find(n => n.toLowerCase() === stripped.toLowerCase());
+    if (found) return found;
+  }
+
+  // 5. 用 team_ranking 表匹配
+  const rankingMatch = rankingNames.find(rn => rn.toLowerCase() === lowerName);
+  if (rankingMatch) {
+    // 在 team 表中找对应的名字
+    const teamRow = dbTeamNames.find(n => n.toLowerCase() === rankingMatch.toLowerCase());
+    if (teamRow) return teamRow;
+    // team 表里没有的话... 这种情况比较少，跳过
+  }
+
+  // 6. 去掉 team_ranking 表中名字的前缀再匹配
+  for (const prefix of prefixes) {
+    const rnMatch = rankingNames.find(rn => {
+      if (!rn.toLowerCase().startsWith(prefix.toLowerCase())) return false;
+      return rn.slice(prefix.length).toLowerCase() === lowerName;
+    });
+    if (rnMatch) {
+      const teamRow = dbTeamNames.find(n => n.toLowerCase() === rnMatch.toLowerCase());
+      if (teamRow) return teamRow;
+    }
+  }
+
+  return null;
 }
 
 main().catch(err => { console.error(err); process.exit(1); });

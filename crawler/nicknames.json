@@ -52,8 +52,7 @@
     {"name": "w0nderful", "aliases": ["wdf"]},
     {"name": "jL", "aliases": ["儿神"]},
     {"name": "Brollan", "aliases": ["宝蓝", "60w"]},
-    {"name": "Jimpphat", "aliases": ["小吉米"]},
-    {"name": "rain", "aliases": ["雨神"]}
+    {"name": "Jimpphat", "aliases": ["小吉米"]}
   ],
   "teams": [
     {"name": "Natus Vincere", "aliases": ["NaVi", "NAVI", "天生赢家"]},
@@ -70,7 +69,7 @@
     {"name": "G2 Esports", "aliases": ["G2", "g2"]},
     {"name": "Cloud9", "aliases": ["C9", "c9"]},
     {"name": "Virtus.pro", "aliases": ["VP","vp"]},
-    {"name": "Team Spirit", "aliases": ["Spirit", " spirit","绿龙"]},
+    {"name": "Team Spirit", "aliases": ["Spirit", "spirit", "绿龙"]},
     {"name": "Team Vitality", "aliases": ["Vitality", "小蜜蜂"]},
     {"name": "MOUZ", "aliases": ["Mousesports", "老鼠", "mouz", "mousesports"]},
     {"name": "Heroic", "aliases": ["heroic", "X队"]},
@@ -82,7 +81,7 @@
     {"name": "FURIA", "aliases": ["furia", "黑豹"]},
     {"name": "MIBR", "aliases": ["mibr", "灭霸"]},
     {"name": "BIG", "aliases": ["big", "沙二学姐"]},
-    {"name": "Envy", "aliases": ["EnVyUs", " envy"]},
+    {"name": "Envy", "aliases": ["EnVyUs", "envy"]},
     {"name": "Team Dignitas", "aliases": ["Dignitas", "dignitas","大眼"]},
     {"name": "Counter Logic Gaming", "aliases": ["CLG", "clg"]},
     {"name": "North", "aliases": ["north", "北狮"]},
