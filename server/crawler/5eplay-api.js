@@ -295,16 +295,17 @@ function normalizeMatch(raw) {
     const ttInfo = raw.tt_info || {};
     let eventName = ttInfo.disp_name || raw.tournament || raw.series || raw.event || '';
     if (!eventName && info.round_name) {
-      eventName = info.round_name
-        // 去掉"决赛""半决赛""四强""第1轮""封闭预选"等回合后缀
-        .replace(/[ 　]*决[赛圌]?$/, '')
-        .replace(/[ 　]*半决[赛圌]?$/, '')
-        .replace(/[ 　]*[四八十六]强$/, '')
-        .replace(/[ 　]*第\d+[轮回]?$/, '')
-        .replace(/[ 　]*封闭?预[选赛]?$/, '')
-        .replace(/[ 　]*公开?预[选赛]?$/, '')
-        .trim();
+      eventName = info.round_name;
     }
+    // 统一清理 eventName：去掉"决赛""半决赛""四强""第1轮""封闭预选"等回合后缀
+    eventName = eventName
+      .replace(/[ 　]*决[赛圌]?$/, '')
+      .replace(/[ 　]*半决[赛圌]?$/, '')
+      .replace(/[ 　]*[四八十六]强$/, '')
+      .replace(/[ 　]*第\d+[轮回]?$/, '')
+      .replace(/[ 　]*封闭?预[选赛]?$/, '')
+      .replace(/[ 　]*公开?预[选赛]?$/, '')
+      .trim();
     // 中英文间加空格归一化：将"BLAST赏金赛"标准化为"BLAST 赏金赛"
     eventName = eventName.replace(/([a-zA-Z0-9])([一-鿿])/g, '$1 $2')
                         .replace(/([一-鿿])([a-zA-Z0-9])/g, '$1 $2')
