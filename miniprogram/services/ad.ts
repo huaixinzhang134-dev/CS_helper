@@ -1,85 +1,97 @@
 /**
  * 激励视频广告工具
- * 封装 wx.createRewardedVideoAd，提供 Promise 化接口
  *
- * 使用方式：
- *   const result = await playRewardedAd();
- *   if (result === 'completed') 发放奖励
+ * 按微信官方示例实现：
+ *   1. 模块加载时创建广告实例（单例），绑定事件一次
+ *   2. 每次调用 playRewardedAd 直接 show()，失败 load+retry
+ *   3. 不做 offLoad/offError/offClose（官方示例没有）
+ *   4. 队列机制：前一次播放未结束时，新调用排队等待
  */
 import { REWARDED_VIDEO_AD_UNIT_ID } from '../config';
 
 type AdResult = 'completed' | 'closed_early' | 'error';
 
-let _adInstance: any = null;
-const AD_TIMEOUT = 30000;
+/** 广告实例（单例，只创建一次） */
+let ad: any = null;
+
+/** 等待队列：前一次未结束时，新调用排队 */
+let pendingQueue: Array<{ resolve: (r: AdResult) => void }> = [];
+let isPlaying = false;
+
+/** 创建广告实例并绑定事件（只执行一次） */
+function ensureAd() {
+  if (ad) return;
+  if (!wx.createRewardedVideoAd) return;
+
+  ad = wx.createRewardedVideoAd({
+    adUnitId: REWARDED_VIDEO_AD_UNIT_ID,
+  });
+
+  // 只绑定一次，不做 off（与官方示例一致）
+  ad.onLoad(() => {
+    // 仅用于日志，不做任何操作
+  });
+
+  ad.onError((err: any) => {
+    console.warn('[Ad] 加载/播放失败', err);
+    // 通知所有等待中的调用
+    flushQueue('error');
+  });
+
+  ad.onClose((res: any) => {
+    if (res && res.isEnded) {
+      flushQueue('completed');
+    } else {
+      flushQueue('closed_early');
+    }
+  });
+}
+
+/** 通知队列中所有等待的 Promise */
+function flushQueue(result: AdResult) {
+  const q = pendingQueue;
+  pendingQueue = [];
+  isPlaying = false;
+  for (const item of q) {
+    item.resolve(result);
+  }
+}
 
 /**
  * 播放激励视频广告
- * @param timeout 超时时间（默认 30s）
  * @returns 'completed' 完整观看 / 'closed_early' 中途关闭 / 'error' 异常
  */
-export function playRewardedAd(timeout: number = AD_TIMEOUT): Promise<AdResult> {
+export function playRewardedAd(): Promise<AdResult> {
   return new Promise((resolve) => {
-    // 1. 检查环境
-    if (!wx.createRewardedVideoAd) {
-      console.warn('[Ad] 当前环境不支持激励视频广告');
+    ensureAd();
+
+    if (!ad) {
+      console.warn('[Ad] 环境不支持');
       resolve('error');
       return;
     }
 
-    // 2. 获取或创建广告实例（单例）
-    if (!_adInstance) {
-      _adInstance = wx.createRewardedVideoAd({
-        adUnitId: REWARDED_VIDEO_AD_UNIT_ID,
-      });
-    }
-    const ad = _adInstance;
-
-    // 3. 移除旧监听
-    try { ad.offLoad(); } catch (_) {}
-    try { ad.offError(); } catch (_) {}
-    try { ad.offClose(); } catch (_) {}
-
-    let settled = false;
-
-    function finish(result: AdResult) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve(result);
+    // 如果正在播放，排队等待
+    if (isPlaying) {
+      pendingQueue.push({ resolve });
+      return;
     }
 
-    // 4. 超时保护
-    const timer = setTimeout(() => {
-      console.warn('[Ad] 广告超时');
-      finish('error');
-    }, timeout);
+    // 标记播放中
+    isPlaying = true;
+    pendingQueue.push({ resolve });
 
-    // 5. 绑定事件
-    ad.onLoad(() => {
-      // 仅日志，不做 show（show 在外面统一调用）
-    });
-
-    ad.onError((err: any) => {
-      console.warn('[Ad] 错误', err);
-      finish('error');
-    });
-
-    ad.onClose((res: any) => {
-      if (res && res.isEnded) {
-        finish('completed');
-      } else {
-        finish('closed_early');
-      }
-    });
-
-    // 6. 直接尝试显示（标准做法：show 失败再用 load+retry）
-    //    不要等 onLoad，因为广告可能已缓存，onLoad 不会再触发
+    // 直接 show（标准做法）
+    // 注意：不要等 onLoad，广告可能已缓存不会再触发 onLoad
     ad.show().catch(() => {
-      // show 失败 → 加载后再试
+      // show 失败 → 加载后重试
       ad.load().then(() => {
-        ad.show().catch(() => finish('error'));
-      }).catch(() => finish('error'));
+        ad.show().catch(() => {
+          flushQueue('error');
+        });
+      }).catch(() => {
+        flushQueue('error');
+      });
     });
   });
 }
