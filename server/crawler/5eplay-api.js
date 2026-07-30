@@ -289,10 +289,27 @@ function normalizeMatch(raw) {
     const team2Logo = t2.logo || '';
 
     // 赛事名称（优先取 tt_info.disp_name，即真正的赛事/系列赛名）
-    // 注意：不用 round_name 兜底 eventName，避免"BLAST赏金赛 2026 S2 决赛"
-    // 与"BLAST 赏金赛 2026 S2"不一致导致前端分组错乱
+    // round_name 兜底 eventName 时，去掉"决赛""半决赛"等后缀，
+    // 避免同一赛事因名称不一致（如"BLAST赏金赛 2026 S2 决赛" vs "BLAST 赏金赛 2026 S2"）
+    // 导致前端分组错乱
     const ttInfo = raw.tt_info || {};
     let eventName = ttInfo.disp_name || raw.tournament || raw.series || raw.event || '';
+    if (!eventName && info.round_name) {
+      eventName = info.round_name
+        // 去掉"决赛""半决赛""四强""第1轮""封闭预选"等回合后缀
+        .replace(/[ 　]*决[赛圌]?$/, '')
+        .replace(/[ 　]*半决[赛圌]?$/, '')
+        .replace(/[ 　]*[四八十六]强$/, '')
+        .replace(/[ 　]*第\d+[轮回]?$/, '')
+        .replace(/[ 　]*封闭?预[选赛]?$/, '')
+        .replace(/[ 　]*公开?预[选赛]?$/, '')
+        .trim();
+    }
+    // 中英文间加空格归一化：将"BLAST赏金赛"标准化为"BLAST 赏金赛"
+    eventName = eventName.replace(/([a-zA-Z0-9])([一-鿿])/g, '$1 $2')
+                        .replace(/([一-鿿])([a-zA-Z0-9])/g, '$1 $2')
+                        .replace(/\s+/g, ' ')
+                        .trim();
 
     // 回合名（如「总决赛」「半决赛」「八强」），独立存储用于二级展示
     const roundName = info.round_name || '';
