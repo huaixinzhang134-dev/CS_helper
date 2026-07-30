@@ -289,9 +289,10 @@ function normalizeMatch(raw) {
     const team2Logo = t2.logo || '';
 
     // 赛事名称（优先取 tt_info.disp_name，即真正的赛事/系列赛名）
+    // 注意：不用 round_name 兜底 eventName，避免"BLAST赏金赛 2026 S2 决赛"
+    // 与"BLAST 赏金赛 2026 S2"不一致导致前端分组错乱
     const ttInfo = raw.tt_info || {};
     let eventName = ttInfo.disp_name || raw.tournament || raw.series || raw.event || '';
-    if (!eventName && info.round_name) eventName = info.round_name;
 
     // 回合名（如「总决赛」「半决赛」「八强」），独立存储用于二级展示
     const roundName = info.round_name || '';
