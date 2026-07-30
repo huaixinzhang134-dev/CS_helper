@@ -87,9 +87,13 @@ router.get('/nicknames', adminAuth, async (req, res, next) => {
     const total = countRows[0].total;
 
     const [rows] = await query(
-      `SELECT s.*, u.nickname AS submitter_name
+      `SELECT s.*, u.nickname AS submitter_name,
+              p.name AS player_name, p.game_id AS player_game_id,
+              t.name AS team_name
        FROM nickname_suggestions s
        LEFT JOIN users u ON u.openid = s.submitter_openid
+       LEFT JOIN player p ON p.id = s.target_id AND s.target_type = 'player'
+       LEFT JOIN team t ON t.id = s.target_id AND s.target_type = 'team'
        ${whereSql}
        ORDER BY s.created_at DESC
        LIMIT ${pageSize} OFFSET ${offset}`,
@@ -100,6 +104,8 @@ router.get('/nicknames', adminAuth, async (req, res, next) => {
       id: r.id,
       targetType: r.target_type,
       targetId: r.target_id,
+      targetName: r.target_type === 'player' ? r.player_name : r.team_name,
+      targetGameId: r.player_game_id || '',
       alias: r.alias,
       submitterOpenid: r.submitter_openid,
       submitterName: r.submitter_name || '未知用户',

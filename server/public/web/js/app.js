@@ -1501,19 +1501,27 @@ const App = {
       </div>
       <div class="tab-bar">
         <button class="tab-item active" data-tab="users" onclick="App._adminSwitchTab('users')">用户管理</button>
+        <button class="tab-item" data-tab="players" onclick="App._adminSwitchTab('players')">选手管理</button>
+        <button class="tab-item" data-tab="nicknames" onclick="App._adminSwitchTab('nicknames')">绰号审核</button>
         <button class="tab-item" data-tab="comments" onclick="App._adminSwitchTab('comments')">评论审核</button>
         <button class="tab-item" data-tab="votes" onclick="App._adminSwitchTab('votes')">猜测管理</button>
       </div>
       <div id="adminTabContent">
         <div id="adminUsersTab" style="display:block;"></div>
+        <div id="adminPlayersTab" style="display:none;"></div>
+        <div id="adminNicknamesTab" style="display:none;"></div>
         <div id="adminCommentsTab" style="display:none;"></div>
         <div id="adminVotesTab" style="display:none;"></div>
       </div>
     `;
     this._adminTab = 'users';
     this._adminUserPage = 0;
+    this._adminPlayerPage = 0;
     this._adminCommentPage = 0;
+    this._adminNicknamePage = 0;
     this._adminLoadUsers();
+    this._adminLoadPlayers();
+    this._adminLoadNicknames();
     this._adminLoadComments();
     this._adminLoadVotes();
   },
@@ -1521,9 +1529,13 @@ const App = {
   _adminSwitchTab(tab) {
     this._adminTab = tab;
     document.getElementById('adminUsersTab').style.display = tab === 'users' ? 'block' : 'none';
+    document.getElementById('adminPlayersTab').style.display = tab === 'players' ? 'block' : 'none';
+    document.getElementById('adminNicknamesTab').style.display = tab === 'nicknames' ? 'block' : 'none';
     document.getElementById('adminCommentsTab').style.display = tab === 'comments' ? 'block' : 'none';
     document.getElementById('adminVotesTab').style.display = tab === 'votes' ? 'block' : 'none';
     if (tab === 'users') this._adminLoadUsers();
+    else if (tab === 'players') this._adminLoadPlayers();
+    else if (tab === 'nicknames') this._adminLoadNicknames();
     else if (tab === 'comments') this._adminLoadComments();
     else if (tab === 'votes') this._adminLoadVotes();
   },
@@ -1548,6 +1560,138 @@ const App = {
         <div style="text-align:center;padding:8px;font-size:13px;color:var(--text-muted);">共 ${data.total} 条</div>
       `;
     } catch (e) { el.innerHTML = '<div class="empty-state">加载失败</div>'; }
+  },
+
+  // ==================== 选手管理 ====================
+
+  async _adminLoadPlayers() {
+    const el = document.getElementById('adminPlayersTab');
+    if (!el) return;
+    const page = this._adminPlayerPage || 0;
+    try {
+      const data = await API.adminGetPlayers(page, 20);
+      el.innerHTML = `
+        <div style="margin-bottom:8px;">
+          <input class="input" id="adminPlayerSearch" placeholder="搜索选手 ID 或名称..." style="width:100%;max-width:300px;" oninput="App._adminSearchPlayers(this.value)">
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="admin-table">
+            <thead><tr><th>ID</th><th>游戏ID</th><th>姓名</th><th>现役队伍</th><th>绰号(JSON)</th><th>操作</th></tr></thead>
+            <tbody>${data.list.map(p => `
+              <tr>
+                <td>${esc(p._id)}</td>
+                <td>${esc(p.playerId)}</td>
+                <td>${esc(p.name)}</td>
+                <td>${esc(p.team||'')}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;font-size:12px;">${esc(JSON.stringify(p.aliases||[]))}</td>
+                <td><button class="btn btn-sm" onclick="App._adminEditPlayerAlias('${esc(p.playerId)}','${esc(p.name)}','${esc(JSON.stringify(p.aliases||[]).replace(/'/g,"\\'"))}')">编辑绰号</button></td>
+              </tr>`).join('')}</tbody>
+          </table>
+        </div>
+        <div style="text-align:center;padding:8px;font-size:13px;color:var(--text-muted);">共 ${data.total} 条</div>
+      `;
+      this._adminPlayerData = data.list;
+    } catch (e) { el.innerHTML = '<div class="empty-state">加载失败</div>'; }
+  },
+
+  async _adminSearchPlayers(query) {
+    if (this._adminPsTimer) clearTimeout(this._adminPsTimer);
+    this._adminPsTimer = setTimeout(async () => {
+      const el = document.getElementById('adminPlayersTab');
+      if (!el) return;
+      try {
+        const res = await API.adminGetPlayers(0, 100, query);
+        el.innerHTML = `
+          <div style="margin-bottom:8px;">
+            <input class="input" id="adminPlayerSearch" placeholder="搜索选手 ID 或名称..." style="width:100%;max-width:300px;" value="${esc(query)}" oninput="App._adminSearchPlayers(this.value)">
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="admin-table">
+              <thead><tr><th>ID</th><th>游戏ID</th><th>姓名</th><th>现役队伍</th><th>绰号(JSON)</th><th>操作</th></tr></thead>
+              <tbody>${res.list.length ? res.list.map(p => `
+                <tr>
+                  <td>${esc(p._id)}</td>
+                  <td>${esc(p.playerId)}</td>
+                  <td>${esc(p.name)}</td>
+                  <td>${esc(p.team||'')}</td>
+                  <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;font-size:12px;">${esc(JSON.stringify(p.aliases||[]))}</td>
+                  <td><button class="btn btn-sm" onclick="App._adminEditPlayerAlias('${esc(p.playerId)}','${esc(p.name)}','${esc(JSON.stringify(p.aliases||[]).replace(/'/g,"\\'"))}')">编辑绰号</button></td>
+                </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">未找到匹配选手</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }, 300);
+  },
+
+  async _adminEditPlayerAlias(playerId, playerName, aliasesJson) {
+    let current;
+    try { current = JSON.parse(aliasesJson); } catch(e) { current = []; }
+    const input = prompt('编辑选手绰号（JSON数组格式，如 ["s1mple","sasha"] ）\n选手: ' + playerName, JSON.stringify(current));
+    if (input === null) return;
+    let newAliases;
+    try { newAliases = JSON.parse(input); if (!Array.isArray(newAliases)) throw 'not array'; }
+    catch(e) { alert('格式错误，请输入JSON数组，如 ["s1mple","sasha"]'); return; }
+    try {
+      await API.adminUpdatePlayer(playerId, { alias: JSON.stringify(newAliases) });
+      alert('绰号更新成功');
+      this._adminLoadPlayers();
+    } catch (e) { alert(e.message); }
+  },
+
+  // ==================== 绰号审核 ====================
+
+  async _adminLoadNicknames() {
+    const el = document.getElementById('adminNicknamesTab');
+    if (!el) return;
+    const page = this._adminNicknamePage || 0;
+    try {
+      const data = await API.adminGetNicknames(page, 20, 'pending');
+      el.innerHTML = `
+        <div style="margin-bottom:8px;">
+          <select class="input" style="width:auto;" id="nicknameFilter" onchange="App._adminLoadNicknames()">
+            <option value="pending">待审核</option>
+            <option value="approved">已通过</option>
+            <option value="rejected">已拒绝</option>
+            <option value="all">全部</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="admin-table">
+            <thead><tr><th>ID</th><th>类型</th><th>目标选手/战队</th><th>游戏ID</th><th>建议绰号</th><th>提交者</th><th>操作</th></tr></thead>
+            <tbody>${data.list.length ? data.list.map(n => `
+              <tr style="${n.status==='pending'?'background:rgba(255,193,7,0.08)':n.status==='approved'?'background:rgba(40,167,69,0.08)':'background:rgba(108,117,125,0.08)'}">
+                <td>${n.id}</td>
+                <td>${n.targetType === 'player' ? '选手' : '战队'}</td>
+                <td>${esc(n.targetName||'')}</td>
+                <td style="font-family:monospace;">${esc(n.targetGameId||'')}</td>
+                <td><strong>${esc(n.alias)}</strong></td>
+                <td style="font-size:12px;">${esc(n.submitterName)}</td>
+                <td>${n.status === 'pending' ? `
+                  <button class="btn btn-sm btn-success" onclick="App._adminApproveNickname(${n.id})">通过</button>
+                  <button class="btn btn-sm btn-danger" onclick="App._adminRejectNickname(${n.id})">拒绝</button>
+                ` : `<span style="font-size:12px;color:var(--text-muted);">${n.status==='approved'?'已通过':'已拒绝'}</span>`}</td>
+              </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">暂无数据</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+        ${data.total > 20 ? `<div style="text-align:center;padding:8px;font-size:13px;color:var(--text-muted);">共 ${data.total} 条</div>` : ''}
+      `;
+    } catch (e) { el.innerHTML = '<div class="empty-state">加载失败</div>'; }
+  },
+
+  async _adminApproveNickname(id) {
+    try {
+      await API.adminApproveNickname(id);
+      this._adminLoadNicknames();
+    } catch (e) { alert(e.message); }
+  },
+
+  async _adminRejectNickname(id) {
+    try {
+      await API.adminRejectNickname(id);
+      this._adminLoadNicknames();
+    } catch (e) { alert(e.message); }
   },
 
   async _adminEditUser(openid, nickname, coins) {

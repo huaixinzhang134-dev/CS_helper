@@ -295,4 +295,30 @@ const API = {
   async adminAwardPicks(year = 2026, threshold = 15) {
     return this.adminPost('/api/picks/admin/award', { year, matchThreshold: threshold, coinsPerMatch: 10, adminOpenid: 'admin' });
   },
+
+  // ================== 管理员：选手管理 ==================
+
+  async adminGetPlayers(page = 0, pageSize = 20, q) {
+    let path = `/api/players/admin/list?page=${page}&pageSize=${pageSize}`;
+    if (q) path += `&q=${encodeURIComponent(q)}`;
+    return this.adminGet(path);
+  },
+
+  async adminUpdatePlayer(playerId, data) {
+    return this.adminPut(`/api/players/admin/${encodeURIComponent(playerId)}`, data);
+  },
+
+  // ================== 管理员：绰号审核 ==================
+
+  async adminGetNicknames(page, pageSize, status) {
+    return this.adminGet(`/api/admin/nicknames?page=${page}&pageSize=${pageSize}&status=${status || 'pending'}`);
+  },
+
+  async adminApproveNickname(id) {
+    return this.adminPost(`/api/admin/nicknames/${id}/approve`);
+  },
+
+  async adminRejectNickname(id) {
+    return this.adminPost(`/api/admin/nicknames/${id}/reject`);
+  },
 };
