@@ -124,7 +124,7 @@
     <view class="search-section" wx:if="{{gameStatus === 'playing'}}">
       <view class="search-bar">
         <icon type="search" size="18" color="#aaa" />
-        <input class="search-input" placeholder="输入选手ID或姓名搜索" placeholder-class="placeholder" bindinput="onSearchInput" value="{{searchQuery}}" />
+        <input class="search-input" placeholder="输入选手ID、姓名或绰号搜索" placeholder-class="placeholder" bindinput="onSearchInput" value="{{searchQuery}}" />
       </view>
       <scroll-view scroll-y class="search-results" wx:if="{{searchResults.length > 0}}" bindscrolltolower="onSearchScrollToLower" lower-threshold="50">
         <view class="result-item" wx:for="{{searchResults}}" wx:key="_id" catchtap="selectPlayer" data-id="{{item._id}}">

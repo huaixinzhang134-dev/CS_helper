@@ -282,15 +282,16 @@ router.get('/random-by-difficulty', async (req, res, next) => {
 
 /**
  * GET /api/players/search?q=&page=0&pageSize=20&difficulty=trivial
- * 前缀匹配 name / real_name / game_id
+ * 前缀匹配 name / real_name / game_id / alias
  *
  * 高级搜索参数（可选，与 q 可同时使用）：
  *   name       — 游戏 ID 精确匹配
+ *   alias      — 选手绰号（搜索 alias JSON 数组）
  *   ageMin     — 最小年龄
  *   ageMax     — 最大年龄
  *   country    — 国家（模糊匹配）
- *   team       — 所属战队（模糊匹配）
- *   formerTeam — 历史战队（搜索 former_teams JSON 数组）
+ *   team       — 所属战队（模糊匹配，支持队伍简称/绰号）
+ *   formerTeam — 历史战队（搜索 former_teams JSON 数组，支持队伍简称/绰号）
  *   difficulty — 可选，限定搜索范围到当前难度选手池
  *   当 q 和高级参数都未提供时返回空数组
  */
@@ -298,6 +299,7 @@ router.get('/search', async (req, res, next) => {
   try {
     const q = (req.query.q || '').trim();
     const name = (req.query.name || '').trim();
+    const alias = (req.query.alias || '').trim();
     const ageMin = req.query.ageMin;
     const ageMax = req.query.ageMax;
     const country = (req.query.country || '').trim();
@@ -308,7 +310,7 @@ router.get('/search', async (req, res, next) => {
     const page = Math.max(parseInt(req.query.page || '0', 10), 0);
     const pageSize = Math.min(Math.max(parseInt(req.query.pageSize || '20', 10), 1), 100);
 
-    const hasAnyFilter = q || name || ageMin !== undefined || ageMax !== undefined || country || team || formerTeam;
+    const hasAnyFilter = q || name || alias || ageMin !== undefined || ageMax !== undefined || country || team || formerTeam;
     if (!hasAnyFilter) {
       return res.json({ code: 0, message: '', data: [], hasMore: false });
     }
@@ -329,6 +331,9 @@ router.get('/search', async (req, res, next) => {
       const like = `%${q}%`;
       qOrClauses.push('(' + colPrefix + 'name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
       params.push(like, like, like);
+      // 搜索选手绰号 alias JSON 数组
+      qOrClauses.push('JSON_SEARCH(' + colPrefix + 'alias, \'one\', ?) IS NOT NULL');
+      params.push(like);
       // 额外追加 1↔i↔l、0↔o 视觉混淆变体（排除与原始查询小写相同的）
       const variants = generateSearchVariants(q);
       const lowerQ = q.toLowerCase();
@@ -337,6 +342,9 @@ router.get('/search', async (req, res, next) => {
         const vLike = `%${v}%`;
         qOrClauses.push('(' + colPrefix + 'name LIKE ? OR real_name LIKE ? OR game_id LIKE ?)');
         params.push(vLike, vLike, vLike);
+        // 变体也搜索绰号
+        qOrClauses.push('JSON_SEARCH(' + colPrefix + 'alias, \'one\', ?) IS NOT NULL');
+        params.push(vLike);
       }
       conditions.push(`(${qOrClauses.join(' OR ')})`);
     }
@@ -354,6 +362,11 @@ router.get('/search', async (req, res, next) => {
         params.push(`%${v}%`);
       }
       conditions.push(`(${nameOrClauses.join(' OR ')})`);
+    }
+    if (alias) {
+      // 搜索选手绰号（alias JSON 数组）
+      conditions.push('JSON_SEARCH(' + colPrefix + 'alias, \'one\', ?) IS NOT NULL');
+      params.push(`%${alias}%`);
     }
     if (ageMin !== undefined) {
       conditions.push('age >= ?');
@@ -400,12 +413,36 @@ router.get('/search', async (req, res, next) => {
       searchValues.forEach(v => params.push(`%${v}%`));
     }
     if (team) {
-      conditions.push('current_team LIKE ?');
+      const teamClauses = [];
+      // 队伍名称模糊匹配
+      teamClauses.push(colPrefix + 'current_team LIKE ?');
       params.push(`%${team}%`);
+      // 队伍简称/绰号匹配（查询 team 表的 alias JSON 字段）
+      const [aliasTeams] = await query(
+        "SELECT name FROM team WHERE JSON_SEARCH(alias, 'one', ?) IS NOT NULL",
+        [team]
+      );
+      for (const t of aliasTeams) {
+        teamClauses.push(colPrefix + 'current_team = ?');
+        params.push(t.name);
+      }
+      conditions.push(`(${teamClauses.join(' OR ')})`);
     }
     if (formerTeam) {
-      conditions.push('former_teams IS NOT NULL AND JSON_SEARCH(former_teams, \'one\', ?) IS NOT NULL');
+      const formerClauses = [];
+      // 直接匹配 former_teams JSON 数组
+      formerClauses.push('JSON_SEARCH(former_teams, \'one\', ?) IS NOT NULL');
       params.push(formerTeam);
+      // 通过队伍简称/绰号匹配（查询 team 表的 alias JSON 字段）
+      const [aliasTeams] = await query(
+        "SELECT name FROM team WHERE JSON_SEARCH(alias, 'one', ?) IS NOT NULL",
+        [formerTeam]
+      );
+      for (const t of aliasTeams) {
+        formerClauses.push('JSON_SEARCH(former_teams, \'one\', ?) IS NOT NULL');
+        params.push(t.name);
+      }
+      conditions.push(`(${formerClauses.join(' OR ')})`);
     }
 
     // 可选：限定搜索到当前难度选手池

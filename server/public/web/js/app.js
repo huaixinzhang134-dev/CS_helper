@@ -585,7 +585,7 @@ const App = {
       <div style="margin-bottom:12px;">
         <div class="search-bar" style="margin-bottom:8px;">
           <span>🔍</span>
-          <input class="input" id="guessSearch" placeholder="输入选手ID或姓名搜索" oninput="App._guessSearch(this.value)">
+          <input class="input" id="guessSearch" placeholder="输入选手ID、姓名或绰号搜索" oninput="App._guessSearch(this.value)">
         </div>
         <div id="guessResults"></div>
       </div>
@@ -852,6 +852,7 @@ const App = {
 
   // ==================== 选手列表 ====================
   async renderPlayerList(container) {
+    this._advSearchActive = false;
     container.innerHTML = `
       <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;">
         <div><h1>选手资料库</h1><span class="subtitle">CS 职业选手数据查询</span></div>
@@ -859,7 +860,46 @@ const App = {
       </div>
       <div class="search-bar">
         <span>🔍</span>
-        <input class="input" id="playerSearch" placeholder="搜索选手 ID..." oninput="App._playerSearch(this.value)">
+        <input class="input" id="playerSearch" placeholder="搜索选手 ID 或绰号..." oninput="App._playerSearch(this.value)">
+        <button class="btn btn-ghost btn-sm" id="advSearchToggle" onclick="App._toggleAdvancedSearch()" style="flex-shrink:0;margin-left:6px;white-space:nowrap;">高级搜索</button>
+      </div>
+      <div id="advSearchPanel" style="display:none;margin-bottom:12px;padding:12px;background:var(--card-bg);border-radius:8px;border:1px solid var(--border);">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <div style="flex:1;min-width:140px;">
+            <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:3px;">游戏 ID</label>
+            <input class="input" id="advName" placeholder="选手昵称" style="width:100%;">
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:3px;">绰号</label>
+            <input class="input" id="advAlias" placeholder="选手绰号/别名" style="width:100%;">
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:3px;">年龄范围</label>
+            <div style="display:flex;gap:4px;align-items:center;">
+              <input class="input" id="advAgeMin" placeholder="最小" style="width:60px;">
+              <span style="color:var(--text-muted);">—</span>
+              <input class="input" id="advAgeMax" placeholder="最大" style="width:60px;">
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <div style="flex:1;min-width:140px;">
+            <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:3px;">国家</label>
+            <input class="input" id="advCountry" placeholder="如 China, Denmark" style="width:100%;">
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:3px;">所属战队</label>
+            <input class="input" id="advTeam" placeholder="名称/缩写/绰号" style="width:100%;">
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:3px;">曾效力队伍</label>
+            <input class="input" id="advFormerTeam" placeholder="名称/缩写/绰号" style="width:100%;">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn btn-sm btn-success" onclick="App._doAdvancedSearch()">搜索</button>
+          <button class="btn btn-sm btn-ghost" onclick="App._clearAdvancedSearch()">清空</button>
+        </div>
       </div>
       <div id="playerListContent"><div class="loading">加载中</div></div>
     `;
@@ -868,6 +908,64 @@ const App = {
     this._playerData = [];
     this._playerTotal = 0;
     await this._loadPlayers();
+  },
+
+  _toggleAdvancedSearch() {
+    this._advSearchActive = !this._advSearchActive;
+    const panel = document.getElementById('advSearchPanel');
+    const toggle = document.getElementById('advSearchToggle');
+    if (panel) panel.style.display = this._advSearchActive ? 'block' : 'none';
+    if (toggle) toggle.textContent = this._advSearchActive ? '普通搜索' : '高级搜索';
+    if (!this._advSearchActive) {
+      this._clearAdvancedSearch();
+    }
+  },
+
+  async _doAdvancedSearch() {
+    const params = {};
+    const name = document.getElementById('advName')?.value.trim();
+    const alias = document.getElementById('advAlias')?.value.trim();
+    const ageMin = document.getElementById('advAgeMin')?.value.trim();
+    const ageMax = document.getElementById('advAgeMax')?.value.trim();
+    const country = document.getElementById('advCountry')?.value.trim();
+    const team = document.getElementById('advTeam')?.value.trim();
+    const formerTeam = document.getElementById('advFormerTeam')?.value.trim();
+    const keyword = document.getElementById('playerSearch')?.value.trim();
+
+    if (name) params.name = name;
+    if (alias) params.alias = alias;
+    if (ageMin) params.ageMin = ageMin;
+    if (ageMax) params.ageMax = ageMax;
+    if (country) params.country = country;
+    if (team) params.team = team;
+    if (formerTeam) params.formerTeam = formerTeam;
+    if (keyword) params.q = keyword;
+    if (!keyword && !name && !alias && !ageMin && !ageMax && !country && !team && !formerTeam) {
+      return;
+    }
+
+    const content = document.getElementById('playerListContent');
+    content.innerHTML = '<div class="loading">搜索中</div>';
+    const res = await API.advancedSearch(params);
+    if (res.success && res.data.length) {
+      this._playerData = res.data;
+      this._renderPlayerGrid(content, res.total);
+    } else {
+      content.innerHTML = '<div class="empty-state">未找到相关选手</div>';
+    }
+  },
+
+  _clearAdvancedSearch() {
+    ['advName','advAlias','advAgeMin','advAgeMax','advCountry','advTeam','advFormerTeam'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    this._advSearchActive = false;
+    const toggle = document.getElementById('advSearchToggle');
+    if (toggle) toggle.textContent = '高级搜索';
+    const panel = document.getElementById('advSearchPanel');
+    if (panel) panel.style.display = 'none';
+    this._loadPlayers();
   },
 
   async _loadPlayers() {
@@ -885,6 +983,7 @@ const App = {
 
   async _playerSearch(query) {
     const content = document.getElementById('playerListContent');
+    if (this._advSearchActive) return; // 高级模式下不响应普通搜索框
     if (!query || !query.trim()) {
       this._loadPlayers();
       return;
@@ -904,7 +1003,6 @@ const App = {
 
   _renderPlayerGrid(container, total) {
     const data = this._playerData;
-    const hasMore = this._playerHasMore;
     container.innerHTML = `
       <div class="player-grid">
         ${data.map(p => `<div class="player-grid-item" onclick="App.goTo('playerDetail',{id:'${esc(p.playerId)}'})">
@@ -913,7 +1011,7 @@ const App = {
         </div>`).join('')}
       </div>
       ${total ? `<div style="text-align:center;padding:12px;font-size:13px;color:var(--text-muted);">共找到 ${total} 个结果</div>` : ''}
-      ${!query && data.length ? `<div style="text-align:center;padding:12px;font-size:12px;color:var(--text-muted);">已加载 ${data.length} 名选手</div>` : ''}
+      ${data.length ? `<div style="text-align:center;padding:12px;font-size:12px;color:var(--text-muted);">已加载 ${data.length} 名选手</div>` : ''}
     `;
   },
 
@@ -1249,7 +1347,7 @@ const App = {
         </div>
         <div class="search-panel-body">
           <div class="input-group" style="margin-bottom:12px;">
-            <input class="input" id="pickSearch" placeholder="输入选手名称搜索" oninput="App._pickSearch(this.value, ${slot})">
+            <input class="input" id="pickSearch" placeholder="输入选手名称或绰号搜索" oninput="App._pickSearch(this.value, ${slot})">
           </div>
           <div id="pickResults"></div>
         </div>

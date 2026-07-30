@@ -45,7 +45,7 @@
 
       <view class="search-input-wrap">
         <icon type="search" size="16" color="#aaa" />
-        <input class="search-input" placeholder="输入选手名称搜索" value="{{searchQuery}}" bindinput="onSearchInput" focus="{{activeSlot > 0}}" />
+        <input class="search-input" placeholder="输入选手名称或绰号搜索" value="{{searchQuery}}" bindinput="onSearchInput" focus="{{activeSlot > 0}}" />
       </view>
 
       <scroll-view scroll-y class="search-results" enhanced="{{true}}" show-scrollbar="{{false}}">

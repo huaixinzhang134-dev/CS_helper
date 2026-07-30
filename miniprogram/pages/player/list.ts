@@ -46,6 +46,7 @@ Page({
     // 高级搜索
     showAdvanced: false,
     advName: '',
+    advAlias: '',
     advAgeMin: '',
     advAgeMax: '',
     advCountry: '',
@@ -237,6 +238,7 @@ Page({
   // ============ 高级搜索 ============
 
   onAdvNameInput(e: WechatMiniprogram.Input) { this.setData({ advName: e.detail.value }); },
+  onAdvAliasInput(e: WechatMiniprogram.Input) { this.setData({ advAlias: e.detail.value }); },
   onAdvAgeMinInput(e: WechatMiniprogram.Input) { this.setData({ advAgeMin: e.detail.value }); },
   onAdvAgeMaxInput(e: WechatMiniprogram.Input) { this.setData({ advAgeMax: e.detail.value }); },
   onAdvCountryInput(e: WechatMiniprogram.Input) { this.setData({ advCountry: e.detail.value }); },
@@ -246,6 +248,7 @@ Page({
   getAdvancedFilters() {
     return {
       name: this.data.advName,
+      alias: this.data.advAlias,
       ageMin: this.data.advAgeMin,
       ageMax: this.data.advAgeMax,
       country: this.data.advCountry,
@@ -260,7 +263,7 @@ Page({
   doAdvancedSearch() {
     const filters = this.getAdvancedFilters();
     const keyword = this.data.searchQuery.trim();
-    const hasAny = keyword || filters.name || filters.ageMin || filters.ageMax || filters.country || filters.team || filters.formerTeam;
+    const hasAny = keyword || filters.name || filters.alias || filters.ageMin || filters.ageMax || filters.country || filters.team || filters.formerTeam;
     if (!hasAny) {
       wx.showToast({ title: '请至少填写一个搜索条件', icon: 'none' });
       return;
@@ -304,6 +307,7 @@ Page({
   onAdvancedClear() {
     this.setData({
       advName: '',
+      advAlias: '',
       advAgeMin: '',
       advAgeMax: '',
       advCountry: '',

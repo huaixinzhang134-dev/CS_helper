@@ -43,18 +43,22 @@
     </view>
     <view class="adv-row">
       <view class="adv-field">
-        <text class="adv-label">国家</text>
-        <input class="adv-input" placeholder="如: China, Denmark" value="{{advCountry}}" bindinput="onAdvCountryInput" />
+        <text class="adv-label">绰号</text>
+        <input class="adv-input" placeholder="选手绰号/别名" value="{{advAlias}}" bindinput="onAdvAliasInput" />
       </view>
       <view class="adv-field">
-        <text class="adv-label">所属战队</text>
-        <input class="adv-input" placeholder="当前效力的战队" value="{{advTeam}}" bindinput="onAdvTeamInput" />
+        <text class="adv-label">国家</text>
+        <input class="adv-input" placeholder="如: China, Denmark" value="{{advCountry}}" bindinput="onAdvCountryInput" />
       </view>
     </view>
     <view class="adv-row">
       <view class="adv-field">
+        <text class="adv-label">所属战队</text>
+        <input class="adv-input" placeholder="名称/缩写/绰号" value="{{advTeam}}" bindinput="onAdvTeamInput" />
+      </view>
+      <view class="adv-field">
         <text class="adv-label">历史战队</text>
-        <input class="adv-input" placeholder="曾效力过的战队" value="{{advFormerTeam}}" bindinput="onAdvFormerTeamInput" />
+        <input class="adv-input" placeholder="名称/缩写/绰号" value="{{advFormerTeam}}" bindinput="onAdvFormerTeamInput" />
       </view>
     </view>
     <view class="adv-actions">

@@ -21,6 +21,7 @@ export interface Player {
   position: '狙击手' | '步枪手' | '教练' | string;
   status: 'active' | 'retired' | 'coach' | 'free_agent' | 'unknown' | string;
   avatar: string;
+  aliases?: string[];     // 绰号列表
 }
 
 export interface Match {
@@ -278,13 +279,14 @@ export const searchPlayers = async (
  * 可选条件：name, ageMin, ageMax, country, team, formerTeam
  */
 export interface AdvancedSearchParams {
-  q?: string;          // 关键词（可选，与 name 不同：q 搜索 name/real_name/game_id）
+  q?: string;          // 关键词（可选，与 name 不同：q 搜索 name/real_name/game_id/alias）
   name?: string;       // 游戏 ID 模糊搜索
+  alias?: string;      // 绰号（搜索 alias JSON 数组）
   ageMin?: number | string;
   ageMax?: number | string;
   country?: string;
-  team?: string;
-  formerTeam?: string;
+  team?: string;       // 所属战队（支持名称/缩写/绰号）
+  formerTeam?: string; // 历史战队（支持名称/缩写/绰号）
   page?: number;
   pageSize?: number;
 }
@@ -1002,4 +1004,19 @@ export const adminAwardPicks = async (
   adminOpenid: string = 'admin'
 ): Promise<{ success: boolean; data: any; message?: string }> => {
   return await post<any>('/picks/admin/award', { year, matchThreshold, coinsPerMatch, adminOpenid });
+};
+
+// ============================================================
+// 绰号提交 API
+// ============================================================
+
+/**
+ * 提交绰号建议
+ */
+export const suggestNickname = async (data: {
+  targetType: 'player' | 'team';
+  targetId: string;
+  alias: string;
+}): Promise<{ success: boolean; message?: string }> => {
+  return await postAuth<any>('/nicknames/suggest', data);
 };
