@@ -8,7 +8,7 @@
  * 使用方式：
  *   import { playRewardedAd } from '../../services/ad';
  *   const result = await playRewardedAd();
- *   if (result === 'completed') { /* 发奖励 */ }
+ *   if (result === 'completed') 发放奖励
  */
 import { REWARDED_VIDEO_AD_UNIT_ID } from '../config';
 
@@ -23,7 +23,7 @@ function clearAdListeners(ad: any) {
     ad.offLoad();
     ad.offError();
     ad.offClose();
-  } catch (_) { /* 低版本可能不支持 off */ }
+  } catch (_) { /* empty */ }
 }
 
 /**
