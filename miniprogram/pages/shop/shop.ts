@@ -1,7 +1,8 @@
 /**
  * 商城页面 —— 代币消费
  */
-import { fetchShopItems, fetchUserItems, fetchCoinBalance, buyShopItem, ShopItem, UserItem } from '../../services/api';
+import { fetchShopItems, fetchUserItems, fetchCoinBalance, fetchCoinTransactions, buyShopItem, adRewardCoins, ShopItem, UserItem } from '../../services/api';
+import { playRewardedAd } from '../../services/ad';
 
 Page({
   data: {
@@ -10,6 +11,9 @@ Page({
     userItems: [] as UserItem[],
     loading: true,
     buying: false,
+    isAdWatching: false,
+    showRecordsModal: false,
+    coinRecords: [] as { amount: number; typeLabel: string; isIncome: boolean; description: string; time: string }[],
   },
 
   onLoad() {
@@ -53,6 +57,64 @@ Page({
     });
 
     this.setData({ shopItems, userItems });
+  },
+
+  /** 观看广告获取66代币 */
+  async onWatchAd() {
+    const token = wx.getStorageSync('token');
+    if (!token) { wx.showToast({ title: '请先登录', icon: 'none' }); return; }
+    if (this.data.isAdWatching) return;
+    this.setData({ isAdWatching: true });
+    const adResult = await playRewardedAd();
+    if (adResult !== 'completed') {
+      this.setData({ isAdWatching: false });
+      if (adResult === 'closed_early') {
+        wx.showToast({ title: '请完整观看广告', icon: 'none' });
+      } else {
+        wx.showToast({ title: '广告加载失败，请重试', icon: 'none' });
+      }
+      return;
+    }
+    const res = await adRewardCoins();
+    this.setData({ isAdWatching: false });
+    if (res.success) {
+      wx.showToast({ title: '获得66代币！', icon: 'success' });
+      await this.loadCoinBalance();
+    } else {
+      wx.showToast({ title: res.message || '领取失败', icon: 'none' });
+    }
+  },
+
+  /** 查看代币记录 */
+  async onShowRecords() {
+    const token = wx.getStorageSync('token');
+    if (!token) { wx.showToast({ title: '请先登录', icon: 'none' }); return; }
+    wx.showLoading({ title: '加载中...' });
+    const res = await fetchCoinTransactions(0, 50);
+    wx.hideLoading();
+    const records = res.success && res.data ? res.data.list || [] : [];
+    const typeLabels: Record<string, string> = {
+      guess_reward: '猜对奖励',
+      ad_reward: '广告奖励',
+      spend: '兑换道具',
+      game_fee: '挑战入场费',
+    };
+    const items = records.map((r: any) => ({
+      amount: r.amount,
+      typeLabel: typeLabels[r.type] || r.type,
+      isIncome: r.amount > 0,
+      description: r.description || '',
+      time: r.createdAt ? r.createdAt.slice(0, 16).replace('T', ' ') : '',
+    }));
+    if (!items.length) {
+      wx.showToast({ title: '暂无记录', icon: 'none' });
+      return;
+    }
+    this.setData({ showRecordsModal: true, coinRecords: items });
+  },
+
+  onRecordsModalClose() {
+    this.setData({ showRecordsModal: false });
   },
 
   async onBuy(e: WechatMiniprogram.TouchEvent) {

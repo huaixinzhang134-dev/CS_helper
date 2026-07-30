@@ -1,5 +1,6 @@
-import { fetchRandomPlayerByDifficulty, searchPlayers, submitGuessRecord, fetchDifficultyProgress, createPkRoom, joinPkRoom, getPkRoom, reportPkResult, reportPkAttempt, readyForNextRound, startNextRound, Player, fetchUserItems, useItem } from '../../services/api';
+import { fetchRandomPlayerByDifficulty, searchPlayers, submitGuessRecord, fetchDifficultyProgress, createPkRoom, joinPkRoom, getPkRoom, reportPkResult, reportPkAttempt, readyForNextRound, startNextRound, Player, fetchUserItems, useItem, adUnlockDifficulty, payForGame } from '../../services/api';
 import { STATIC_BASE } from '../../config';
+import { playRewardedAd } from '../../services/ad';
 
 const SILHOUETTE_URLS = [
   'https://www.hltv.org/img/static/player/player_silhouette.png',
@@ -116,9 +117,16 @@ Page({
     showRulesModal: false,
     rulesContent: RULES_CONTENT,
 
-    // 难度锁定弹窗
+    // 难度锁定弹窗（含广告解锁）
     showLockModal: false,
     lockMessage: '',
+    lockDifficulty: '',
+    isUnlocking: false,
+
+    // 支付弹窗（炼狱/挑战10代币）
+    showPaymentModal: false,
+    paymentDifficulty: '',
+    isPaying: false,
 
     // 道具系统
     showItemModal: false,
@@ -238,10 +246,21 @@ Page({
       else this.createPkRoomOnServer(diff);
       return;
     }
+    // 未解锁 → 弹出广告解锁弹窗
     if (!item || !item.unlocked) {
       this.setData({
         showLockModal: true,
-        lockMessage: `请先在前一难度猜对10次后再来挑战！`
+        lockDifficulty: diff,
+        lockMessage: `请先在前一难度猜对10次，或观看广告解锁「${item?.name || diff}」难度`
+      });
+      return;
+    }
+    // 已解锁的炼狱/挑战 → 弹出支付确认弹窗
+    if (diff === 'hell' || diff === 'challenge') {
+      this.setData({
+        showPaymentModal: true,
+        paymentDifficulty: diff,
+        isPaying: false
       });
       return;
     }
@@ -255,8 +274,64 @@ Page({
     }
   },
 
+  /** 关闭锁定弹窗 → 回到难度选择 */
   onLockModalClose() {
-    this.setData({ showLockModal: false });
+    this.setData({ showLockModal: false, showDifficultySelection: true });
+  },
+
+  /** 点击「观看广告解锁」按钮 */
+  async onAdUnlock() {
+    const diff = this.data.lockDifficulty;
+    if (!diff) return;
+    this.setData({ isUnlocking: true });
+    // 播放激励视频广告
+    const adResult = await playRewardedAd();
+    if (adResult !== 'completed') {
+      this.setData({ isUnlocking: false });
+      if (adResult === 'closed_early') {
+        wx.showToast({ title: '请完整观看广告', icon: 'none' });
+      } else {
+        wx.showToast({ title: '广告加载失败，请重试', icon: 'none' });
+      }
+      return;
+    }
+    // 广告完整观看 → 请求后端解锁
+    const res = await adUnlockDifficulty(diff);
+    this.setData({ isUnlocking: false });
+    if (res.success) {
+      wx.showToast({ title: '解锁成功！', icon: 'success' });
+      this.setData({ showLockModal: false, showDifficultySelection: true });
+      // 刷新难度进度
+      await this.loadDifficultyProgress();
+    } else {
+      wx.showToast({ title: res.message || '解锁失败', icon: 'none' });
+    }
+  },
+
+  /** 确认支付10代币进入炼狱/挑战 */
+  async onPayConfirm() {
+    const diff = this.data.paymentDifficulty;
+    if (!diff) return;
+    this.setData({ isPaying: true });
+    const res = await payForGame(diff);
+    this.setData({ isPaying: false });
+    if (res.success) {
+      this.setData({
+        showPaymentModal: false,
+        difficulty: diff,
+        showDifficultySelection: false,
+      });
+      this.startNewRound();
+    } else {
+      // 代币不足，回到难度选择
+      wx.showToast({ title: '代币不足，请重选难度', icon: 'none' });
+      this.setData({ showPaymentModal: false, showDifficultySelection: true });
+    }
+  },
+
+  /** 取消支付 → 回到难度选择 */
+  onPayCancel() {
+    this.setData({ showPaymentModal: false, showDifficultySelection: true });
   },
 
   loginForFriendPK() {

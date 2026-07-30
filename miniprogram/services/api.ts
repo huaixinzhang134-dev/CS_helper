@@ -604,10 +604,38 @@ export const submitGuessRecord = async (data: {
  */
 export const fetchDifficultyProgress = async (): Promise<{
   success: boolean;
-  data: { difficulty: string; correctCount: number; unlocked: boolean; needPrevCorrect: number }[];
+  data: { difficulty: string; correctCount: number; unlocked: boolean; needPrevCorrect: number; adUnlocked?: boolean }[];
 }> => {
   const res = await getAuth<any>('/users/guess/difficulty-progress');
   return { success: !!res.data, data: res.data || [] };
+};
+
+/**
+ * 广告解锁某个难度
+ */
+export const adUnlockDifficulty = async (
+  difficulty: string
+): Promise<{ success: boolean; message?: string }> => {
+  const res = await postAuth<any>('/users/guess/ad-unlock', { difficulty });
+  return { success: res.success, message: res.message };
+};
+
+/**
+ * 支付入场费（炼狱/挑战 - 10代币）
+ */
+export const payForGame = async (
+  difficulty: string
+): Promise<{ success: boolean; data?: { coins: number }; message?: string }> => {
+  const res = await postAuth<any>('/users/guess/pay-for-game', { difficulty });
+  return { success: res.success, data: res.data || undefined, message: res.message };
+};
+
+/**
+ * 广告获取66代币
+ */
+export const adRewardCoins = async (): Promise<{ success: boolean; data?: { coins: number }; message?: string }> => {
+  const res = await postAuth<any>('/users/guess/ad-reward');
+  return { success: res.success, data: res.data || undefined, message: res.message };
 };
 
 /**

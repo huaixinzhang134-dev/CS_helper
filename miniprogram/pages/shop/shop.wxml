@@ -5,6 +5,10 @@
     <view class="balance-row">
       <text class="balance-icon">🪙</text>
       <text class="balance-amount">{{coins}}</text>
+      <view class="header-actions">
+        <button class="ad-btn" bindtap="onWatchAd" disabled="{{isAdWatching}}" size="mini">{{isAdWatching ? '加载中...' : '📺 广告得66代币'}}</button>
+        <button class="record-btn" bindtap="onShowRecords" size="mini">📋 记录</button>
+      </view>
     </view>
   </view>
 
@@ -33,6 +37,25 @@
 
     <view class="shop-empty" wx:if="{{shopItems.length === 0}}">
       <text>暂无商品上架</text>
+    </view>
+  </view>
+
+  <!-- 代币记录弹窗 -->
+  <view class="modal-mask" wx:if="{{showRecordsModal}}" bindtap="onRecordsModalClose" style="z-index:100;">
+    <view class="modal-content" catchtap="" style="max-height:70vh;">
+      <view class="modal-title">代币记录</view>
+      <scroll-view scroll-y style="max-height:50vh;">
+        <view class="record-item" wx:for="{{coinRecords}}" wx:key="index" style="display:flex;align-items:center;padding:16rpx 24rpx;border-bottom:1px solid var(--border);">
+          <view style="flex:1;">
+            <text style="font-size:26rpx;font-weight:500;">{{item.description || item.typeLabel}}</text>
+            <text style="display:block;font-size:20rpx;color:var(--text-muted);margin-top:4rpx;">{{item.time}}</text>
+          </view>
+          <text style="font-size:28rpx;font-weight:600;color:{{item.isIncome ? 'var(--success)' : 'var(--danger)'}};">{{item.isIncome ? '+' : ''}}{{item.amount}}</text>
+        </view>
+      </scroll-view>
+      <view class="modal-footer" style="justify-content:center;">
+        <button class="btn-secondary" bindtap="onRecordsModalClose" size="mini">关闭</button>
+      </view>
     </view>
   </view>
 </view>

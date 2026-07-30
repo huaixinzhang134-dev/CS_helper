@@ -560,6 +560,16 @@ const App = {
   async _startGuess(difficulty) {
     const state = this.state.guess;
     state.difficulty = difficulty;
+    // 炼狱/挑战需支付10代币
+    if (difficulty === 'hell' || difficulty === 'challenge') {
+      if (!this.user) { this.showMiniProgramPrompt(); return; }
+      if (!confirm('进入此模式需要支付10代币，确定吗？')) return;
+      const payRes = await API.payForGame(difficulty);
+      if (payRes.code !== 0) {
+        alert(payRes.message || '代币不足，请重选难度');
+        return;
+      }
+    }
     try {
       const res = await API.fetchRandomPlayerByDifficulty(difficulty);
       if (res.success && res.data) {
@@ -1232,10 +1242,13 @@ const App = {
       const items = shopRes.success ? shopRes.data : [];
 
       let html = `
-        <div class="shop-header">
+        <div class="shop-header" style="display:flex;align-items:center;gap:12px;">
           <span style="font-size:32px;">🪙</span>
-          <div><div style="font-size:13px;color:var(--text-muted);">我的代币</div>
-          <div class="shop-balance">${coins}</div></div>
+          <div style="flex:1;">
+            <div style="font-size:13px;color:var(--text-muted);">我的代币</div>
+            <div class="shop-balance">${coins}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="App._showCoinRecords()" style="flex-shrink:0;">📋 记录</button>
         </div>
         <div class="page-header"><h1 style="font-size:18px;">道具商城</h1></div>
       `;
@@ -1261,6 +1274,31 @@ const App = {
 
       container.innerHTML = html;
     } catch (e) { container.innerHTML = '<div class="empty-state">加载失败</div>'; }
+  },
+
+  async _showCoinRecords() {
+    const res = await API.fetchCoinTransactions(0, 50);
+    const records = res.code === 0 && res.data ? res.data.list || [] : [];
+    const typeLabels = { guess_reward: '猜对奖励', ad_reward: '广告奖励', spend: '兑换道具', game_fee: '挑战入场费' };
+    if (!records.length) { alert('暂无记录'); return; }
+    const html = '<div class="modal-mask" onclick="this.remove()">'
+      + '<div class="modal-content" onclick="event.stopPropagation()" style="max-width:420px;">'
+      + '<div class="modal-title">代币记录</div>'
+      + '<div class="modal-body" style="max-height:50vh;overflow-y:auto;padding:0;">'
+      + records.map((r: any) => {
+        const label = typeLabels[r.type] || r.type;
+        const isIncome = r.amount > 0;
+        const time = r.createdAt ? (r.createdAt.slice(0,16).replace('T',' ')) : '';
+        return '<div style="display:flex;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border);">'
+          + '<div style="flex:1;"><div style="font-size:13px;font-weight:500;">' + esc(r.description || label) + '</div>'
+          + '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + time + '</div></div>'
+          + '<div style="font-size:14px;font-weight:600;color:' + (isIncome ? 'var(--success)' : 'var(--danger)') + ';">' + (isIncome ? '+' : '') + r.amount + '</div>'
+          + '</div>';
+      }).join('')
+      + '</div>'
+      + '<div class="modal-footer"><button class="btn btn-sm" onclick="this.closest(\'.modal-mask\').remove()">关闭</button></div>'
+      + '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
   },
 
   async _buyItem(itemId, price) {

@@ -23,6 +23,7 @@
   align-items: center;
   justify-content: center;
   gap: 12rpx;
+  flex-wrap: wrap;
 }
 
 .balance-icon {
@@ -33,6 +34,38 @@
   font-size: 56rpx;
   font-weight: 700;
   color: #ffd700;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12rpx;
+  width: 100%;
+  justify-content: center;
+  margin-top: 16rpx;
+}
+
+.ad-btn {
+  background: linear-gradient(135deg, #ff6b35, #f7931e);
+  color: white;
+  border: none;
+  border-radius: 10rpx;
+  font-size: 24rpx;
+  padding: 10rpx 24rpx;
+  white-space: nowrap;
+}
+
+.ad-btn[disabled] {
+  opacity: 0.6;
+}
+
+.record-btn {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1rpx solid var(--border-color);
+  border-radius: 10rpx;
+  font-size: 24rpx;
+  padding: 10rpx 24rpx;
+  white-space: nowrap;
 }
 
 /* ====== 商品列表 ====== */

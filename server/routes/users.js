@@ -300,7 +300,7 @@ router.post('/guess/record', authMiddleware, async (req, res, next) => {
 
     // 单人模式猜对 → 代币奖励
     if (won && mode === 'personal' && difficulty) {
-      const COIN_MAP = { trivial: 1, easy: 3, normal: 5, hard: 8, hell: 15, challenge: 40 };
+      const COIN_MAP = { trivial: 1, easy: 3, normal: 5, hard: 8, hell: 123, challenge: 369 };
       const reward = COIN_MAP[difficulty];
       if (reward) {
         const [u] = await query('SELECT coins, total_coins_earned FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
@@ -327,6 +327,7 @@ router.post('/guess/record', authMiddleware, async (req, res, next) => {
 // 返回用户所有难度的猜对次数（用于解锁判断）
 // 解锁顺序：trivial → easy → normal → hard → hell → challenge
 // 每档需前一个难度猜对 10 次才解锁
+// 也检查 difficulty_extra_unlocks 表（广告/管理员额外解锁）
 // ============================================================
 router.get('/guess/difficulty-progress', authMiddleware, async (req, res, next) => {
   try {
@@ -338,19 +339,122 @@ router.get('/guess/difficulty-progress', authMiddleware, async (req, res, next) 
     const progressMap = {};
     for (const r of rows) progressMap[r.difficulty] = r.correct_count;
 
+    // 查询广告/额外解锁的难度
+    const [extraRows] = await query(
+      'SELECT difficulty FROM difficulty_extra_unlocks WHERE user_openid = ?',
+      [req.userOpenid]
+    );
+    const extraUnlockSet = new Set(extraRows.map(r => r.difficulty));
+
     const result = DIFF_ORDER.map((diff, i) => {
       const correct = progressMap[diff] || 0;
-      // 第一档（trivial）默认解锁；后续需要前一个猜对 >= 10
-      const unlocked = i === 0 ? true : (progressMap[DIFF_ORDER[i - 1]] || 0) >= 10;
+      // 第一档（trivial）默认解锁；
+      // 后续需要前一个猜对 >= 10 或 在 extra_unlocks 表中（广告解锁）
+      const prevUnlocked = i === 0 ? true : (progressMap[DIFF_ORDER[i - 1]] || 0) >= 10;
+      const unlocked = prevUnlocked || extraUnlockSet.has(diff);
       return {
         difficulty: diff,
         correctCount: correct,
         unlocked,
+        adUnlocked: extraUnlockSet.has(diff),
         needPrevCorrect: 10
       };
     });
 
     res.json({ code: 0, message: '', data: result });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// POST /api/users/guess/ad-unlock
+// Body: { difficulty }
+// 记录用户通过广告解锁某个难度
+// ============================================================
+router.post('/guess/ad-unlock', authMiddleware, async (req, res, next) => {
+  try {
+    const DIFF_ORDER = ['trivial', 'easy', 'normal', 'hard', 'hell', 'challenge'];
+    const { difficulty } = req.body || {};
+    if (!difficulty || !DIFF_ORDER.includes(difficulty)) {
+      return res.status(400).json({ code: 400, message: '无效的难度', data: null });
+    }
+    // trivial 不需要解锁
+    if (difficulty === 'trivial') {
+      return res.json({ code: 0, message: '该难度默认已解锁', data: null });
+    }
+    // 检查是否已解锁
+    const [existing] = await query(
+      'SELECT id FROM difficulty_extra_unlocks WHERE user_openid = ? AND difficulty = ?',
+      [req.userOpenid, difficulty]
+    );
+    if (existing[0]) {
+      return res.json({ code: 0, message: '该难度已解锁', data: null });
+    }
+    // 记录解锁
+    await query(
+      'INSERT INTO difficulty_extra_unlocks (user_openid, difficulty) VALUES (?, ?)',
+      [req.userOpenid, difficulty]
+    );
+    res.json({ code: 0, message: '解锁成功', data: { difficulty } });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// POST /api/users/guess/ad-reward
+// 观看广告获取 66 代币
+// ============================================================
+router.post('/guess/ad-reward', authMiddleware, async (req, res, next) => {
+  try {
+    const REWARD = 66;
+    const [u] = await query(
+      'SELECT coins, total_coins_earned FROM users WHERE openid = ? LIMIT 1',
+      [req.userOpenid]
+    );
+    if (!u[0]) return res.status(404).json({ code: 404, message: '用户不存在', data: null });
+    const curCoins = u[0].coins || 0;
+    const curEarned = u[0].total_coins_earned || 0;
+    await query(
+      'UPDATE users SET coins = ?, total_coins_earned = ? WHERE openid = ?',
+      [curCoins + REWARD, curEarned + REWARD, req.userOpenid]
+    );
+    await query(
+      'INSERT INTO coin_transactions (user_openid, amount, balance_after, type, description) VALUES (?, ?, ?, ?, ?)',
+      [req.userOpenid, REWARD, curCoins + REWARD, 'ad_reward', '观看广告获取66代币']
+    );
+    res.json({ code: 0, message: '获取66代币成功', data: { coins: curCoins + REWARD } });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
+// POST /api/users/guess/pay-for-game
+// Body: { difficulty }
+// 炼狱/挑战模式扣除 10 代币
+// ============================================================
+router.post('/guess/pay-for-game', authMiddleware, async (req, res, next) => {
+  try {
+    const PAY_DIFFS = ['hell', 'challenge'];
+    const COST = 10;
+    const { difficulty } = req.body || {};
+    if (!difficulty || !PAY_DIFFS.includes(difficulty)) {
+      return res.status(400).json({ code: 400, message: '该难度无需支付', data: null });
+    }
+    const [u] = await query(
+      'SELECT coins FROM users WHERE openid = ? LIMIT 1',
+      [req.userOpenid]
+    );
+    if (!u[0]) return res.status(404).json({ code: 404, message: '用户不存在', data: null });
+    const curCoins = u[0].coins || 0;
+    if (curCoins < COST) {
+      return res.status(400).json({ code: 400, message: '代币不足，需要10代币', data: { coins: curCoins, need: COST } });
+    }
+    await query(
+      'UPDATE users SET coins = ? WHERE openid = ?',
+      [curCoins - COST, req.userOpenid]
+    );
+    await query(
+      'INSERT INTO coin_transactions (user_openid, amount, balance_after, type, description) VALUES (?, ?, ?, ?, ?)',
+      [req.userOpenid, -COST, curCoins - COST, 'game_fee', '支付' + difficulty + '难度入场费']
+    );
+    res.json({ code: 0, message: '支付成功', data: { coins: curCoins - COST, difficulty } });
   } catch (err) { next(err); }
 });
 

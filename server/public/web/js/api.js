@@ -212,6 +212,14 @@ const API = {
     return this.post('/coins/items/use', { itemType });
   },
 
+  async fetchCoinTransactions(page = 0, pageSize = 50) {
+    return this.get('/coins/transactions', { page, pageSize });
+  },
+
+  async payForGame(difficulty) {
+    return this.post('/users/guess/pay-for-game', { difficulty });
+  },
+
   // ================== 年度猜测 API ==================
 
   async submitPick(slot, playerGameId, playerName, year = 2026) {

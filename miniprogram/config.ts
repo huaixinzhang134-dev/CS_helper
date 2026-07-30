@@ -16,3 +16,9 @@ export const API_BASE = 'https://cshelper.yxcshelper.top/api';
  * 后端通过 express.static 暴露 /static/ 目录
  */
 export const STATIC_BASE = 'https://cshelper.yxcshelper.top';
+
+/**
+ * 微信小程序激励视频广告位 ID
+ * 用于：难度解锁、商城获取代币
+ */
+export const REWARDED_VIDEO_AD_UNIT_ID = 'adunit-a134bdd0c70e6f7a';
