@@ -116,7 +116,7 @@ const App = {
   },
 
   // ==================== 首页 ====================
-  _homeVersion: 'v1.4.5',
+  _homeVersion: 'v1.5.0',
   _homeVersionKey: 'web_home_version_shown',
 
   renderHome(container) {
@@ -172,11 +172,15 @@ const App = {
 欢迎也感谢各位使用云雪CS助手${this._homeVersion}！
 本次更新如下内容：
 
-1. 修复了战队排行榜无法正确显示战队赛区的问题
+1. 添加了部分广告接口，在尽量不影响大家体验的情况下圈点米，为爱发电很累的
 
-2. 重构了难度选择，更偏向大众化，只有确保能够猜对较简单模式才会解锁高难模式
+2. 优化了选手详情，添加了绰号/外号栏，并且各位可以自己上传选手绰号，通过审核后即可显示在选手详情页
 
-3. 新上网页版助手：https://cshelper.yxcshelper.top/
+3. 优化了搜索逻辑，现在猜一猜和资料库搜索绰号也可以搜索到选手了
+
+4. 添加了看广告获取代币的途径，每30秒广告获取66代币（无上限）
+
+5. 优化了猜一猜的难度限制，现在可以通过看广告提前解锁难度，且炼狱与挑战模式大幅增加代币奖励（但同时需要10代币入场费）
           </div>
           <div class="modal-footer" style="justify-content:center;">
             <button class="btn" onclick="App._dismissHomeUpdate()">我收到</button>
