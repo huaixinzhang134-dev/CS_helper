@@ -82,55 +82,56 @@ async function fetchFrom5eplay() {
     }
   }
 
-  // ----- 合并结果，按 eplayId 去重（同一比赛可能出现在多个 API）-----
-  //     不同 API 对同一比赛的 ID 格式可能不同，统一提取数字部分
-  if (allMatches.length > 0) {
-    const extractId = (m) => {
-      if (m.eplayId) {
-        const num = String(m.eplayId).match(/(\d+)/);
-        if (num) return `id:${num[1]}`;
-      }
-      // 无 ID 时用队伍+日期组合作为 key
-      if (m.team1 && m.team2 && m.date) {
-        return `pair:${m.team1}|${m.team2}|${m.date}`;
-      }
-      return null;
-    };
-
-    const seen = new Set();
-    const deduped = allMatches.filter(m => {
-      const key = extractId(m);
-      if (!key) return true;           // 无法去重的保留
-      if (seen.has(key)) return false; // 已见过 → 跳过
-      seen.add(key);
-      return true;
-    });
-    const dupCount = allMatches.length - deduped.length;
-    if (dupCount > 0) {
-      console.log(`[5eplay] 合并后去重 ${dupCount} 条重复比赛`);
-    }
-    console.log(`[5eplay] 总共 ${deduped.length} 场比赛`);
-    return { source: 'merged', matches: deduped };
-  }
-
-  // ----- 兜底: SSR 页面抓取 -----
+  // ----- 额外抓取 SSR 页面（获取 CDN API 缺失的比赛）-----
   try {
-    console.log('[5eplay] 尝试 SSR 页面抓取');
-    const resp = await axios.get('https://event.5eplay.com/csgo/matches', {
+    console.log('[5eplay] 额外抓取 SSR 页面补充...');
+    const resp = await axios.get('https://event.5eplay.com/csgo/matches?grade=1%2C7%2C2%2C3%2C8%2C9', {
       headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml' },
       timeout: TIMEOUT,
       httpsAgent: new (require('https').Agent)({ rejectUnauthorized: false })
     });
-    const matches = extractFromSSR(resp.data);
-    if (matches && matches.length > 0) {
-      console.log(`[5eplay] SSR 抓取成功，获取 ${matches.length} 场比赛`);
-      return { source: 'ssr', matches };
+    const ssrMatches = extractFromSSR(resp.data);
+    if (ssrMatches && ssrMatches.length > 0) {
+      console.log(`[5eplay] SSR 页面获取 ${ssrMatches.length} 场比赛`);
+      allMatches.push(...ssrMatches);
     }
   } catch (err) {
-    console.log('[5eplay] SSR 抓取失败:', err.message);
+    console.log('[5eplay] SSR 补充抓取失败:', err.message);
   }
 
-  throw new Error('所有 5eplay 数据源均不可用');
+  // ----- 合并结果，按 eplayId 去重（同一比赛可能出现在多个 API）-----
+  //     不同 API 对同一比赛的 ID 格式可能不同，统一提取数字部分
+  const extractId = (m) => {
+    if (m.eplayId) {
+      const num = String(m.eplayId).match(/(\d+)/);
+      if (num) return `id:${num[1]}`;
+    }
+    // 无 ID 时用队伍+日期组合作为 key
+    if (m.team1 && m.team2 && m.date) {
+      return `pair:${m.team1}|${m.team2}|${m.date}`;
+    }
+    return null;
+  };
+
+  const seen = new Set();
+  const deduped = allMatches.filter(m => {
+    const key = extractId(m);
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const dupCount = allMatches.length - deduped.length;
+  if (dupCount > 0) {
+    console.log(`[5eplay] 合并后去重 ${dupCount} 条重复比赛`);
+  }
+  console.log(`[5eplay] 总共 ${deduped.length} 场比赛`);
+
+  if (deduped.length === 0) {
+    throw new Error('所有 5eplay 数据源均不可用');
+  }
+
+  return { source: 'merged', matches: deduped };
 }
 
 // ======================== 解析器 ========================
