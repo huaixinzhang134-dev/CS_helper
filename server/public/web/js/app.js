@@ -1645,21 +1645,24 @@ const App = {
     const el = document.getElementById('adminNicknamesTab');
     if (!el) return;
     const page = this._adminNicknamePage || 0;
+    const filterEl = document.getElementById('nicknameFilter');
+    const status = filterEl ? filterEl.value : 'pending';
     try {
-      const data = await API.adminGetNicknames(page, 20, 'pending');
+      const data = await API.adminGetNicknames(page, 20, status);
+      const list = data.data || [];
       el.innerHTML = `
         <div style="margin-bottom:8px;">
           <select class="input" style="width:auto;" id="nicknameFilter" onchange="App._adminLoadNicknames()">
-            <option value="pending">待审核</option>
-            <option value="approved">已通过</option>
-            <option value="rejected">已拒绝</option>
-            <option value="all">全部</option>
+            <option value="pending" ${status==='pending'?'selected':''}>待审核</option>
+            <option value="approved" ${status==='approved'?'selected':''}>已通过</option>
+            <option value="rejected" ${status==='rejected'?'selected':''}>已拒绝</option>
+            <option value="all" ${status==='all'?'selected':''}>全部</option>
           </select>
         </div>
         <div style="overflow-x:auto;">
           <table class="admin-table">
             <thead><tr><th>ID</th><th>类型</th><th>目标选手/战队</th><th>游戏ID</th><th>建议绰号</th><th>提交者</th><th>操作</th></tr></thead>
-            <tbody>${data.list.length ? data.list.map(n => `
+            <tbody>${list.length ? list.map(n => `
               <tr style="${n.status==='pending'?'background:rgba(255,193,7,0.08)':n.status==='approved'?'background:rgba(40,167,69,0.08)':'background:rgba(108,117,125,0.08)'}">
                 <td>${n.id}</td>
                 <td>${n.targetType === 'player' ? '选手' : '战队'}</td>
