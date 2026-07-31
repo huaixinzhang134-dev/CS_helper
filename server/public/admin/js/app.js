@@ -191,6 +191,8 @@ async function openPlayerModal(playerId) {
     document.getElementById('editPlayerName').value = p.name || '';
     document.getElementById('editPlayerRealName').value = p.realName || '';
     document.getElementById('editPlayerTeam').value = p.team || '';
+    document.getElementById('editPlayerFormerTeams').value =
+      Array.isArray(p.formerTeams) ? p.formerTeams.join(', ') : (p.formerTeams || '');
     document.getElementById('editPlayerPosition').value = p.position || '步枪手';
     document.getElementById('editPlayerStatus').value = p.status || 'active';
     document.getElementById('editPlayerRating').value = p.rating || 0;
@@ -206,6 +208,8 @@ async function savePlayer() {
     name: document.getElementById('editPlayerName').value.trim(),
     realName: document.getElementById('editPlayerRealName').value.trim(),
     team: document.getElementById('editPlayerTeam').value.trim(),
+    formerTeams: document.getElementById('editPlayerFormerTeams').value
+      .split(/[,，]/).map(s => s.trim()).filter(Boolean),
     position: document.getElementById('editPlayerPosition').value,
     status: document.getElementById('editPlayerStatus').value,
     rating: parseFloat(document.getElementById('editPlayerRating').value) || 0,

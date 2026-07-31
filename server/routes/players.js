@@ -667,7 +667,7 @@ router.get('/admin/list', async (req, res, next) => {
 router.put('/admin/:playerId', async (req, res, next) => {
   try {
     const { playerId } = req.params;
-    const allowedFields = ['name', 'realName', 'team', 'status', 'position', 'rating', 'sniping', 'majorAppearances', 'country', 'alias'];
+    const allowedFields = ['name', 'realName', 'team', 'status', 'position', 'rating', 'sniping', 'majorAppearances', 'country', 'alias', 'formerTeams'];
     const updates = [];
     const params = [];
 
@@ -677,10 +677,15 @@ router.put('/admin/:playerId', async (req, res, next) => {
         const colMap = {
           realName: 'real_name',
           majorAppearances: 'major_appearances',
+          team: 'current_team',
         };
         const col = colMap[field] || field;
+        // formerTeams 以 JSON 数组存库
+        const value = field === 'formerTeams'
+          ? JSON.stringify(req.body[field])
+          : req.body[field];
         updates.push(`${col} = ?`);
-        params.push(req.body[field]);
+        params.push(value);
       }
     }
 
