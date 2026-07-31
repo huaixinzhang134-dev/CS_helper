@@ -678,6 +678,7 @@ router.put('/admin/:playerId', async (req, res, next) => {
           realName: 'real_name',
           majorAppearances: 'major_appearances',
           team: 'current_team',
+          formerTeams: 'former_teams',
         };
         const col = colMap[field] || field;
         // formerTeams 以 JSON 数组存库
