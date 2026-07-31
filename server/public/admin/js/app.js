@@ -460,7 +460,11 @@ async function loadNicknames() {
     tbody.innerHTML = (data.data || []).map(n => `<tr>
       <td>${n.id}</td>
       <td>${n.targetType === 'player' ? '选手' : '战队'}</td>
-      <td>${esc(n.targetId)}</td>
+      <td>
+        ${n.targetType === 'player'
+          ? `<strong>${esc(n.targetName)}</strong>${n.targetGameId ? ' (' + esc(n.targetGameId) + ')' : ''}`
+          : esc(n.targetName || n.targetId)}
+      </td>
       <td><strong>${esc(n.alias)}</strong></td>
       <td>${esc(n.submitterName)}</td>
       <td>${STATUS_MAP[n.status] || n.status}</td>
