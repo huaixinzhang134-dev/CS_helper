@@ -1289,7 +1289,7 @@ const App = {
       + '<div class="modal-content" onclick="event.stopPropagation()" style="max-width:420px;">'
       + '<div class="modal-title">代币记录</div>'
       + '<div class="modal-body" style="max-height:50vh;overflow-y:auto;padding:0;">'
-      + records.map((r: any) => {
+      + records.map(r => {
         const label = typeLabels[r.type] || r.type;
         const isIncome = r.amount > 0;
         const time = r.createdAt ? (r.createdAt.slice(0,16).replace('T',' ')) : '';
@@ -1617,10 +1617,11 @@ const App = {
                   <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;font-size:12px;">${esc(JSON.stringify(p.aliases||[]))}</td>
                   <td><button class="btn btn-sm" onclick="App._adminEditPlayerAlias('${esc(p.playerId)}','${esc(p.name)}','${esc(JSON.stringify(p.aliases||[]).replace(/'/g,"\\'"))}')">编辑绰号</button></td>
                 </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">未找到匹配选手</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-      `;
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (e) { console.error(e); }
     }, 300);
   },
 
