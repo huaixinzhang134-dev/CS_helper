@@ -32,23 +32,63 @@ async function main() {
   let teamUpdated = 0, teamNotFound = 0;
 
   // ---- 导入选手绰号 ----
+  // 注意：必须按唯一 id 定位选手，不能按 name 匹配。
+  // player 表存在大小写不同但同名的多个不同选手（如 niko / NiKo / Niko，game_id 各不相同），
+  // 而 utf8mb4_unicode_ci 排序规则大小写不敏感，WHERE name = ? 会一次命中所有同名行，
+  // 导致绰号被错误地打在所有重名选手身上。
   console.log(`\n==> 导入 ${data.players.length} 个选手绰号...`);
   for (const p of data.players) {
-    const aliases = JSON.stringify(p.aliases);
+    // 1. 大小写精确匹配（nicknames.json 中的名字与 HLTV 官方名一致，唯一对应）
+    let [rows] = await conn.execute(
+      "SELECT id, name, alias FROM player WHERE name = ? COLLATE utf8mb4_bin LIMIT 1",
+      [p.name]
+    );
+    if (!rows.length) {
+      // 2. 回退：大小写不敏感匹配，仅当结果唯一时才采用
+      [rows] = await conn.execute(
+        "SELECT id, name, alias FROM player WHERE LOWER(name) = LOWER(?)",
+        [p.name]
+      );
+      if (rows.length > 1) {
+        console.log(`  ! ${p.name} 大小写不敏感匹配到 ${rows.length} 个选手（${rows.map(r => `${r.name}#${r.id}`).join(', ')}），无法唯一对应，跳过，请手动处理`);
+        continue;
+      }
+    }
+    if (!rows.length) {
+      playerNotFound++;
+      console.log(`  ? ${p.name} 未在数据库中找到`);
+      continue;
+    }
+    const row = rows[0];
+
+    // 合并而非覆盖：保留已审核通过的绰号，只追加缺失的
+    let current = [];
+    if (row.alias) {
+      try {
+        current = typeof row.alias === 'string' ? JSON.parse(row.alias) : row.alias;
+      } catch (_) { current = []; }
+    }
+    if (!Array.isArray(current)) current = [];
+    let changed = false;
+    for (const a of p.aliases) {
+      if (!current.includes(a)) { current.push(a); changed = true; }
+    }
+
     if (dryRun) {
-      console.log(`  [预览] ${p.name} → ${p.aliases.join(', ')}`);
+      console.log(`  [预览] ${row.name} (id=${row.id}) → ${current.join(', ')}`);
+      continue;
+    }
+    if (!changed) {
+      console.log(`  - ${row.name} (id=${row.id}) 已有全部绰号，无变更`);
       continue;
     }
     const [result] = await conn.execute(
-      "UPDATE player SET alias = ? WHERE name = ?",
-      [aliases, p.name]
+      "UPDATE player SET alias = ? WHERE id = ?",
+      [JSON.stringify(current), row.id]
     );
     if (result.affectedRows > 0) {
       playerUpdated++;
-      console.log(`  ✓ ${p.name} → ${p.aliases.join(', ')}`);
-    } else {
-      playerNotFound++;
-      console.log(`  ? ${p.name} 未在数据库中找到`);
+      console.log(`  ✓ ${row.name} (id=${row.id}) → ${current.join(', ')}`);
     }
   }
 
