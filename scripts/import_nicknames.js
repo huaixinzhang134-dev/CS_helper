@@ -16,6 +16,45 @@ const mysql = require('mysql2/promise');
 
 const NICKNAMES_PATH = path.join(__dirname, '..', 'crawler', 'nicknames.json');
 
+// 重名歧义表：player 表存在多条名字完全相同（或大小写不同）但并非同一人的选手行，
+// 无法仅凭名字唯一对应时，用 game_id（HLTV 选手 ID）精确定位官方目标。
+// rain：gid 8183（挪威，rating 1.04）才是 FaZe 的 rain
+const AMBIGUOUS_GAME_ID = {
+  'rain': '8183',
+};
+
+/**
+ * 将 nicknames.json 的选手名解析为唯一的 player 行
+ * 返回 {id, name, alias}；null = 未找到；{ambiguous:[...]} = 无法唯一对应
+ */
+async function resolvePlayerRow(conn, p) {
+  // 1. 重名歧义表：按 game_id 精确定位
+  const gid = AMBIGUOUS_GAME_ID[p.name];
+  if (gid) {
+    const [rows] = await conn.execute(
+      "SELECT id, name, alias, game_id FROM player WHERE game_id = ? LIMIT 1",
+      [gid]
+    );
+    if (rows.length) return rows[0];
+    // 表中无此行 → 继续走名字匹配，由下方逻辑报“未找到”
+  }
+  // 2. 大小写精确匹配（nicknames.json 中的名字与 HLTV 官方名一致）
+  const [exact] = await conn.execute(
+    "SELECT id, name, alias, game_id FROM player WHERE name = ? COLLATE utf8mb4_bin",
+    [p.name]
+  );
+  if (exact.length > 1) return { ambiguous: exact };
+  if (exact.length === 1) return exact[0];
+  // 3. 回退：大小写不敏感匹配，仅当结果唯一时才采用
+  const [ci] = await conn.execute(
+    "SELECT id, name, alias, game_id FROM player WHERE LOWER(name) = LOWER(?)",
+    [p.name]
+  );
+  if (ci.length > 1) return { ambiguous: ci };
+  if (ci.length === 1) return ci[0];
+  return null;
+}
+
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
   const data = JSON.parse(fs.readFileSync(NICKNAMES_PATH, 'utf-8'));
@@ -33,33 +72,21 @@ async function main() {
 
   // ---- 导入选手绰号 ----
   // 注意：必须按唯一 id 定位选手，不能按 name 匹配。
-  // player 表存在大小写不同但同名的多个不同选手（如 niko / NiKo / Niko，game_id 各不相同），
-  // 而 utf8mb4_unicode_ci 排序规则大小写不敏感，WHERE name = ? 会一次命中所有同名行，
+  // player 表存在大小写不同甚至完全相同但并非同一人的多个选手（如 rain 有 3 条 name='rain' 的独立选手），
+  // utf8mb4_unicode_ci 排序规则大小写不敏感，WHERE name = ? 会一次命中所有同名行，
   // 导致绰号被错误地打在所有重名选手身上。
   console.log(`\n==> 导入 ${data.players.length} 个选手绰号...`);
   for (const p of data.players) {
-    // 1. 大小写精确匹配（nicknames.json 中的名字与 HLTV 官方名一致，唯一对应）
-    let [rows] = await conn.execute(
-      "SELECT id, name, alias FROM player WHERE name = ? COLLATE utf8mb4_bin LIMIT 1",
-      [p.name]
-    );
-    if (!rows.length) {
-      // 2. 回退：大小写不敏感匹配，仅当结果唯一时才采用
-      [rows] = await conn.execute(
-        "SELECT id, name, alias FROM player WHERE LOWER(name) = LOWER(?)",
-        [p.name]
-      );
-      if (rows.length > 1) {
-        console.log(`  ! ${p.name} 大小写不敏感匹配到 ${rows.length} 个选手（${rows.map(r => `${r.name}#${r.id}`).join(', ')}），无法唯一对应，跳过，请手动处理`);
-        continue;
-      }
-    }
-    if (!rows.length) {
+    const row = await resolvePlayerRow(conn, p);
+    if (row === null) {
       playerNotFound++;
       console.log(`  ? ${p.name} 未在数据库中找到`);
       continue;
     }
-    const row = rows[0];
+    if (row.ambiguous) {
+      console.log(`  ! ${p.name} 匹配到多个选手（${row.ambiguous.map(r => `${r.name}#${r.id} (gid=${r.game_id})`).join(', ')}），无法唯一对应，跳过，请手动处理`);
+      continue;
+    }
 
     // 合并而非覆盖：保留已审核通过的绰号，只追加缺失的
     let current = [];
