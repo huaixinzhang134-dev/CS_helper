@@ -22,7 +22,10 @@ let puppeteer;
 const BASE_URL = 'https://www.hltv.org';
 const RANKING_URL = `${BASE_URL}/valve-ranking/teams`;
 const OUTPUT_FILE = 'valve_ranking.json';
-const PLAYER_JSON_PATH = path.join(__dirname, 'playerbase_clean.json');
+// 选手数据文件：优先 playerbase_clean.json（旧版清洗产物），无则用 playerbase.json（当前主输出）
+const PLAYER_JSON_PATH = fs.existsSync(path.join(__dirname, 'playerbase_clean.json'))
+  ? path.join(__dirname, 'playerbase_clean.json')
+  : path.join(__dirname, 'playerbase.json');
 const LOGO_OUTPUT_FILE = 'team_logos.json';
 const DELAY_MIN = 1000;
 const DELAY_MAX = 2000;
