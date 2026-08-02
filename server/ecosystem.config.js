@@ -53,7 +53,8 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         API_BASE: 'http://127.0.0.1:3001',
-        CRAWLER_INTERVAL: '60000'
+        // 15 分钟一次（2026-08-02 修复）：60s 全量爬取对 1.6G 小服务器负担过重
+        CRAWLER_INTERVAL: '900000'
       },
       max_memory_restart: '150M',
       error_file: './logs/crawler-error.log',

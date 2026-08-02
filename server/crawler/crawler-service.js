@@ -160,11 +160,16 @@ async function main() {
 
   // 立即执行一次
   console.log('[crawler] 首次抓取...');
-  await syncCycle();
 
-  // 定时轮询
-  setInterval(syncCycle, INTERVAL);
-  console.log(`\n[crawler] 已启动定时轮询，间隔 ${INTERVAL / 1000}s`);
+  // 定时轮询：上一轮完全结束后再等 INTERVAL 开始下一轮
+  // 修复（2026-08-02）：setInterval 在单轮耗时超过间隔时会并发叠加多个 syncCycle，
+  // 导致 axios 请求/内存无限累积，最终触发 OOM（线上 4:49 oom-killer 实证）。
+  async function runLoop() {
+    await syncCycle();
+    setTimeout(runLoop, INTERVAL);
+  }
+  runLoop();
+  console.log(`\n[crawler] 已启动定时轮询，间隔 ${INTERVAL / 1000}s（上一轮完成后计时）`);
 }
 
 // ======================== 启动入口 ========================
