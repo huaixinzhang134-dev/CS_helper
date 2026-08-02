@@ -7,6 +7,9 @@ const fs = require('fs');
 const path = require('path');
 
 async function main() {
+  // --details-only: 只更新 team_details.json 队标，跳过排名导入（不 TRUNCATE team_ranking）
+  const detailsOnly = process.argv.includes('--details-only');
+
   // 与 server/db/pool.js 保持一致的 env var 优先级
   const conn = await mysql.createConnection({
     host: process.env.DB_HOST || process.env.MYSQLHOST || process.env.MYSQL_HOST || 'hayabusa.proxy.rlwy.net',
@@ -17,41 +20,46 @@ async function main() {
     ssl: { rejectUnauthorized: false }
   });
 
-  // 读取 valve_ranking.json
-  const filePath = path.join(__dirname, '..', 'crawler', 'valve_ranking.json');
-  if (!fs.existsSync(filePath)) {
-    console.error('valve_ranking.json 不存在，先运行爬虫');
-    process.exit(1);
-  }
+  if (!detailsOnly) {
+    // 读取 valve_ranking.json
+    const filePath = path.join(__dirname, '..', 'crawler', 'valve_ranking.json');
+    if (!fs.existsSync(filePath)) {
+      console.error('valve_ranking.json 不存在，先运行爬虫（或加 --details-only 只更新队标）');
+      await conn.end();
+      process.exit(1);
+    }
 
-  // 先清空旧数据，避免重复导入导致脏数据
-  await conn.execute('TRUNCATE TABLE team_ranking');
-  console.log('已清空 team_ranking 表');
+    // 先清空旧数据，避免重复导入导致脏数据
+    await conn.execute('TRUNCATE TABLE team_ranking');
+    console.log('已清空 team_ranking 表');
 
-  const lines = fs.readFileSync(filePath, 'utf8').trim().split('\n');
-  let inserted = 0;
+    const lines = fs.readFileSync(filePath, 'utf8').trim().split('\n');
+    let inserted = 0;
 
-  for (const line of lines) {
-    try {
-      const item = JSON.parse(line);
-      await conn.execute(
-        `INSERT INTO team_ranking (ranking, team_name, team_id, hltv_team_id, points, logo_url)
-         VALUES (?, ?, NULL, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE ranking = VALUES(ranking), points = VALUES(points), logo_url = VALUES(logo_url)`,
-        [item.ranking, item.name, item.teamId || '', item.points || '', item.logo || '']
-      );
-      // 同步更新 team 表的队标（如果存在该队伍）
-      if (item.logo) {
+    for (const line of lines) {
+      try {
+        const item = JSON.parse(line);
         await conn.execute(
-          `UPDATE team SET logo_url = ? WHERE name = ? AND (logo_url IS NULL OR logo_url != ?)`,
-          [item.logo, item.name, item.logo]
+          `INSERT INTO team_ranking (ranking, team_name, team_id, hltv_team_id, points, logo_url)
+           VALUES (?, ?, NULL, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE ranking = VALUES(ranking), points = VALUES(points), logo_url = VALUES(logo_url)`,
+          [item.ranking, item.name, item.teamId || '', item.points || '', item.logo || '']
         );
-      }
-      inserted++;
-    } catch {}
-  }
+        // 同步更新 team 表的队标（如果存在该队伍）
+        if (item.logo) {
+          await conn.execute(
+            `UPDATE team SET logo_url = ? WHERE name = ? AND (logo_url IS NULL OR logo_url != ?)`,
+            [item.logo, item.name, item.logo]
+          );
+        }
+        inserted++;
+      } catch {}
+    }
 
-  console.log(`✅ 排名数据导入完成: ${inserted} 条`);
+    console.log(`✅ 排名数据导入完成: ${inserted} 条`);
+  } else {
+    console.log('模式: --details-only（只更新队标，不动排名表）');
+  }
 
   // 如果存在 team_details.json（全量爬取产出），更新队标为详情页高质量版
   const detailsPath = path.join(__dirname, '..', 'crawler', 'team_details.json');
@@ -67,6 +75,8 @@ async function main() {
       if (result.affectedRows > 0) logoUpdated++;
     }
     console.log(`✅ 队标更新完成: ${logoUpdated}/${details.length} 条`);
+  } else {
+    console.log('⚠️ 未找到 team_details.json，无队标更新');
   }
 
   await conn.end();
