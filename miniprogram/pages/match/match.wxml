@@ -47,7 +47,7 @@
         <!-- Team A -->
         <view class="team flex-col align-center">
           <view class="team-logo-wrap">
-            <image class="team-logo" src="{{item.teamA.logo}}" mode="aspectFill"></image>
+            <image class="team-logo" src="{{item.teamA.logo}}" mode="aspectFill" binderror="onLogoError" data-fb="{{item.teamA.logoFallback}}" data-idx="{{index}}" data-side="A"></image>
           </view>
           <text class="team-name">{{item.teamA.name}}</text>
         </view>
@@ -78,7 +78,7 @@
         <!-- Team B -->
         <view class="team flex-col align-center">
           <view class="team-logo-wrap">
-            <image class="team-logo" src="{{item.teamB.logo}}" mode="aspectFill"></image>
+            <image class="team-logo" src="{{item.teamB.logo}}" mode="aspectFill" binderror="onLogoError" data-fb="{{item.teamB.logoFallback}}" data-idx="{{index}}" data-side="B"></image>
           </view>
           <text class="team-name">{{item.teamB.name}}</text>
         </view>

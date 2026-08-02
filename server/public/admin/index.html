@@ -103,7 +103,7 @@
           <input type="text" id="teamSearch" placeholder="搜索战队..." oninput="debounceTeamSearch()">
         </div>
         <table>
-          <thead><tr><th>ID</th><th>队名</th><th>赛区</th><th>当前成员数</th><th>Logo</th><th>操作</th></tr></thead>
+          <thead><tr><th>ID</th><th>队名</th><th>赛区</th><th>当前成员数</th><th>HLTV Logo</th><th>5eplay Logo</th><th>操作</th></tr></thead>
           <tbody id="teamTableBody"></tbody>
         </table>
         <div class="pagination" id="teamPagination"></div>
@@ -123,7 +123,8 @@
               <option value="Other">Other</option>
             </select>
           </div>
-          <div class="form-group"><label>Logo URL</label><input type="text" id="editTeamLogoUrl" placeholder="https://..."></div>
+          <div class="form-group"><label>HLTV 队标 URL</label><input type="text" id="editTeamLogoUrl" placeholder="https://..."></div>
+          <div class="form-group"><label>5eplay 队标 URL</label><input type="text" id="editTeamLogo5eplayUrl" placeholder="https://..."></div>
           <input type="hidden" id="editTeamId">
           <button onclick="saveTeam()">保存</button>
         </div>

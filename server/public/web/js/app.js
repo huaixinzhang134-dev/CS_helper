@@ -30,6 +30,19 @@ const App = {
     document.getElementById('miniProgramModal').style.display = 'none';
   },
 
+  /**
+   * 队标加载失败：优先回退到 5eplay 队标（data-fb），再失败才隐藏
+   */
+  _logoError(img) {
+    const fb = img.getAttribute('data-fb');
+    if (fb) {
+      img.setAttribute('data-fb', ''); // 换完清空，避免死循环
+      img.src = fb;
+    } else {
+      img.style.display = 'none';
+    }
+  },
+
   showMiniProgramPrompt() {
     document.getElementById('miniProgramModal').style.display = 'flex';
   },
@@ -276,7 +289,7 @@ const App = {
           </div>
           <div class="matchup">
             <div class="team-block">
-              <img class="team-logo" src="${m.teamA.logo || ''}" alt="${esc(m.teamA.name)}" onerror="this.style.display='none'">
+              <img class="team-logo" src="${m.teamA.logo || ''}" alt="${esc(m.teamA.name)}" data-fb="${esc(m.teamA.logoFallback || '')}" onerror="App._logoError(this)">
               <span class="team-name">${esc(m.teamA.name)}</span>
             </div>
             <div class="score-block">
@@ -286,7 +299,7 @@ const App = {
               <div class="match-time">${this._formatMatchTime(m.time)}</div>
             </div>
             <div class="team-block">
-              <img class="team-logo" src="${m.teamB.logo || ''}" alt="${esc(m.teamB.name)}" onerror="this.style.display='none'">
+              <img class="team-logo" src="${m.teamB.logo || ''}" alt="${esc(m.teamB.name)}" data-fb="${esc(m.teamB.logoFallback || '')}" onerror="App._logoError(this)">
               <span class="team-name">${esc(m.teamB.name)}</span>
             </div>
           </div>

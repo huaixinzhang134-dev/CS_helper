@@ -6,7 +6,7 @@
     <view class="hero-matchup">
       <view class="hero-team">
         <view class="hero-logo-wrap">
-          <image class="hero-logo" src="{{match.teamA.logo}}" mode="aspectFill"></image>
+          <image class="hero-logo" src="{{match.teamA.logo}}" mode="aspectFill" binderror="onLogoError" data-fb="{{match.teamA.logoFallback}}" data-side="A"></image>
         </view>
         <text class="hero-team-name">{{match.teamA.name || 'TBD'}}</text>
       </view>
@@ -29,7 +29,7 @@
       </view>
       <view class="hero-team">
         <view class="hero-logo-wrap">
-          <image class="hero-logo" src="{{match.teamB.logo}}" mode="aspectFill"></image>
+          <image class="hero-logo" src="{{match.teamB.logo}}" mode="aspectFill" binderror="onLogoError" data-fb="{{match.teamB.logoFallback}}" data-side="B"></image>
         </view>
         <text class="hero-team-name">{{match.teamB.name || 'TBD'}}</text>
       </view>

@@ -38,29 +38,29 @@ function fmtDate(d) {
 
 /**
  * 将队伍名解析为 team ID，不存在则自动创建
+ * 5eplay 爬到的队标只写入 logo_5eplay 字段，logo_url 专留给 HLTV 爬虫导入
  */
 async function resolveTeamId(teamName, logoUrl) {
   if (!teamName || !teamName.trim()) return null;
 
   const name = teamName.trim();
 
-  const [rows] = await queryNoBinlog('SELECT id, logo_url FROM team WHERE name = ? LIMIT 1', [name]);
+  const [rows] = await queryNoBinlog('SELECT id, logo_5eplay FROM team WHERE name = ? LIMIT 1', [name]);
   if (rows.length > 0) {
-    // 队伍已有 HLTV 队标时不覆盖（HLTV CDN URL 比 5eplay 更稳定）
-    // 但没有队标时，用 5eplay 提供的 logo 作为兜底
-    if (!rows[0].logo_url && logoUrl) {
-      await queryNoBinlog('UPDATE team SET logo_url = ? WHERE id = ?', [logoUrl, rows[0].id]);
-      console.log(`[sync] 补充队标: ${name} ← 5eplay`);
+    // 5eplay 队标与库中不一致时更新（覆盖式，保证最新）
+    if (logoUrl && rows[0].logo_5eplay !== logoUrl) {
+      await queryNoBinlog('UPDATE team SET logo_5eplay = ? WHERE id = ?', [logoUrl, rows[0].id]);
+      console.log(`[sync] 更新 5eplay 队标: ${name}`);
     }
     return rows[0].id;
   }
 
-  // 新队伍：有 5eplay logo 就用，没有则留空等待 HLTV 爬虫补充
+  // 新队伍：5eplay 队标写入 logo_5eplay，logo_url 留空等待 HLTV 爬虫补充
   const [result] = await queryNoBinlog(
-    'INSERT INTO team (name, region, member_count, logo_url) VALUES (?, ?, 0, ?)',
-    [name, 'Other', logoUrl || '']
+    'INSERT INTO team (name, region, member_count, logo_url, logo_5eplay) VALUES (?, ?, 0, ?, ?)',
+    [name, 'Other', '', logoUrl || '']
   );
-  console.log(`[sync] 自动创建新战队: ${name} (id=${result.insertId})${logoUrl ? ' [有队标]' : ''}`);
+  console.log(`[sync] 自动创建新战队: ${name} (id=${result.insertId})${logoUrl ? ' [有5eplay队标]' : ''}`);
   return result.insertId;
 }
 
@@ -85,7 +85,20 @@ function proxyLogo(url, baseUrl) {
   return `${baseUrl}/api/logo?url=${encodeURIComponent(url)}`;
 }
 
+/**
+ * 解析队标双字段：优先 HLTV(logo_url)，为空时用 5eplay(logo_5eplay)
+ * logoFallback 供前端 src 加载失败时回退（仅当主用 HLTV 且 5eplay 也存在时才有值）
+ */
+function resolveTeamLogo(hltvUrl, eplayUrl, baseUrl) {
+  const hltv = proxyLogo(hltvUrl, baseUrl);
+  const eplay = proxyLogo(eplayUrl, baseUrl);
+  if (hltv) return { logo: hltv, logoFallback: eplay };
+  return { logo: eplay, logoFallback: '' };
+}
+
 function toMatchDTO(row, baseUrl) {
+  const teamALogo = resolveTeamLogo(row.teamA_logo, row.teamA_logo5e, baseUrl);
+  const teamBLogo = resolveTeamLogo(row.teamB_logo, row.teamB_logo5e, baseUrl);
   return {
     _id: String(row.id),
     eplayId: row.eplay_id || '',
@@ -93,12 +106,14 @@ function toMatchDTO(row, baseUrl) {
     status: row.status || 'Upcoming',
     teamA: {
       name: row.teamA_name || row.team_a_name || '',
-      logo: proxyLogo(row.teamA_logo, baseUrl),
+      logo: teamALogo.logo,
+      logoFallback: teamALogo.logoFallback,
       score: row.team1_score || 0
     },
     teamB: {
       name: row.teamB_name || row.team_b_name || '',
-      logo: proxyLogo(row.teamB_logo, baseUrl),
+      logo: teamBLogo.logo,
+      logoFallback: teamBLogo.logoFallback,
       score: row.team2_score || 0
     },
     time: row.match_date && row.match_time
@@ -380,7 +395,8 @@ router.post('/', async (req, res, next) => {
     try {
       const [allRows] = await queryNoBinlog(
         `SELECT m.*, ta.name AS teamA_name, tb.name AS teamB_name,
-                ta.logo_url AS teamA_logo, tb.logo_url AS teamB_logo
+                ta.logo_url AS teamA_logo, ta.logo_5eplay AS teamA_logo5e,
+                tb.logo_url AS teamB_logo, tb.logo_5eplay AS teamB_logo5e
          FROM matches m
          LEFT JOIN team ta ON ta.id = m.team1_id
          LEFT JOIN team tb ON tb.id = m.team2_id

@@ -22,6 +22,7 @@ interface TeamRankItem {
   ranking: number;
   points: string;
   logoUrl: string;
+  logoFallback: string;
   region: string;
 }
 
@@ -150,6 +151,23 @@ Page({
   onTeamScrollToLower() {
     if (this.data.teamHasMore && !this.data.teamLoading) {
       this.loadTeamRanking(this.data.teamPage + 1);
+    }
+  },
+
+  /**
+   * 队标加载失败：优先回退 5eplay 队标（logoFallback）；无回退时置空让占位图兜底
+   */
+  onLogoError(e: any) {
+    const { fb, idx } = e.currentTarget.dataset;
+    if (idx === undefined || !this.data.teamList[idx]) return;
+    if (fb) {
+      this.setData({
+        [`teamList[${idx}].logoUrl`]: fb,
+        [`teamList[${idx}].logoFallback`]: ''
+      });
+    } else {
+      // 无回退：置空 logoUrl，wxml 的 || 占位图生效
+      this.setData({ [`teamList[${idx}].logoUrl`]: '' });
     }
   },
 

@@ -65,7 +65,8 @@ router.get('/ranking', async (req, res, next) => {
               MAX(r.logo_url) AS logo_url,
               MIN(r.ranking) AS ranking,
               MAX(t.region) AS region,
-              MAX(t.logo_url) AS team_logo_url
+              MAX(t.logo_url) AS team_logo_url,
+              MAX(t.logo_5eplay) AS team_logo_5eplay
        FROM team_ranking r
        LEFT JOIN team t ON t.name = r.team_name
        ${whereSql}
@@ -78,13 +79,19 @@ router.get('/ranking', async (req, res, next) => {
     res.json({
       code: 0,
       message: '',
-      data: rows.map(r => ({
-        teamName: r.team_name,
-        ranking: r.ranking,
-        points: r.points,
-        logoUrl: logoToPng(r.team_logo_url || r.logo_url || '', baseUrl),
-        region: r.region || 'Other'
-      })),
+      data: rows.map(r => {
+        // 优先级：team 表 HLTV 队标 > team 表 5eplay 队标 > team_ranking 表自带 logo
+        const hltv = r.team_logo_url;
+        const eplay = r.team_logo_5eplay || r.logo_url;
+        return {
+          teamName: r.team_name,
+          ranking: r.ranking,
+          points: r.points,
+          logoUrl: logoToPng(hltv || eplay || '', baseUrl),
+          logoFallback: hltv ? logoToPng(eplay || '', baseUrl) : '',
+          region: r.region || 'Other'
+        };
+      }),
       hasMore: offset + pageSize < total,
       total
     });
@@ -134,6 +141,7 @@ router.get('/admin/list', async (req, res, next) => {
           id: r.id,
           name: r.name,
           logoUrl: r.logo_url || '',
+          logo5eplayUrl: r.logo_5eplay || '',
           region: r.region || 'Other',
           regionPlayerCount: r.region_player_count || 0,
           memberCount: r.current_members || 0,
@@ -149,13 +157,13 @@ router.get('/admin/list', async (req, res, next) => {
 
 /**
  * PUT /api/teams/admin/:teamId
- * Body: { name?, region?, logoUrl? }
+ * Body: { name?, region?, logoUrl?, logo5eplayUrl? }
  */
 router.put('/admin/:teamId', async (req, res, next) => {
   try {
     const teamId = req.params.teamId;
-    const allowedFields = ['name', 'region', 'logoUrl'];
-    const colMap = { logoUrl: 'logo_url' };
+    const allowedFields = ['name', 'region', 'logoUrl', 'logo5eplayUrl'];
+    const colMap = { logoUrl: 'logo_url', logo5eplayUrl: 'logo_5eplay' };
     const updates = [];
     const params = [];
 

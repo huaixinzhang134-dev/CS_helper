@@ -30,8 +30,8 @@ export interface Match {
   roundName?: string;
   status: 'Live' | 'Upcoming' | 'Finished';
   grade?: number;
-  teamA: { name: string; logo: string; score: number };
-  teamB: { name: string; logo: string; score: number };
+  teamA: { name: string; logo: string; logoFallback?: string; score: number };
+  teamB: { name: string; logo: string; logoFallback?: string; score: number };
   time: string;
   roundScores?: { map: string; team1Score: number; team2Score: number }[];
 }

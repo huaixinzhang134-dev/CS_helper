@@ -244,7 +244,8 @@ async function loadTeams() {
       <td><strong>${esc(t.name)}</strong></td>
       <td>${REGION_MAP[t.region] || t.region}</td>
       <td>${t.memberCount}</td>
-      <td>${t.logoUrl ? `<img src="${esc(t.logoUrl)}" style="height:24px;width:auto">` : '-'}</td>
+      <td>${t.logoUrl ? `<img src="${esc(t.logoUrl)}" style="height:24px;width:auto" title="HLTV">` : '-'}</td>
+      <td>${t.logo5eplayUrl ? `<img src="${esc(t.logo5eplayUrl)}" style="height:24px;width:auto" title="5eplay">` : '-'}</td>
       <td>
         <button class="btn-edit" onclick="openTeamModal(${t.id})">编辑</button>
       </td>
@@ -277,6 +278,7 @@ async function openTeamModal(teamId) {
     document.getElementById('editTeamName').value = t.name || '';
     document.getElementById('editTeamRegion').value = t.region || 'Other';
     document.getElementById('editTeamLogoUrl').value = t.logoUrl || '';
+    document.getElementById('editTeamLogo5eplayUrl').value = t.logo5eplayUrl || '';
     document.getElementById('teamModal').style.display = 'flex';
   } catch (e) { alert(e.message); }
 }
@@ -287,6 +289,7 @@ async function saveTeam() {
     name: document.getElementById('editTeamName').value.trim(),
     region: document.getElementById('editTeamRegion').value,
     logoUrl: document.getElementById('editTeamLogoUrl').value.trim(),
+    logo5eplayUrl: document.getElementById('editTeamLogo5eplayUrl').value.trim(),
   };
   if (!data.name) { alert('队名不能为空'); return; }
   try {

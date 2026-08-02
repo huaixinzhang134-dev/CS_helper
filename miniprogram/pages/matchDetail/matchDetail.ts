@@ -68,6 +68,18 @@ Page({
     this.setupWS(matchId);
   },
 
+  /**
+   * 队标加载失败：回退到 5eplay 队标（logoFallback），换完清空避免死循环
+   */
+  onLogoError(e: any) {
+    const { fb, side } = e.currentTarget.dataset;
+    if (!fb || !this.data.match) return;
+    this.setData({
+      [`match.team${side}.logo`]: fb,
+      [`match.team${side}.logoFallback`]: ''
+    });
+  },
+
   onPullDownRefresh() {
     this.setData({ refreshing: true });
     this.loadAll().finally(() => {

@@ -70,11 +70,13 @@ async function toPngBuffer(url) {
  */
 router.get('/:teamId', async (req, res, next) => {
   try {
-    const [rows] = await query('SELECT logo_url FROM team WHERE id = ? LIMIT 1', [req.params.teamId]);
-    if (!rows.length || !rows[0].logo_url) {
+    // 优先 HLTV 队标，为空时回退 5eplay 队标
+    const [rows] = await query('SELECT logo_url, logo_5eplay FROM team WHERE id = ? LIMIT 1', [req.params.teamId]);
+    const url = (rows.length && (rows[0].logo_url || rows[0].logo_5eplay)) || '';
+    if (!url) {
       return res.status(404).end();
     }
-    const result = await toPngBuffer(rows[0].logo_url);
+    const result = await toPngBuffer(url);
     res.set('Content-Type', result.contentType || 'image/png');
     res.set('Cache-Control', 'public, max-age=86400');
     res.send(result.buffer);

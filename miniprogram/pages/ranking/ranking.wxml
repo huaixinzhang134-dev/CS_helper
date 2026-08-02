@@ -52,7 +52,7 @@
       <view class="rank-list">
         <view class="rank-card rank-card-team" wx:for="{{teamList}}" wx:key="teamName">
           <view class="rank-num">{{index + 1}}</view>
-          <image class="team-logo" src="{{item.logoUrl || '/assets/icons/game.png'}}" mode="aspectFit"></image>
+          <image class="team-logo" src="{{item.logoUrl || '/assets/icons/game.png'}}" mode="aspectFit" binderror="onLogoError" data-fb="{{item.logoFallback}}" data-idx="{{index}}"></image>
           <view class="rank-info">
             <text class="rank-name">{{item.teamName}}</text>
             <text class="rank-team">{{item.region === 'Europe' ? '欧洲赛区' : item.region === 'Asia' ? '亚洲赛区' : item.region === 'Americas' ? '美洲赛区' : '其他'}}</text>

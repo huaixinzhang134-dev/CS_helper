@@ -49,7 +49,8 @@ DROP TABLE IF EXISTS team;
 CREATE TABLE team (
   id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
   name            VARCHAR(128)    NOT NULL,
-  logo_url        VARCHAR(512)    NULL,
+  logo_url        VARCHAR(512)    NULL COMMENT 'HLTV 队标（HLTV 爬虫导入，优先使用）',
+  logo_5eplay     VARCHAR(512)    NULL COMMENT '5eplay 队标（赛事爬虫写入，HLTV 为空/不可用时兜底）',
   region          ENUM('Europe','Americas','Asia','Other') NOT NULL DEFAULT 'Other',
   region_player_count INT UNSIGNED NOT NULL DEFAULT 0,
   member_count    INT UNSIGNED    NOT NULL DEFAULT 0,

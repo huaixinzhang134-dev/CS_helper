@@ -41,11 +41,24 @@ function logoToPng(url, baseUrl) {
 }
 
 /**
+ * 解析队标双字段：优先 HLTV(logo_url)，为空时用 5eplay(logo_5eplay)
+ * logoFallback 供前端 src 加载失败时回退（仅当主用 HLTV 且 5eplay 也存在时才有值）
+ */
+function resolveTeamLogo(hltvUrl, eplayUrl, baseUrl) {
+  const hltv = logoToPng(hltvUrl, baseUrl);
+  const eplay = logoToPng(eplayUrl, baseUrl);
+  if (hltv) return { logo: hltv, logoFallback: eplay };
+  return { logo: eplay, logoFallback: '' };
+}
+
+/**
  * 比赛行 → 前端 Match DTO
  */
 function toMatchDTO(row, baseUrl) {
   const teamAName = row.teamA_name || row.team_a_name || '';
   const teamBName = row.teamB_name || row.team_b_name || '';
+  const teamALogo = resolveTeamLogo(row.teamA_logo, row.teamA_logo5e, baseUrl);
+  const teamBLogo = resolveTeamLogo(row.teamB_logo, row.teamB_logo5e, baseUrl);
   const dto = {
     _id: String(row.id),
     event: row.event_name || '',
@@ -53,12 +66,14 @@ function toMatchDTO(row, baseUrl) {
     status: row.status || 'Upcoming',
     teamA: {
       name: teamAName,
-      logo: logoToPng(row.teamA_logo, baseUrl),
+      logo: teamALogo.logo,
+      logoFallback: teamALogo.logoFallback,
       score: row.team1_score || 0
     },
     teamB: {
       name: teamBName,
-      logo: logoToPng(row.teamB_logo, baseUrl),
+      logo: teamBLogo.logo,
+      logoFallback: teamBLogo.logoFallback,
       score: row.team2_score || 0
     },
     time: row.match_date && row.match_time
@@ -133,8 +148,8 @@ router.get('/', async (req, res, next) => {
   try {
     const eventFilter = req.query.event || '';
     let sql = `SELECT m.*,
-                      ta.name AS teamA_name, ta.logo_url AS teamA_logo,
-                      tb.name AS teamB_name, tb.logo_url AS teamB_logo
+                      ta.name AS teamA_name, ta.logo_url AS teamA_logo, ta.logo_5eplay AS teamA_logo5e,
+                      tb.name AS teamB_name, tb.logo_url AS teamB_logo, tb.logo_5eplay AS teamB_logo5e
                FROM matches m
                LEFT JOIN team ta ON ta.id = m.team1_id
                LEFT JOIN team tb ON tb.id = m.team2_id`;
@@ -174,8 +189,8 @@ router.get('/:id', async (req, res, next) => {
     const { id } = req.params;
     const [rows] = await query(
       `SELECT m.*,
-              ta.name AS teamA_name, ta.logo_url AS teamA_logo,
-              tb.name AS teamB_name, tb.logo_url AS teamB_logo
+              ta.name AS teamA_name, ta.logo_url AS teamA_logo, ta.logo_5eplay AS teamA_logo5e,
+              tb.name AS teamB_name, tb.logo_url AS teamB_logo, tb.logo_5eplay AS teamB_logo5e
        FROM matches m
        LEFT JOIN team ta ON ta.id = m.team1_id
        LEFT JOIN team tb ON tb.id = m.team2_id
