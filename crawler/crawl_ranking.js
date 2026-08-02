@@ -752,7 +752,7 @@ async function crawlTeamDetails(rankedTeams) {
   const results = [];
   for (let i = 0; i < rankedTeams.length; i++) {
     const t = rankedTeams[i];
-    console.log(`[${i + 1}/${rankedTeams.length}] #${t.ranking} ${t.name} (HLTV ID: ${t.teamId})`);
+    console.log(`[${i + 1}/${rankedTeams.length}] ${t.ranking ? '#' + t.ranking + ' ' : ''}${t.name} (HLTV ID: ${t.teamId})`);
 
     if (!t.teamId) {
       console.log(`  跳过: 无 teamId`);
@@ -829,6 +829,30 @@ if (require.main === module) {
         } else {
           console.log('\n排名爬取失败，跳过队伍详情');
         }
+      } finally {
+        await closeBrowser();
+        // 强制退出，避免 Puppeteer 残留进程卡住
+        process.exit(0);
+      }
+    })();
+    return;
+  }
+
+  // --all: 全量队伍详情模式（基于 playerbase.json 的队伍列表，覆盖所有队伍而非仅排名）
+  if (args.includes('--all')) {
+    console.log('模式: 全量队伍详情爬取（队标 + 选手阵容）\n');
+
+    (async () => {
+      try {
+        const teamIdMap = buildTeamIdMap();
+        const teams = Object.entries(teamIdMap).map(([name, teamId]) => ({ name, teamId, ranking: 0 }));
+        if (teams.length === 0) {
+          console.log('队伍列表为空，请先运行 node player_data.js 生成 playerbase.json');
+          process.exit(1);
+        }
+        console.log(`共 ${teams.length} 支队伍（来自 playerbase.json）\n`);
+        await crawlTeamDetails(teams);
+        console.log('\n全量队伍详情爬取完成，结果在 team_details.json');
       } finally {
         await closeBrowser();
         // 强制退出，避免 Puppeteer 残留进程卡住
