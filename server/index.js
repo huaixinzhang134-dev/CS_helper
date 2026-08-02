@@ -29,7 +29,11 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // 中间件
 app.use(corsMiddleware);
-app.use(express.json({ limit: '10mb' }));
+// sync 接口需要大 body（每批 20 场比赛+选手数据，约 1MB），
+// 必须先于全局 1mb 解析挂载，否则 10mb body 会在全局被 413 拒绝（2026-08-02）
+app.use('/api/matches/sync', express.json({ limit: '10mb' }), syncRouter);
+// 全局 1mb：正常业务 body 均 < 10KB，堵住大 JSON 占内存的口子
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
@@ -58,8 +62,7 @@ app.use('/api/comments', commentsRouter);
 // 队伍路由（排名等）
 app.use('/api/teams', teamsRouter);
 
-// 爬虫同步路由（仅内网调用）
-app.use('/api/matches/sync', syncRouter);
+// 爬虫同步路由（仅内网调用）— 挂载已在中间件区完成（需 10mb body）
 
 // 队标代理（SVG → PNG 转换）
 app.use('/api/logo', logoRouter);

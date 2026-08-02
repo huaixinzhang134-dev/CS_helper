@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 
 const { query } = require('../db/pool');
+const { remember, excludeRecentSql } = require('../utils/random-player');
 
 /**
  * 数据库行 → 前端 Player DTO
@@ -212,8 +213,9 @@ router.get('/ranking', async (req, res, next) => {
  */
 router.get('/random', async (req, res, next) => {
   try {
+    // id 区间法替代 ORDER BY RAND()：主键索引随机跳转，避免全表排序（2026-08-02）
     const [rows] = await query(
-      'SELECT * FROM player ORDER BY RAND() LIMIT 1'
+      'SELECT p.* FROM player p WHERE p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player)) ORDER BY p.id LIMIT 1'
     );
     if (rows.length === 0) {
       return res.json({ code: 0, message: '', data: null });
@@ -235,45 +237,70 @@ router.get('/random', async (req, res, next) => {
 router.get('/random-by-difficulty', async (req, res, next) => {
   try {
     const difficulty = req.query.difficulty || 'challenge';
-    let sql;
-    if (difficulty === 'trivial') {
-      sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team t ON t.name = p.current_team
-	             INNER JOIN team_ranking r ON r.team_name = t.name
-             WHERE p.status = 'active'
-               AND p.position != 'coach'
-               AND r.ranking <= 10
-             ORDER BY RAND() LIMIT 1`;
-    } else if (difficulty === 'easy') {
-      sql = `SELECT * FROM player
-             WHERE major_appearances > 5
-               AND current_team != ''
-               AND status = 'active'
-               AND position != 'coach'
-             ORDER BY RAND() LIMIT 1`;
-    } else if (difficulty === 'normal') {
-      sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team t ON t.name = p.current_team
-	             INNER JOIN team_ranking r ON r.team_name = t.name
-             WHERE p.status = 'active'
-               AND p.position != 'coach'
-               AND r.ranking <= 30
-             ORDER BY RAND() LIMIT 1`;
-    } else if (difficulty === 'hard') {
-      sql = `SELECT * FROM player
-             WHERE major_appearances > 5
-             ORDER BY RAND() LIMIT 1`;
-    } else if (difficulty === 'hell') {
-      sql = `SELECT * FROM player
-             WHERE major_appearances > 0
-             ORDER BY RAND() LIMIT 1`;
-    } else {
-      sql = 'SELECT * FROM player ORDER BY RAND() LIMIT 1';
+
+    // 统一别名 p：id 区间法随机跳转（主键索引）+ 排除最近已出选手（防重复）
+    // 2026-08-02：ORDER BY RAND() 全表排序 → 索引随机；最近 10 局内不重复
+    const buildSql = (withExclude) => {
+      const { clause, params } = withExclude
+        ? excludeRecentSql(difficulty, 'p')
+        : { clause: '', params: [] };
+
+      let sql;
+      if (difficulty === 'trivial') {
+        sql = `SELECT DISTINCT p.* FROM player p
+               INNER JOIN team t ON t.name = p.current_team
+               INNER JOIN team_ranking r ON r.team_name = t.name
+               WHERE p.status = 'active'
+                 AND p.position != 'coach'
+                 AND r.ranking <= 10
+                 AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+               ORDER BY p.id LIMIT 1`;
+      } else if (difficulty === 'easy') {
+        sql = `SELECT p.* FROM player p
+               WHERE p.major_appearances > 5
+                 AND p.current_team != ''
+                 AND p.status = 'active'
+                 AND p.position != 'coach'
+                 AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+               ORDER BY p.id LIMIT 1`;
+      } else if (difficulty === 'normal') {
+        sql = `SELECT DISTINCT p.* FROM player p
+               INNER JOIN team t ON t.name = p.current_team
+               INNER JOIN team_ranking r ON r.team_name = t.name
+               WHERE p.status = 'active'
+                 AND p.position != 'coach'
+                 AND r.ranking <= 30
+                 AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+               ORDER BY p.id LIMIT 1`;
+      } else if (difficulty === 'hard') {
+        sql = `SELECT p.* FROM player p
+               WHERE p.major_appearances > 5
+                 AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+               ORDER BY p.id LIMIT 1`;
+      } else if (difficulty === 'hell') {
+        sql = `SELECT p.* FROM player p
+               WHERE p.major_appearances > 0
+                 AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+               ORDER BY p.id LIMIT 1`;
+      } else {
+        sql = `SELECT p.* FROM player p
+               WHERE p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+               ORDER BY p.id LIMIT 1`;
+      }
+      return { sql, params };
+    };
+
+    // 优先带排除查询；池子太小被排除空时，去掉排除重试一次
+    let { sql, params } = buildSql(true);
+    let [rows] = await query(sql, params);
+    if (rows.length === 0) {
+      ({ sql, params } = buildSql(false));
+      [rows] = await query(sql, params);
     }
-    const [rows] = await query(sql);
     if (rows.length === 0) {
       return res.json({ code: 0, message: '', data: null });
     }
+    remember(difficulty, rows[0].id);
     res.json({ code: 0, message: '', data: toPlayerDTO(rows[0]) });
   } catch (err) {
     next(err);

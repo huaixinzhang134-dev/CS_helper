@@ -12,6 +12,7 @@
 const express = require('express');
 const router = express.Router();
 const { query } = require('../db/pool');
+const { remember, excludeRecentSql } = require('../utils/random-player');
 
 // ======================== 内存房间存储 ========================
 // 生产环境可用 Redis 或 MySQL 表，当前用 Map（单进程够用）
@@ -363,43 +364,74 @@ router.post('/rooms/:id/next-round', async (req, res, next) => {
 
 /**
  * 根据难度从 player 表中随机选一个目标选手（6档难度）
+ * 2026-08-02：id 区间法替代 ORDER BY RAND()（索引随机跳转），
+ * 并排除最近已出的选手（最近 10 局内不重复）
  */
 async function selectTargetPlayer(difficulty) {
-  let sql;
-  if (difficulty === 'trivial') {
-    sql = `SELECT DISTINCT p.* FROM player p
-           INNER JOIN team t ON t.name = p.current_team
-	             INNER JOIN team_ranking r ON r.team_name = t.name
-           WHERE p.status = 'active' AND r.ranking <= 10
-           ORDER BY RAND() LIMIT 1`;
-  } else if (difficulty === 'easy') {
-    sql = `SELECT * FROM player
-           WHERE major_appearances > 5 AND current_team != '' AND status = 'active'
-           ORDER BY RAND() LIMIT 1`;
-  } else if (difficulty === 'normal') {
-    sql = `SELECT DISTINCT p.* FROM player p
-           INNER JOIN team t ON t.name = p.current_team
-	             INNER JOIN team_ranking r ON r.team_name = t.name
-           WHERE p.status = 'active' AND r.ranking <= 30
-           ORDER BY RAND() LIMIT 1`;
-  } else if (difficulty === 'hard') {
-    sql = `SELECT * FROM player WHERE major_appearances > 5 ORDER BY RAND() LIMIT 1`;
-  } else if (difficulty === 'hell') {
-    sql = `SELECT * FROM player WHERE major_appearances > 0 ORDER BY RAND() LIMIT 1`;
-  } else {
-    sql = 'SELECT * FROM player ORDER BY RAND() LIMIT 1';
-  }
+  const buildSql = (withExclude) => {
+    const { clause, params } = withExclude
+      ? excludeRecentSql(difficulty, 'p')
+      : { clause: '', params: [] };
+
+    let sql;
+    if (difficulty === 'trivial') {
+      sql = `SELECT DISTINCT p.* FROM player p
+             INNER JOIN team t ON t.name = p.current_team
+             INNER JOIN team_ranking r ON r.team_name = t.name
+             WHERE p.status = 'active' AND r.ranking <= 10
+               AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+             ORDER BY p.id LIMIT 1`;
+    } else if (difficulty === 'easy') {
+      sql = `SELECT p.* FROM player p
+             WHERE p.major_appearances > 5 AND p.current_team != '' AND p.status = 'active'
+               AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+             ORDER BY p.id LIMIT 1`;
+    } else if (difficulty === 'normal') {
+      sql = `SELECT DISTINCT p.* FROM player p
+             INNER JOIN team t ON t.name = p.current_team
+             INNER JOIN team_ranking r ON r.team_name = t.name
+             WHERE p.status = 'active' AND r.ranking <= 30
+               AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+             ORDER BY p.id LIMIT 1`;
+    } else if (difficulty === 'hard') {
+      sql = `SELECT p.* FROM player p
+             WHERE p.major_appearances > 5
+               AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+             ORDER BY p.id LIMIT 1`;
+    } else if (difficulty === 'hell') {
+      sql = `SELECT p.* FROM player p
+             WHERE p.major_appearances > 0
+               AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+             ORDER BY p.id LIMIT 1`;
+    } else {
+      sql = `SELECT p.* FROM player p
+             WHERE p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
+             ORDER BY p.id LIMIT 1`;
+    }
+    return { sql, params };
+  };
 
   try {
-    const [rows] = await query(sql);
+    // 优先带排除查询；池子太小被排除空时，去掉排除重试一次
+    let { sql, params } = buildSql(true);
+    let [rows] = await query(sql, params);
     if (rows.length === 0) {
-      const [fallback] = await query('SELECT * FROM player ORDER BY RAND() LIMIT 1');
+      ({ sql, params } = buildSql(false));
+      [rows] = await query(sql, params);
+    }
+    if (rows.length === 0) {
+      const [fallback] = await query(
+        'SELECT p.* FROM player p WHERE p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player)) ORDER BY p.id LIMIT 1'
+      );
       return fallback[0] || null;
     }
+    remember(difficulty, rows[0].id);
     return rows[0];
   } catch (err) {
     console.error('[pk] 选择目标选手失败:', err.message);
-    const [fallback] = await query('SELECT * FROM player ORDER BY RAND() LIMIT 1');
+    const [fallback] = await query(
+      'SELECT p.* FROM player p WHERE p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player)) ORDER BY p.id LIMIT 1'
+    );
     return fallback[0] || null;
   }
 }
