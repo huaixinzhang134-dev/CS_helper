@@ -14,11 +14,14 @@ git push
 ## 项目结构
 - `miniprogram/` — 微信小程序前端
 - `server/` — Express 后端（Node.js + MySQL）
-- `server/public/web/` — **Web 前端 SPA**（手机号登录，替代小程序）
-- `crawler/` — HLTV / 5eplay 爬虫脚本
+  - `server/crawler/` — **服务器常驻爬虫**（crawler-service.js 15 分钟一轮 + 5eplay-api.js 抓取封装）
+  - `server/utils/` — 共享工具（random-player.js 随机选手/防重复）
+  - `server/public/web/` — **Web 前端 SPA**（手机号登录，替代小程序）
+  - `server/public/admin/` — 管理后台 SPA
+- `crawler/` — HLTV 选手库爬虫脚本（GitHub Actions 时代遗留，本地/离线用）
   - `playerbase_checking.js` — 选手位置检测 → **只改 `playerbase.json`**，不涉及数据库
 - `scripts/` — 数据导入脚本
-- `.github/workflows/` — GitHub Actions 自动化工作流
+- ~~`.github/workflows/`~~ — 已删除，Railway / GitHub Actions 自动化已全部停用（2026-08 确认）
 
 ## 部署信息
 | 项目 | 地址 |
@@ -29,13 +32,13 @@ git push
 | 管理员账号 | admin / 7355608（数据库 admin_users 表 MD5 存储） |
 | MySQL 连接 | 阿里云轻量服务器 localhost:3306，用户 root，密码见 .env |
 
-## 数据库表（共 16 表 + 2 视图）
+## 数据库表（共 19 表 + 2 视图）
 
 ### 核心业务
 | 表 | 用途 |
 |----|------|
-| `player` | 选手信息（6199 行，含 status 职业状态） |
-| `team` | 战队信息（441 行） |
+| `player` | 选手信息（6199 行，含 status 职业状态、alias 绰号 JSON） |
+| `team` | 战队信息（441 行，含 alias 别名 JSON） |
 | `team_member` | 战队-选手关联（4808 行） |
 | `matches` | 比赛信息（308 行） |
 | `match_players` | 比赛选手数据（1487 行） |
@@ -50,13 +53,20 @@ git push
 | `shop_items` | 商城商品（提示券 40 代币、额外机会 90 代币） |
 | `user_items` | 用户道具库存 |
 
-### 猜测系统（2026 年度 Top30）
+### 猜测系统（猜一猜 + 2026 年度 Top30）
 | 表 | 用途 |
 |----|------|
 | `user_picks` | 用户猜测（每位 top 独立提交，覆盖式，最多 3 次） |
 | `pick_config` | 各 top 提交开关（管理员控制） |
 | `official_top30` | 管理员设定的官方 Top30 |
 | `top30_awards` | 发奖记录（防止重复发放） |
+| `difficulty_progress` | 各难度猜对次数（每难度猜对 10 次解锁下一档，v1.6.0） |
+| `difficulty_extra_unlocks` | 广告/管理员额外解锁记录（跳过 10 次限制） |
+
+### 绰号系统
+| 表 | 用途 |
+|----|------|
+| `nickname_suggestions` | 用户提交绰号审核（pending/approved/rejected） |
 
 ### 管理后台
 | 表 | 用途 |
@@ -69,14 +79,19 @@ git push
 | `v_player_current_team` | 选手+当前战队 JOIN |
 | `v_team_member_count` | 战队当前成员数统计 |
 
-## 猜一猜游戏难度分级
+## 猜一猜游戏难度分级（v1.6.0 六档难度）
 
 | 难度 | SQL 过滤条件 | 选手池 |
 |------|-------------|--------|
-| trivial | `status IN ('active','coach')` + `team_ranking ranking <= 30` | ~173 |
-| easy | `status IN ('active','coach')` + `INNER JOIN team_ranking` | ~2000 |
-| hard | `status IN ('active','coach','free_agent')` | ~3000 |
-| hell | 全部选手（含退役） | ~6000 |
+| trivial | `status='active'` + `position != 'coach'` + 队伍 Valve 排名 `<= 10` | ~50 |
+| easy | `major_appearances > 5` + `current_team != ''` + `status='active'` + 非 coach | ~2000 |
+| normal | 队伍 Valve 排名 `<= 30` + `status='active'` + 非 coach | ~173 |
+| hard | `major_appearances > 5` | ~3000 |
+| hell | `major_appearances > 0` | ~6000 |
+| challenge | 全部选手 | ~6200 |
+
+- 随机算法：id 区间法（`p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))`）+ 排除最近 10 局已出选手（`utils/random-player.js`，10 局内不重复，池子太小自动去掉排除重试）
+- **解锁机制**：按 trivial → challenge 顺序逐档解锁，每难度猜对 **10 次**解锁下一档（`difficulty_progress` 表）；看广告或管理员操作可额外解锁（`difficulty_extra_unlocks` 表）
 
 ## PK 好友对战多局机制（2026-07-14）
 
@@ -92,33 +107,33 @@ git push
 - 管理员可在网页后台控制每个 top 的提交开关
 - 管理员设定官方 Top30 后核对发奖
 
-## 代币系统（2026-07-14）
+## 代币系统
 
 - `users` 表 `coins` / `total_coins_earned` 列
 - 获取途径：充值（管理员）、活动奖励、猜测奖励
 - 消费途径：商城购买道具（提示券、额外机会）
 - 交易记录在 `coin_transactions` 表
+- **广告系统（v1.5.0）**：猜一猜看广告解锁下一档难度（写入 `difficulty_extra_unlocks`），广告位 ID 已集成（见记忆 ad-system-integration）
 
-## 管理后台（网页版 2026-07-14）
+## 管理后台（网页版）
 
 - 独立网页：https://cshelper.yxcshelper.top/admin
 - 后端鉴权：`/api/admin/login` 验证 admin_users 表
-- 功能：用户管理、评论审核、猜测管理（开关/Top30设定/核对发奖）
+- 功能：用户管理、评论审核、绰号审核、猜测管理（开关/Top30设定/核对发奖）、代币管理
 - 小程序内 admin 页面已改为迁移提示
 
-## 版本更新公告（2026-07-14）
+## 版本更新公告
 
-- 首页加载时检测 `wx.getStorageSync('home_version_shown')`
-- 版本号 `v1.4.0`，点击「我收到」后写入缓存，下次更新版本时重新弹出
+- **Web 端**（`server/public/web/js/app.js`）：`_homeVersion: 'v1.5.0'`，storage key `web_home_version_shown`，点击「我收到」后写入缓存
+- 小程序端当前无版本公告代码（web 端为准）
 
-## GitHub Actions 工作流
+## 数据更新机制（Railway / GitHub Actions 已全部停用）
 
-| 工作流 | 频率 | 说明 |
-|--------|------|------|
-| 赛事爬虫 | 每 30 分钟 | 爬取 5eplay 赛事数据 |
-| 排名爬虫 | 每 7 天 | 爬取 Valve 世界排名 |
-| 选手信息爬虫 | 每月 1 日 | 全量爬取 HLTV 选手数据并覆盖导入 |
-| ~~选手位置检测~~ | ~~每 3 天~~ | **已暂停**，由选手信息爬虫自动设定 |
+| 数据 | 触发方式 | 说明 |
+|------|---------|------|
+| 赛事 | **服务器常驻爬虫**（PM2 `cs-match-crawler`，crawler-service.js） | 每 15 分钟一轮，爬 5eplay → POST `/api/matches/sync` 写库 + WS 广播 |
+| Valve 排名 | 手动脚本 | `crawler/crawl_ranking.js` 爬取 → `scripts/import_ranking.js` 导入 |
+| HLTV 选手库 | 手动脚本 | `crawler/` 下脚本全量爬取 + 覆盖导入（含选手位置自动设定） |
 
 ## 持久记忆
 
