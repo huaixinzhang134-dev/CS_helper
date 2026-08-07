@@ -117,38 +117,39 @@ router.get('/', async (req, res, next) => {
 router.get('/pool', async (req, res, next) => {
   try {
     const difficulty = req.query.difficulty || 'challenge';
+    // 传奇选手（is_legendary=1）无视难度过滤，强制出现在所有选手池
     let sql;
     if (difficulty === 'trivial') {
       sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team t ON t.name = p.current_team
-	             INNER JOIN team_ranking r ON r.team_name = t.name
-             WHERE p.status = 'active'
+             LEFT JOIN team t ON t.name = p.current_team
+             LEFT JOIN team_ranking r ON r.team_name = t.name
+             WHERE ((p.status = 'active'
                AND p.position != 'coach'
-               AND r.ranking <= 10
+               AND r.ranking <= 10) OR p.is_legendary = 1)
              ORDER BY p.id ASC`;
     } else if (difficulty === 'easy') {
-      sql = `SELECT * FROM player
-             WHERE major_appearances > 5
-               AND current_team != ''
-               AND status = 'active'
-               AND position != 'coach'
-             ORDER BY id ASC`;
+      sql = `SELECT p.* FROM player p
+             WHERE ((p.major_appearances > 5
+               AND p.current_team != ''
+               AND p.status = 'active'
+               AND p.position != 'coach') OR p.is_legendary = 1)
+             ORDER BY p.id ASC`;
     } else if (difficulty === 'normal') {
       sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team t ON t.name = p.current_team
-	             INNER JOIN team_ranking r ON r.team_name = t.name
-             WHERE p.status = 'active'
+             LEFT JOIN team t ON t.name = p.current_team
+             LEFT JOIN team_ranking r ON r.team_name = t.name
+             WHERE ((p.status = 'active'
                AND p.position != 'coach'
-               AND r.ranking <= 30
+               AND r.ranking <= 30) OR p.is_legendary = 1)
              ORDER BY p.id ASC`;
     } else if (difficulty === 'hard') {
-      sql = `SELECT * FROM player
-             WHERE major_appearances > 5
-             ORDER BY id ASC`;
+      sql = `SELECT p.* FROM player p
+             WHERE (p.major_appearances > 5 OR p.is_legendary = 1)
+             ORDER BY p.id ASC`;
     } else if (difficulty === 'hell') {
-      sql = `SELECT * FROM player
-             WHERE major_appearances > 0
-             ORDER BY id ASC`;
+      sql = `SELECT p.* FROM player p
+             WHERE (p.major_appearances > 0 OR p.is_legendary = 1)
+             ORDER BY p.id ASC`;
     } else {
       sql = 'SELECT * FROM player ORDER BY id ASC';
     }
@@ -248,38 +249,38 @@ router.get('/random-by-difficulty', async (req, res, next) => {
       let sql;
       if (difficulty === 'trivial') {
         sql = `SELECT DISTINCT p.* FROM player p
-               INNER JOIN team t ON t.name = p.current_team
-               INNER JOIN team_ranking r ON r.team_name = t.name
-               WHERE p.status = 'active'
+               LEFT JOIN team t ON t.name = p.current_team
+               LEFT JOIN team_ranking r ON r.team_name = t.name
+               WHERE ((p.status = 'active'
                  AND p.position != 'coach'
-                 AND r.ranking <= 10
+                 AND r.ranking <= 10) OR p.is_legendary = 1)
                  AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
                ORDER BY p.id LIMIT 1`;
       } else if (difficulty === 'easy') {
         sql = `SELECT p.* FROM player p
-               WHERE p.major_appearances > 5
+               WHERE ((p.major_appearances > 5
                  AND p.current_team != ''
                  AND p.status = 'active'
-                 AND p.position != 'coach'
+                 AND p.position != 'coach') OR p.is_legendary = 1)
                  AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
                ORDER BY p.id LIMIT 1`;
       } else if (difficulty === 'normal') {
         sql = `SELECT DISTINCT p.* FROM player p
-               INNER JOIN team t ON t.name = p.current_team
-               INNER JOIN team_ranking r ON r.team_name = t.name
-               WHERE p.status = 'active'
+               LEFT JOIN team t ON t.name = p.current_team
+               LEFT JOIN team_ranking r ON r.team_name = t.name
+               WHERE ((p.status = 'active'
                  AND p.position != 'coach'
-                 AND r.ranking <= 30
+                 AND r.ranking <= 30) OR p.is_legendary = 1)
                  AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
                ORDER BY p.id LIMIT 1`;
       } else if (difficulty === 'hard') {
         sql = `SELECT p.* FROM player p
-               WHERE p.major_appearances > 5
+               WHERE (p.major_appearances > 5 OR p.is_legendary = 1)
                  AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
                ORDER BY p.id LIMIT 1`;
       } else if (difficulty === 'hell') {
         sql = `SELECT p.* FROM player p
-               WHERE p.major_appearances > 0
+               WHERE (p.major_appearances > 0 OR p.is_legendary = 1)
                  AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
                ORDER BY p.id LIMIT 1`;
       } else {
@@ -472,21 +473,21 @@ router.get('/search', async (req, res, next) => {
       conditions.push(`(${formerClauses.join(' OR ')})`);
     }
 
-    // 可选：限定搜索到当前难度选手池
+    // 可选：限定搜索到当前难度选手池（传奇选手 is_legendary=1 无视过滤，强制入池）
     if (difficulty === 'trivial') {
       fromClause = 'player p';
-      joinClause = 'INNER JOIN team t ON t.name = p.current_team INNER JOIN team_ranking r ON r.team_name = t.name';
-      conditions.push("p.status = 'active'", "p.position != 'coach'", 'r.ranking <= 10');
+      joinClause = 'LEFT JOIN team t ON t.name = p.current_team LEFT JOIN team_ranking r ON r.team_name = t.name';
+      conditions.push("((p.status = 'active' AND p.position != 'coach' AND r.ranking <= 10) OR p.is_legendary = 1)");
     } else if (difficulty === 'easy') {
-      conditions.push("status = 'active'", "position != 'coach'", 'major_appearances > 5', "current_team != ''");
+      conditions.push("((status = 'active' AND position != 'coach' AND major_appearances > 5 AND current_team != '') OR is_legendary = 1)");
     } else if (difficulty === 'normal') {
       fromClause = 'player p';
-      joinClause = 'INNER JOIN team t ON t.name = p.current_team INNER JOIN team_ranking r ON r.team_name = t.name';
-      conditions.push("p.status = 'active'", "p.position != 'coach'", 'r.ranking <= 30');
+      joinClause = 'LEFT JOIN team t ON t.name = p.current_team LEFT JOIN team_ranking r ON r.team_name = t.name';
+      conditions.push("((p.status = 'active' AND p.position != 'coach' AND r.ranking <= 30) OR p.is_legendary = 1)");
     } else if (difficulty === 'hard') {
-      conditions.push('major_appearances > 5');
+      conditions.push('(major_appearances > 5 OR is_legendary = 1)');
     } else if (difficulty === 'hell') {
-      conditions.push('major_appearances > 0');
+      conditions.push('(major_appearances > 0 OR is_legendary = 1)');
     }
     // challenge 和未知难度不附加过滤
 

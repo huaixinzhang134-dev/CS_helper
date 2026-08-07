@@ -376,31 +376,31 @@ async function selectTargetPlayer(difficulty) {
     let sql;
     if (difficulty === 'trivial') {
       sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team t ON t.name = p.current_team
-             INNER JOIN team_ranking r ON r.team_name = t.name
-             WHERE p.status = 'active' AND r.ranking <= 10
+             LEFT JOIN team t ON t.name = p.current_team
+             LEFT JOIN team_ranking r ON r.team_name = t.name
+             WHERE ((p.status = 'active' AND r.ranking <= 10) OR p.is_legendary = 1)
                AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
              ORDER BY p.id LIMIT 1`;
     } else if (difficulty === 'easy') {
       sql = `SELECT p.* FROM player p
-             WHERE p.major_appearances > 5 AND p.current_team != '' AND p.status = 'active'
+             WHERE ((p.major_appearances > 5 AND p.current_team != '' AND p.status = 'active') OR p.is_legendary = 1)
                AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
              ORDER BY p.id LIMIT 1`;
     } else if (difficulty === 'normal') {
       sql = `SELECT DISTINCT p.* FROM player p
-             INNER JOIN team t ON t.name = p.current_team
-             INNER JOIN team_ranking r ON r.team_name = t.name
-             WHERE p.status = 'active' AND r.ranking <= 30
+             LEFT JOIN team t ON t.name = p.current_team
+             LEFT JOIN team_ranking r ON r.team_name = t.name
+             WHERE ((p.status = 'active' AND r.ranking <= 30) OR p.is_legendary = 1)
                AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
              ORDER BY p.id LIMIT 1`;
     } else if (difficulty === 'hard') {
       sql = `SELECT p.* FROM player p
-             WHERE p.major_appearances > 5
+             WHERE (p.major_appearances > 5 OR p.is_legendary = 1)
                AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
              ORDER BY p.id LIMIT 1`;
     } else if (difficulty === 'hell') {
       sql = `SELECT p.* FROM player p
-             WHERE p.major_appearances > 0
+             WHERE (p.major_appearances > 0 OR p.is_legendary = 1)
                AND p.id >= FLOOR(RAND() * (SELECT MAX(id) FROM player))${clause}
              ORDER BY p.id LIMIT 1`;
     } else {

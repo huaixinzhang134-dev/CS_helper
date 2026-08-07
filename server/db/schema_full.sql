@@ -27,6 +27,7 @@ CREATE TABLE player (
   major_appearances INT UNSIGNED  NOT NULL DEFAULT 0,
   position        VARCHAR(32)     NOT NULL DEFAULT '',
   status          ENUM('active','retired','coach','free_agent','unknown') NOT NULL DEFAULT 'unknown' COMMENT '职业状态',
+  is_legendary    TINYINT(1)      NOT NULL DEFAULT 0 COMMENT '传奇选手：无视难度过滤，强制出现在所有选手池',
   avatar          VARCHAR(512)    NULL,
   rating          DECIMAL(5,2)    NOT NULL DEFAULT 0.00,
   sniping         DECIMAL(5,1)    NOT NULL DEFAULT 0.0,
