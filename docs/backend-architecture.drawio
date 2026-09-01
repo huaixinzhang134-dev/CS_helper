@@ -1,0 +1,168 @@
+<mxfile host="app.diagrams.net" agent="Claude Code" version="24.7.17">
+  <diagram id="backend-arch" name="后端核心架构（Node.js + Express 4）">
+    <mxGraphModel dx="0" dy="0" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="n2" value="CS 赛事助手 · 后端核心架构（Node.js + Express 4）" style="text;html=1;fontSize=18;fontStyle=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="50" y="20" width="640" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 客户端层 ============ -->
+        <mxCell id="n10" value="客户端层&lt;br&gt;微信小程序 / Web SPA / 管理后台" style="rounded=1;whiteSpace=wrap;html=1;fontSize=13;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="700" y="40" width="300" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ============ Express 4 框架层 ============ -->
+        <mxCell id="n20" value="Express 4 框架层（server/index.js）" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontStyle=1;fontSize=13;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="50" y="160" width="1300" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="n21" value="内嵌 HTTP Server&lt;br&gt;Node http 模块&lt;br&gt;监听 :3001" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="90" y="220" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n22" value="Application&lt;br&gt;app 实例：装配中间件与路由" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="430" y="210" width="280" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="n23" value="Middleware 中间件栈&lt;br&gt;cors → morgan 日志 → express.json&lt;br&gt;身份认证 → 静态资源" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="740" y="210" width="420" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="n24" value="Router&lt;br&gt;路由分发" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1180" y="210" width="160" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 应用层：业务路由 ============ -->
+        <mxCell id="n30" value="应用层 · 业务路由（server/routes/）" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontStyle=1;fontSize=13;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="50" y="540" width="1300" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n31" value="/api/matches&lt;br&gt;赛事" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="90" y="580" width="190" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n32" value="/api/players&lt;br&gt;选手" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="300" y="580" width="190" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n33" value="/api/users&lt;br&gt;用户" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="510" y="580" width="190" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n34" value="/api/picks&lt;br&gt;猜测 / Top30" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="720" y="580" width="190" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n35" value="/api/coins&lt;br&gt;代币 / 商城" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="930" y="580" width="190" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n36" value="/api/admin&lt;br&gt;管理后台" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="580" width="190" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ============ Node.js 运行时层 ============ -->
+        <mxCell id="n40" value="Node.js 运行时层（Chrome V8 + libuv）" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontStyle=1;fontSize=13;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="50" y="720" width="1300" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="n41" value="Chrome V8 引擎&lt;br&gt;JS 编译执行 · 内存管理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="110" y="790" width="330" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="n42" value="libuv 事件循环&lt;br&gt;Event Loop + 线程池&lt;br&gt;耗时 I/O（文件 / DNS）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="500" y="790" width="330" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="n43" value="非阻塞 I/O&lt;br&gt;fs / network / dns&lt;br&gt;内核异步（epoll）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="890" y="790" width="330" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 依赖生态 ============ -->
+        <mxCell id="n50" value="依赖生态（npm 包 · 对应 Spring Boot Starters）" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontStyle=1;fontSize=13;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="160" width="270" height="540" as="geometry" />
+        </mxCell>
+        <mxCell id="n51" value="mysql2&lt;br&gt;Promise 接口 · 参数化查询" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="210" width="230" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="n52" value="axios&lt;br&gt;微信接口 + 5eplay" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="288" width="230" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="n53" value="cheerio&lt;br&gt;HTML 解析" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="366" width="230" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="n54" value="ws&lt;br&gt;WebSocket 实时推送" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="444" width="230" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="n55" value="sharp&lt;br&gt;队标 SVG→PNG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="522" width="230" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="n56" value="dotenv&lt;br&gt;环境变量" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="600" width="230" height="66" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 数据层与外部系统 ============ -->
+        <mxCell id="n60" value="数据层与外部系统" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;align=left;spacingLeft=8;spacingTop=4;fontStyle=1;fontSize=13;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="50" y="1000" width="1300" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="n61" value="MySQL 数据库&lt;br&gt;19 张表 + 2 视图" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#FFFFFF;strokeColor=#9673a6;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="90" y="1050" width="360" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n62" value="5eplay&lt;br&gt;赛事数据源" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="520" y="1050" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n63" value="微信开放平台&lt;br&gt;登录 / 广告接口" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="880" y="1050" width="300" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ============ 连线 ============ -->
+        <mxCell id="e1" value="HTTPS 请求" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#333333;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="n10" target="n21">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#333333;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="n21" target="n22">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="next()" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="n22" target="n23">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="next()" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#333333;fontSize=10;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="n23" target="n24">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="路由分发" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#333333;fontSize=11;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="n24" target="n30">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1260" y="520" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e6" value="npm 依赖加载" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#b85450;dashed=1;fontSize=11;fontColor=#b85450;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="n20" target="n50">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="运行于同一进程" style="html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#9673a6;dashed=1;fontSize=11;fontColor=#9673a6;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="n20" target="n40">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="SQL 查询（参数化）" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#9673a6;dashed=1;fontSize=11;fontColor=#9673a6;labelBackgroundColor=#FFFFFF;exitX=0.05;exitY=1;entryX=0.25;entryY=0;" edge="1" parent="1" source="n30" target="n61">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="115" y="1050" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" value="连接池" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#9673a6;dashed=1;fontSize=11;fontColor=#9673a6;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="n51" target="n61">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1375" y="243" />
+              <mxPoint x="1375" y="1085" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e10" value="HTTP 爬取（15 分钟/轮）" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#b85450;dashed=1;fontSize=11;fontColor=#b85450;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="n52" target="n62">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1375" y="321" />
+              <mxPoint x="1375" y="1085" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" value="WebSocket 广播" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1.5;strokeColor=#b85450;dashed=1;fontSize=11;fontColor=#b85450;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="n55" target="n10">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1375" y="555" />
+              <mxPoint x="1375" y="75" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
