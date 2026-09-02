@@ -117,8 +117,14 @@ router.get('/admin/list', async (req, res, next) => {
     let whereSql = '';
     const params = [];
     if (q) {
-      whereSql = 'WHERE name LIKE ?';
-      params.push(`%${q}%`);
+      // 纯数字 q 同时匹配 id（前端编辑弹窗按 id 定位队伍）
+      if (/^\d+$/.test(q)) {
+        whereSql = 'WHERE name LIKE ? OR id = ?';
+        params.push(`%${q}%`, parseInt(q, 10));
+      } else {
+        whereSql = 'WHERE name LIKE ?';
+        params.push(`%${q}%`);
+      }
     }
 
     const [countRows] = await query(
@@ -186,7 +192,11 @@ router.put('/admin/:teamId', async (req, res, next) => {
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ code: 404, message: '战队不存在' });
+      // affectedRows=0 可能是"值没变化"而非"队伍不存在"，查一下区分
+      const [exists] = await query('SELECT id FROM team WHERE id = ?', [teamId]);
+      if (exists.length === 0) {
+        return res.status(404).json({ code: 404, message: '战队不存在' });
+      }
     }
 
     res.json({ code: 0, message: '更新成功' });
