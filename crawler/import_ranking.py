@@ -67,6 +67,7 @@ def insert_rankings(cur, rankings: list):
     rows = []
     matched = 0
     unmatched = 0
+    unmatched_names = []
 
     for r in rankings:
         team_name = r.get("name", "")
@@ -76,6 +77,7 @@ def insert_rankings(cur, rankings: list):
             matched += 1
         else:
             unmatched += 1
+            unmatched_names.append(team_name)
 
         rows.append((
             int(r.get("ranking", 0)),
@@ -87,7 +89,7 @@ def insert_rankings(cur, rankings: list):
         ))
 
     cur.executemany(sql, rows)
-    return len(rows), matched, unmatched
+    return len(rows), matched, unmatched, unmatched_names
 
 
 def main():
@@ -105,10 +107,12 @@ def main():
     try:
         with conn.cursor() as cur:
             print("==> 写入 team_ranking ...")
-            n, matched, unmatched = insert_rankings(cur, rankings)
+            n, matched, unmatched, unmatched_names = insert_rankings(cur, rankings)
             print(f"    写入 {n} 条排名")
             print(f"    关联已有队伍: {matched} 条")
             print(f"    未关联队伍（team 表中无对应记录）: {unmatched} 条")
+            for name in unmatched_names:
+                print(f"      - {name}（请 INSERT 进 team 表或修正队名后重新导入）")
 
         conn.commit()
         print("==> 全部提交完成")
