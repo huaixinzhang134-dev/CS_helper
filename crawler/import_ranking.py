@@ -55,8 +55,10 @@ def insert_rankings(cur, rankings: list):
     cur.execute("TRUNCATE TABLE team_ranking")
 
     # 预取 team 表的 (name → id) 映射，用于关联已有队伍
+    # 注意：爬虫输出的队名大小写不稳定（如 BetBoom / BETBOOM），
+    # 与 team 表 collation（utf8mb4_unicode_ci，不区分大小写）保持一致，统一小写后匹配
     cur.execute("SELECT id, name FROM team")
-    team_map = {name: tid for tid, name in cur.fetchall()}
+    team_map = {name.strip().lower(): tid for tid, name in cur.fetchall()}
 
     sql = """
         INSERT INTO team_ranking
@@ -71,7 +73,7 @@ def insert_rankings(cur, rankings: list):
 
     for r in rankings:
         team_name = r.get("name", "")
-        team_id = team_map.get(team_name)  # 可能为 None
+        team_id = team_map.get(team_name.strip().lower())  # 可能为 None
 
         if team_id is not None:
             matched += 1
