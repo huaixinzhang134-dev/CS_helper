@@ -50,6 +50,9 @@ const API = {
   getAdminTeams(page = 0, pageSize = 20, q = '') { return this.get(`/api/teams/admin/list?page=${page}&pageSize=${pageSize}&q=${encodeURIComponent(q)}`); },
   getAdminTeam(teamId) { return this.get(`/api/teams/admin/${encodeURIComponent(teamId)}`); },
   updateAdminTeam(teamId, data) { return this.put(`/api/teams/admin/${encodeURIComponent(teamId)}`, data); },
+  getTeamMembers(teamId) { return this.get(`/api/teams/admin/${encodeURIComponent(teamId)}/members`); },
+  addTeamMember(teamId, playerId) { return this.post(`/api/teams/admin/${encodeURIComponent(teamId)}/members`, { playerId }); },
+  removeTeamMember(teamId, playerId) { return this.del(`/api/teams/admin/${encodeURIComponent(teamId)}/members/${encodeURIComponent(playerId)}`); },
 
   // 绰号审核
   getNicknames(status = 'pending', page = 0, pageSize = 20) { return this.get(`/api/admin/nicknames?status=${status}&page=${page}&pageSize=${pageSize}`); },

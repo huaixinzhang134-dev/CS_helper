@@ -125,6 +125,12 @@
           </div>
           <div class="form-group"><label>HLTV 队标 URL</label><input type="text" id="editTeamLogoUrl" placeholder="https://..."></div>
           <div class="form-group"><label>5eplay 队标 URL</label><input type="text" id="editTeamLogo5eplayUrl" placeholder="https://..."></div>
+          <hr style="margin:12px 0;border:none;border-top:1px solid #eee">
+          <div class="form-group"><label>当前成员（点击移除即同步选手归属）</label><div id="teamMembersList"></div></div>
+          <div class="form-group"><label>添加选手</label>
+            <input type="text" id="teamMemberSearch" placeholder="输入选手名 / 游戏ID 搜索..." oninput="debounceTeamMemberSearch()" autocomplete="off">
+            <div id="teamMemberSearchResults"></div>
+          </div>
           <input type="hidden" id="editTeamId">
           <button onclick="saveTeam()">保存</button>
         </div>

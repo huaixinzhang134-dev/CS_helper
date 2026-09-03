@@ -274,7 +274,10 @@ async function openTeamModal(teamId) {
     document.getElementById('editTeamRegion').value = t.region || 'Other';
     document.getElementById('editTeamLogoUrl').value = t.logoUrl || '';
     document.getElementById('editTeamLogo5eplayUrl').value = t.logo5eplayUrl || '';
+    document.getElementById('teamMemberSearch').value = '';
+    document.getElementById('teamMemberSearchResults').innerHTML = '';
     document.getElementById('teamModal').style.display = 'flex';
+    loadTeamMembers(t.id);
   } catch (e) { alert(e.message); }
 }
 
@@ -291,6 +294,83 @@ async function saveTeam() {
     await API.updateAdminTeam(teamId, data);
     alert('更新成功');
     closeModal('teamModal');
+    loadTeams();
+  } catch (e) { alert(e.message); }
+}
+
+// ==================== 战队成员管理 ====================
+const STATUS_TEXT = { active: '现役', retired: '退役', coach: '教练', free_agent: '自由人', unknown: '未知' };
+const POSITION_TEXT = { awper: '狙击手', rifler: '步枪手', igl: '指挥', coach: '教练', analyst: '分析师' };
+
+function getCurrentTeamId() {
+  return document.getElementById('editTeamId').value;
+}
+
+async function loadTeamMembers(teamId) {
+  try {
+    const members = await API.getTeamMembers(teamId);
+    const el = document.getElementById('teamMembersList');
+    if (!members || members.length === 0) {
+      el.innerHTML = '<div style="color:#999;font-size:13px;padding:4px 0">暂无成员</div>';
+      return;
+    }
+    el.innerHTML = members.map(m => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #eee">
+        <span>${esc(m.playerName)} <small style="color:#999">${esc(m.realName || '')} (${esc(m.playerId)})</small></span>
+        <span style="flex:1;margin:0 8px;color:#666;font-size:12px">
+          ${POSITION_TEXT[m.position] || esc(m.position || '')}
+          ${m.status ? '<span style="margin-left:6px;color:#1890ff">' + (STATUS_TEXT[m.status] || esc(m.status)) + '</span>' : ''}
+        </span>
+        <button class="btn-reject" style="font-size:12px;padding:2px 8px" onclick="removeTeamMember('${esc(m.playerId)}')">移除</button>
+      </div>`).join('');
+  } catch (e) { alert(e.message); }
+}
+
+// 添加选手搜索（防抖）
+let teamMemberSearchTimer = null;
+function debounceTeamMemberSearch() {
+  clearTimeout(teamMemberSearchTimer);
+  teamMemberSearchTimer = setTimeout(() => searchTeamMemberCandidates(), 300);
+}
+
+async function searchTeamMemberCandidates() {
+  const q = document.getElementById('teamMemberSearch').value.trim();
+  const box = document.getElementById('teamMemberSearchResults');
+  if (!q) { box.innerHTML = ''; return; }
+  try {
+    const data = await API.getAdminPlayers(0, 8, q);
+    const list = data.list || [];
+    if (list.length === 0) { box.innerHTML = '<div style="color:#999;font-size:12px;padding:2px 0">未找到选手</div>'; return; }
+    box.innerHTML = list.map(p => `
+      <div style="padding:4px 8px;cursor:pointer;border-bottom:1px solid #f0f0f0" onclick="addTeamMember('${esc(p.playerId)}')"
+           title="点击加入">
+        ${esc(p.name)} <small style="color:#999">${esc(p.realName || '')} (${esc(p.playerId)})</small>
+        <span style="margin-left:8px;color:#666;font-size:12px">
+          ${p.team ? '现属：' + esc(p.team) : '<span style="color:#999">自由身</span>'}
+        </span>
+      </div>`).join('');
+  } catch (e) { box.innerHTML = ''; }
+}
+
+async function addTeamMember(playerId) {
+  const teamId = getCurrentTeamId();
+  try {
+    const data = await API.addTeamMember(teamId, playerId);
+    alert((data && data.message) || '已加入');
+    document.getElementById('teamMemberSearch').value = '';
+    document.getElementById('teamMemberSearchResults').innerHTML = '';
+    loadTeamMembers(teamId);
+    loadTeams();
+  } catch (e) { alert(e.message); }
+}
+
+async function removeTeamMember(playerId) {
+  const teamId = getCurrentTeamId();
+  if (!confirm(`确认将 ${playerId} 移出本队？\n将同步清空其所属队伍（进历史队伍、状态改自由人）。`)) return;
+  try {
+    const data = await API.removeTeamMember(teamId, playerId);
+    alert((data && data.message) || '已移除');
+    loadTeamMembers(teamId);
     loadTeams();
   } catch (e) { alert(e.message); }
 }

@@ -2,7 +2,35 @@
 const express = require('express');
 const router = express.Router();
 
-const { query } = require('../db/pool');
+const { query, pool } = require('../db/pool');
+
+/** 多表同步事务包裹：fn(conn) 内用 conn.execute(sql, params)，全部成功才提交 */
+async function withTransaction(fn) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const result = await fn(conn);
+    await conn.commit();
+    return result;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/** former_teams 追加队名（去重），兼容字符串/数组两种形态 */
+function appendFormerTeam(currentValue, teamName) {
+  let arr = [];
+  if (typeof currentValue === 'string') {
+    try { arr = JSON.parse(currentValue) || []; } catch (_) { arr = []; }
+  } else if (Array.isArray(currentValue)) {
+    arr = currentValue;
+  }
+  if (arr.includes(teamName)) return arr;
+  return [...arr, teamName];
+}
 
 /** 将队标 URL 包装为 /api/logo 代理（小程序不支持 SVG，转换为 PNG） */
 function logoToPng(url, baseUrl) {
@@ -222,6 +250,180 @@ router.put('/admin/:teamId', async (req, res, next) => {
 
     res.json({ code: 0, message: '更新成功' });
   } catch (err) {
+    next(err);
+  }
+});
+
+// ============================================================
+// 战队成员管理（team_member is_current=1 + player 双向同步）
+// 规则：
+//   - 添加：写入 team_member(is_current=1)；选手 current_team 切到本队；
+//     原队（current_team 字符串）自动进 former_teams；非 coach 的
+//     free_agent/unknown 选手恢复 active
+//   - 移除：team_member 置 is_current=0；若选手 current_team == 本队名
+//     （"正统离队"）则清空 current_team、本队进 former_teams、
+//     active(非 coach) 改 free_agent；否则仅清理关联，不动选手归属
+//   - game_id 是选手业务主键；:teamId 是 team 表自增 id
+// ============================================================
+
+/** 查某队当前成员（is_current=1），返回 DTO 数组（复用 conn 或全局池） */
+const MEMBERS_SQL = `
+  SELECT tm.id AS tm_id, tm.player_id, tm.player_name, p.game_id, p.real_name, p.position, p.status, p.rating
+  FROM team_member tm
+  JOIN player p ON p.id = tm.player_id
+  WHERE tm.team_id = ? AND tm.is_current = 1
+  ORDER BY tm.id ASC`;
+
+function membersToDTO(rows) {
+  return rows.map(r => ({
+    playerId: r.game_id,           // game_id，前端操作主键
+    playerName: r.player_name,
+    realName: r.real_name,
+    position: r.position || '',
+    status: r.status || 'unknown',
+    rating: Number(r.rating) || 0,
+  }));
+}
+
+/**
+ * GET /api/teams/admin/:teamId/members
+ * 当前成员列表（is_current=1）
+ */
+router.get('/admin/:teamId/members', async (req, res, next) => {
+  try {
+    const [rows] = await query(MEMBERS_SQL, [req.params.teamId]);
+    res.json({ code: 0, message: '', data: membersToDTO(rows) });
+  } catch (err) { next(err); }
+});
+
+/**
+ * POST /api/teams/admin/:teamId/members
+ * Body: { playerId: game_id }  — 添加选手为当前成员
+ * 事务内双同步（见文件头注释）
+ */
+router.post('/admin/:teamId/members', async (req, res, next) => {
+  try {
+    const teamId = parseInt(req.params.teamId, 10);
+    const gameId = (req.body.playerId || '').toString().trim();
+    if (!teamId || !gameId) {
+      return res.status(400).json({ code: 400, message: '参数错误' });
+    }
+
+    const { list, message } = await withTransaction(async conn => {
+      // 1. 校验队伍
+      const [teams] = await conn.execute('SELECT id, name FROM team WHERE id = ? LIMIT 1', [teamId]);
+      if (teams.length === 0) throw Object.assign(new Error('战队不存在'), { status: 404 });
+      const teamName = teams[0].name;
+
+      // 2. 校验选手（按 game_id）
+      const [players] = await conn.execute(
+        'SELECT id, name, current_team, former_teams, status, position FROM player WHERE game_id = ? LIMIT 1',
+        [gameId]
+      );
+      if (players.length === 0) throw Object.assign(new Error('选手不存在'), { status: 404 });
+      const pl = players[0];
+
+      // 3. 该选手在别队的现役关联全部置 0（一人一队）
+      await conn.execute(
+        'UPDATE team_member SET is_current = 0 WHERE player_id = ? AND is_current = 1 AND team_id != ?',
+        [pl.id, teamId]
+      );
+
+      // 4. 本队关联 UPSERT 为现役
+      await conn.execute(
+        `INSERT INTO team_member (team_id, team_name, player_id, player_name, is_current)
+         VALUES (?, ?, ?, ?, 1)
+         ON DUPLICATE KEY UPDATE team_name = ?, player_name = ?, is_current = 1`,
+        [teamId, teamName, pl.id, pl.name, teamName, pl.name]
+      );
+
+      // 5. 联动 player：current_team 切到本队；只有"从其他队转来"才把原队写进
+      //    former_teams（自由身加入时本队不属于历史队伍，不写入）
+      let formerArr = [];
+      if (typeof pl.former_teams === 'string') {
+        try { formerArr = JSON.parse(pl.former_teams) || []; } catch (_) { formerArr = []; }
+      } else if (Array.isArray(pl.former_teams)) {
+        formerArr = pl.former_teams;
+      }
+      let msg = '已加入';
+      if (pl.current_team && pl.current_team !== teamName) {
+        if (!formerArr.includes(pl.current_team)) formerArr.push(pl.current_team);
+        msg = `已从 ${pl.current_team} 转入`;
+      }
+      // 6. 非 coach 的 free_agent/unknown 选手恢复 active
+      const newStatus = (pl.position !== 'coach' && (pl.status === 'free_agent' || pl.status === 'unknown'))
+        ? 'active'
+        : pl.status;
+      await conn.execute(
+        'UPDATE player SET current_team = ?, former_teams = ?, status = ? WHERE id = ?',
+        [teamName, JSON.stringify(formerArr), newStatus, pl.id]
+      );
+
+      // 7. 返回更新后的成员列表
+      const [rows] = await conn.execute(MEMBERS_SQL, [teamId]);
+      return { list: membersToDTO(rows), message: msg };
+    });
+
+    // data 内也带 message（前端 API helper 只回传 data）
+    res.json({ code: 0, message, data: { list, message } });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ code: err.status, message: err.message, data: null });
+    next(err);
+  }
+});
+
+/**
+ * DELETE /api/teams/admin/:teamId/members/:playerId  (playerId = game_id)
+ * 移除当前成员（见文件头注释的联动规则）
+ */
+router.delete('/admin/:teamId/members/:playerId', async (req, res, next) => {
+  try {
+    const teamId = parseInt(req.params.teamId, 10);
+    const gameId = req.params.playerId;
+    if (!teamId || !gameId) {
+      return res.status(400).json({ code: 400, message: '参数错误' });
+    }
+
+    const { list, message } = await withTransaction(async conn => {
+      const [teams] = await conn.execute('SELECT id, name FROM team WHERE id = ? LIMIT 1', [teamId]);
+      if (teams.length === 0) throw Object.assign(new Error('战队不存在'), { status: 404 });
+      const teamName = teams[0].name;
+
+      const [players] = await conn.execute(
+        'SELECT id, name, current_team, former_teams, status, position FROM player WHERE game_id = ? LIMIT 1',
+        [gameId]
+      );
+      if (players.length === 0) throw Object.assign(new Error('选手不存在'), { status: 404 });
+      const pl = players[0];
+
+      // 1. 移除本队现役关联
+      await conn.execute(
+        'UPDATE team_member SET is_current = 0 WHERE team_id = ? AND player_id = ? AND is_current = 1',
+        [teamId, pl.id]
+      );
+
+      let msg = '已移除';
+      if (pl.current_team === teamName) {
+        // 正统离队：清空所属、本队进历史、active(非 coach) 改 free_agent
+        const formerArr = appendFormerTeam(pl.former_teams, teamName);
+        const newStatus = (pl.position !== 'coach' && pl.status === 'active') ? 'free_agent' : pl.status;
+        await conn.execute(
+          'UPDATE player SET current_team = ?, former_teams = ?, status = ? WHERE id = ?',
+          ['', JSON.stringify(formerArr), newStatus, pl.id]
+        );
+      } else if (pl.current_team) {
+        // 该选手 current_team 已指向其他队伍：仅清本队关联，不改归属
+        msg = `选手当前所属为 ${pl.current_team}，已仅移除本队关联`;
+      }
+
+      const [rows] = await conn.execute(MEMBERS_SQL, [teamId]);
+      return { list: membersToDTO(rows), message: msg };
+    });
+
+    // data 内也带 message（前端 API helper 只回传 data）
+    res.json({ code: 0, message, data: { list, message } });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ code: err.status, message: err.message, data: null });
     next(err);
   }
 });
