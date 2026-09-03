@@ -10,6 +10,19 @@ function logoToPng(url, baseUrl) {
   return `${baseUrl}/api/logo?url=${encodeURIComponent(url)}`;
 }
 
+/** 后台列表/单条查询共用的战队 DTO */
+function toTeamAdminDTO(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    logoUrl: r.logo_url || '',
+    logo5eplayUrl: r.logo_5eplay || '',
+    region: r.region || 'Other',
+    regionPlayerCount: r.region_player_count || 0,
+    memberCount: r.current_members || 0,
+  };
+}
+
 /**
  * GET /api/teams/ranked
  * 返回 team_ranking 表中所有队伍的名称列表
@@ -117,14 +130,9 @@ router.get('/admin/list', async (req, res, next) => {
     let whereSql = '';
     const params = [];
     if (q) {
-      // 纯数字 q 同时匹配 id（前端编辑弹窗按 id 定位队伍）
-      if (/^\d+$/.test(q)) {
-        whereSql = 'WHERE name LIKE ? OR id = ?';
-        params.push(`%${q}%`, parseInt(q, 10));
-      } else {
-        whereSql = 'WHERE name LIKE ?';
-        params.push(`%${q}%`);
-      }
+      // 列表搜索仅按队名模糊匹配；按 id 定位队伍请用 GET /admin/:teamId
+      whereSql = 'WHERE name LIKE ?';
+      params.push(`%${q}%`);
     }
 
     const [countRows] = await query(
@@ -143,21 +151,34 @@ router.get('/admin/list', async (req, res, next) => {
     res.json({
       code: 0, message: '',
       data: {
-        list: rows.map(r => ({
-          id: r.id,
-          name: r.name,
-          logoUrl: r.logo_url || '',
-          logo5eplayUrl: r.logo_5eplay || '',
-          region: r.region || 'Other',
-          regionPlayerCount: r.region_player_count || 0,
-          memberCount: r.current_members || 0,
-        })),
+        list: rows.map(toTeamAdminDTO),
         total,
         page,
         pageSize,
         hasMore: offset + pageSize < total,
       }
     });
+  } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/teams/admin/:teamId
+ * 按 id 取单条战队（编辑弹窗定位用）。
+ * 注意：必须注册在 GET /admin/list 之后，避免吞掉 /admin/list；
+ * 且不能通过 /admin/list?q= 搜索定位——数字队名会命中 name LIKE 把目标挤掉。
+ */
+router.get('/admin/:teamId', async (req, res, next) => {
+  try {
+    const [rows] = await query(
+      `SELECT t.*,
+              (SELECT COUNT(*) FROM team_member WHERE team_id = t.id AND is_current = 1) AS current_members
+       FROM team t WHERE t.id = ? LIMIT 1`,
+      [req.params.teamId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ code: 404, message: '战队不存在', data: null });
+    }
+    res.json({ code: 0, message: '', data: toTeamAdminDTO(rows[0]) });
   } catch (err) { next(err); }
 });
 

@@ -43,10 +43,12 @@ const API = {
 
   // 选手管理
   getAdminPlayers(page = 0, pageSize = 20, q = '') { return this.get(`/api/players/admin/list?page=${page}&pageSize=${pageSize}&q=${encodeURIComponent(q)}`); },
+  getAdminPlayer(playerId) { return this.get(`/api/players/admin/${encodeURIComponent(playerId)}`); },
   updateAdminPlayer(playerId, data) { return this.put(`/api/players/admin/${encodeURIComponent(playerId)}`, data); },
 
   // 战队管理
   getAdminTeams(page = 0, pageSize = 20, q = '') { return this.get(`/api/teams/admin/list?page=${page}&pageSize=${pageSize}&q=${encodeURIComponent(q)}`); },
+  getAdminTeam(teamId) { return this.get(`/api/teams/admin/${encodeURIComponent(teamId)}`); },
   updateAdminTeam(teamId, data) { return this.put(`/api/teams/admin/${encodeURIComponent(teamId)}`, data); },
 
   // 绰号审核

@@ -183,10 +183,7 @@ function goPlayerPage(page) {
 
 async function openPlayerModal(playerId) {
   try {
-    // 通过搜索API获取选手详情
-    const data = await API.getAdminPlayers(0, 1, playerId);
-    const p = (data.list || []).find(x => x.playerId === playerId);
-    if (!p) { alert('选手不存在'); return; }
+    const p = await API.getAdminPlayer(playerId);
     document.getElementById('editPlayerId').value = p.playerId;
     document.getElementById('editPlayerName').value = p.name || '';
     document.getElementById('editPlayerRealName').value = p.realName || '';
@@ -271,9 +268,7 @@ function goTeamPage(page) {
 
 async function openTeamModal(teamId) {
   try {
-    const data = await API.getAdminTeams(0, 1, String(teamId));
-    const t = (data.list || []).find(x => x.id === teamId);
-    if (!t) { alert('战队不存在'); return; }
+    const t = await API.getAdminTeam(teamId);
     document.getElementById('editTeamId').value = t.id;
     document.getElementById('editTeamName').value = t.name || '';
     document.getElementById('editTeamRegion').value = t.region || 'Other';

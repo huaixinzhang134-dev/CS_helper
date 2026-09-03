@@ -688,6 +688,25 @@ router.get('/admin/list', async (req, res, next) => {
 });
 
 // ============================================================
+// 管理员：按 game_id 取单条选手
+// GET /api/players/admin/:playerId
+// 编辑弹窗定位用（不能靠搜索列表 pageSize=1 定位，同名/相似名会把目标顶掉）
+// ============================================================
+router.get('/admin/:playerId', async (req, res, next) => {
+  try {
+    const { playerId } = req.params;
+    const [rows] = await query(
+      'SELECT * FROM player WHERE game_id = ? LIMIT 1',
+      [playerId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ code: 404, message: '选手不存在', data: null });
+    }
+    res.json({ code: 0, message: '', data: toPlayerDTO(rows[0]) });
+  } catch (err) { next(err); }
+});
+
+// ============================================================
 // 管理员：更新选手信息
 // PUT /api/players/admin/:playerId
 // Body: 可更新字段（如 name, realName, team, status, position, rating 等）
