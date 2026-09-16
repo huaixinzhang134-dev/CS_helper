@@ -11,10 +11,21 @@
  * 关键变更（2026-07）：放弃 diff-check 增量更新，改为全字段覆盖。
  * 这样多次运行爬虫后不会残留旧数据，时间保持与 5eplay 源站一致。
  */
+const crypto = require('crypto');
 const express = require('express');
 const router = express.Router();
 
 const { query: queryNoBinlog } = require('../db/pool');
+
+/**
+ * 常量时间字符串比较：逐字符短路比较会按前缀匹配长度泄漏 token 信息
+ */
+function safeEqual(a, b) {
+  const bufA = Buffer.from(String(a), 'utf-8');
+  const bufB = Buffer.from(String(b), 'utf-8');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 /**
  * 安全格式化日期：mysql2 timezone=+08:00 将 MySQL DATE 解析为
@@ -366,9 +377,16 @@ async function upsertMatch(m, req) {
 router.post('/', async (req, res, next) => {
   try {
     // 简单鉴权
-    const auth = req.headers.authorization;
-    const expectedToken = process.env.SYNC_TOKEN || '';
-    if (!auth || auth !== `Bearer ${expectedToken}`) {
+    // SYNC_TOKEN 未配置时必须显式失败关闭。若沿用 `auth !== \`Bearer ${expectedToken}\``，
+    // 未配置时比较会退化成 `auth === 'Bearer '`，其安全性完全依赖 HTTP 解析器按 RFC 7230
+    // 裁掉尾随空格这一实现细节——不能把鉴权建立在解析器行为上。
+    const expectedToken = (process.env.SYNC_TOKEN || '').trim();
+    if (!expectedToken) {
+      console.error('[sync] SYNC_TOKEN 未配置，已拒绝同步请求');
+      return res.status(503).json({ code: 503, message: 'sync disabled: SYNC_TOKEN 未配置', data: null });
+    }
+    const auth = req.headers.authorization || '';
+    if (!safeEqual(auth, `Bearer ${expectedToken}`)) {
       return res.status(401).json({ code: 401, message: 'unauthorized', data: null });
     }
 
