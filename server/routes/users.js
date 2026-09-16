@@ -12,7 +12,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
-const { query } = require('../db/pool');
+const { query, pool } = require('../db/pool');
 const { generateToken, authMiddleware } = require('../middleware/auth');
 
 // -------- 微信 code2session 配置（从环境变量读取）--------
@@ -226,6 +226,7 @@ router.put('/profile', authMiddleware, async (req, res, next) => {
 //   gameMode: 'personal' | 'friend'（可选，默认 'personal'）
 // ============================================================
 router.post('/guess/record', authMiddleware, async (req, res, next) => {
+  let c = null;
   try {
     const { won, attempts, difficulty, targetPlayerId, targetPlayerName, gameMode } = req.body || {};
     if (won === undefined) {
@@ -234,8 +235,17 @@ router.post('/guess/record', authMiddleware, async (req, res, next) => {
 
     const mode = (gameMode === 'friend') ? 'friend' : 'personal';
 
-    const [rows] = await query('SELECT * FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
-    if (!rows[0]) return res.status(404).json({ code: 404, message: '用户不存在', data: null });
+    // 战绩、难度进度、代币奖励必须在同一事务内：原先四条语句各自独立提交，
+    // 任一步失败都会留下「战绩已记但币未发」这类不一致状态。
+    c = await pool.getConnection();
+    await c.beginTransaction();
+
+    // FOR UPDATE 串行化同一用户的并发上报，避免代币丢更新与重复发奖
+    const [rows] = await c.query('SELECT * FROM users WHERE openid = ? LIMIT 1 FOR UPDATE', [req.userOpenid]);
+    if (!rows[0]) {
+      await c.rollback();
+      return res.status(404).json({ code: 404, message: '用户不存在', data: null });
+    }
 
     const user = rows[0];
 
@@ -284,11 +294,11 @@ router.post('/guess/record', authMiddleware, async (req, res, next) => {
                       soloWins, soloTotal, soloRate, JSON.stringify(newRecords), req.userOpenid];
     }
 
-    await query(updateSQL, updateParams);
+    await c.query(updateSQL, updateParams);
 
     // 更新难度解锁进度
     if (difficulty) {
-      await query(
+      await c.query(
         `INSERT INTO difficulty_progress (user_openid, difficulty, correct_count, total_games)
          VALUES (?, ?, ?, 1)
          ON DUPLICATE KEY UPDATE
@@ -303,23 +313,30 @@ router.post('/guess/record', authMiddleware, async (req, res, next) => {
       const COIN_MAP = { trivial: 1, easy: 3, normal: 5, hard: 8, hell: 123, challenge: 369 };
       const reward = COIN_MAP[difficulty];
       if (reward) {
-        const [u] = await query('SELECT coins, total_coins_earned FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
-        const curCoins = u[0]?.coins || 0;
-        const curEarned = u[0]?.total_coins_earned || 0;
-        await query(
-          'UPDATE users SET coins = ?, total_coins_earned = ? WHERE openid = ?',
-          [curCoins + reward, curEarned + reward, req.userOpenid]
+        // 原子自增，替代原先「先 SELECT 再绝对赋值」——原写法在并发下会丢更新
+        await c.query(
+          'UPDATE users SET coins = coins + ?, total_coins_earned = total_coins_earned + ? WHERE openid = ?',
+          [reward, reward, req.userOpenid]
         );
-        await query(
-          'INSERT INTO coin_transactions (user_openid, amount, balance_after, type, description) VALUES (?, ?, ?, ?, ?)',
-          [req.userOpenid, reward, curCoins + reward, 'guess_reward', '单人' + difficulty + '难度猜对奖励']
+        // 事务内同连接可见上面未提交的写入，子查询取到的即为新余额
+        await c.query(
+          'INSERT INTO coin_transactions (user_openid, amount, balance_after, type, description) VALUES (?, ?, (SELECT coins FROM users WHERE openid = ?), ?, ?)',
+          [req.userOpenid, reward, req.userOpenid, 'guess_reward', '单人' + difficulty + '难度猜对奖励']
         );
       }
     }
 
-    const [updated] = await query('SELECT * FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
+    const [updated] = await c.query('SELECT * FROM users WHERE openid = ? LIMIT 1', [req.userOpenid]);
+
+    await c.commit();
     res.json({ code: 0, message: won ? '胜利记录已保存' : '记录已保存', data: userToDTO(updated[0]) });
-  } catch (err) { next(err); }
+  } catch (err) {
+    // rollback 自身失败（连接已断开等）不能吞掉原始错误
+    if (c) { try { await c.rollback(); } catch (e) { console.error('[guess/record] rollback 失败', e.message); } }
+    next(err);
+  } finally {
+    if (c) c.release();
+  }
 });
 
 // ============================================================

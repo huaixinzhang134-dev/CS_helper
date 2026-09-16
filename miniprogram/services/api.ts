@@ -847,7 +847,8 @@ export const fetchUserItems = async (): Promise<{ success: boolean; data: UserIt
 
 export const useItem = async (itemType: string): Promise<{ success: boolean; message: string }> => {
   const res = await postAuth<any>('/coins/items/use', { itemType });
-  return { success: res.code === 0, message: res.message || '' };
+  // 注意：postAuth 成功路径 resolve 的对象不含 code 字段，不能用 res.code === 0 判断
+  return { success: res.success, message: res.message || '' };
 };
 
 // ============================================================

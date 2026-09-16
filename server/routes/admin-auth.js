@@ -10,7 +10,9 @@ const crypto = require('crypto');
 const { query } = require('../db/pool');
 
 // 管理员 token 密钥（与用户 token 不同）
-const ADMIN_SECRET = process.env.ADMIN_SECRET || process.env.AUTH_SECRET || 'admin_secret_key';
+// 不设硬编码兜底：一旦兜底值进入源码，任何拿到代码的人都能伪造管理员 token。
+// 两个环境变量都缺失时由 /login 显式拒绝签发（verifyAdminToken 拿空 secret 也会验签失败）。
+const ADMIN_SECRET = process.env.ADMIN_SECRET || process.env.AUTH_SECRET;
 
 function generateAdminToken(username) {
   const timestamp = Date.now().toString(36);
@@ -45,6 +47,12 @@ router.post('/login', async (req, res, next) => {
     const { username, password } = req.body || {};
     if (!username || !password) {
       return res.status(400).json({ code: 400, message: '请输入用户名和密码', data: null });
+    }
+
+    // 密钥缺失时拒绝签发，避免用空密钥签出可被任意伪造的 token
+    if (!ADMIN_SECRET) {
+      console.error('[admin] ADMIN_SECRET 与 AUTH_SECRET 均未配置，拒绝签发管理员 token');
+      return res.status(503).json({ code: 503, message: '服务器未配置管理员密钥，请检查环境变量 ADMIN_SECRET', data: null });
     }
 
     const [rows] = await query(

@@ -219,15 +219,18 @@ Page({
     try {
       const res = await fetchDifficultyProgress();
       const progress = res.data || [];
-      const progressMap: Record<string, number> = {};
-      for (const p of progress) progressMap[p.difficulty] = p.correctCount;
 
       this.setData({
-        difficulties: DIFFICULTIES.map((d, i) => ({
-          ...d,
-          correctCount: progressMap[d.key] || 0,
-          unlocked: i === 0 ? true : (progressMap[DIFFICULTIES[i - 1].key] || 0) >= 10,
-        }))
+        difficulties: DIFFICULTIES.map((d, i) => {
+          const p = progress.find((x: any) => x.difficulty === d.key);
+          return {
+            ...d,
+            correctCount: p?.correctCount || 0,
+            // 解锁状态以后端为准：后端已合并「前一难度猜对 10 次」与「广告额外解锁」两条路径，
+            // 前端若只用 correctCount >= 10 重算，广告解锁的难度会一直显示为锁定
+            unlocked: p ? !!p.unlocked : (i === 0),
+          };
+        })
       });
     } catch {
       this.setData({
