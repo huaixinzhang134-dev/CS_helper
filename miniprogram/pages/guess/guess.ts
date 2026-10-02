@@ -1,4 +1,4 @@
-import { fetchRandomPlayerByDifficulty, searchPlayers, submitGuessRecord, fetchDifficultyProgress, createPkRoom, joinPkRoom, getPkRoom, reportPkResult, reportPkAttempt, readyForNextRound, startNextRound, Player, fetchUserItems, useItem, adUnlockDifficulty, payForGame } from '../../services/api';
+import { fetchRandomPlayerByDifficulty, searchPlayers, submitGuessRecord, fetchDifficultyProgress, createPkRoom, joinPkRoom, getPkRoom, reportPkResult, reportPkAttempt, readyForNextRound, startNextRound, Player, fetchUserItems, useItem, adUnlockDifficulty, payForGame, fetchCoinBalance } from '../../services/api';
 import { STATIC_BASE } from '../../config';
 import { playRewardedAd } from '../../services/ad';
 
@@ -127,6 +127,7 @@ Page({
     showPaymentModal: false,
     paymentDifficulty: '',
     isPaying: false,
+    payCoins: -1, // 当前代币余额（-1 = 未知，不显示）
 
     // 道具系统
     showItemModal: false,
@@ -263,8 +264,10 @@ Page({
       this.setData({
         showPaymentModal: true,
         paymentDifficulty: diff,
-        isPaying: false
+        isPaying: false,
+        payCoins: -1
       });
+      this.refreshPayCoins();
       return;
     }
     this.setData({ difficulty: diff, showDifficultySelection: false });
@@ -311,6 +314,14 @@ Page({
     }
   },
 
+  /** 刷新支付弹窗中的代币余额（失败则保持未知，不显示） */
+  async refreshPayCoins() {
+    const res = await fetchCoinBalance();
+    if (res.success && res.data) {
+      this.setData({ payCoins: res.data.coins });
+    }
+  },
+
   /** 确认支付10代币进入炼狱/挑战 */
   async onPayConfirm() {
     const diff = this.data.paymentDifficulty;
@@ -323,12 +334,19 @@ Page({
         showPaymentModal: false,
         difficulty: diff,
         showDifficultySelection: false,
+        payCoins: res.data ? res.data.coins : -1,
       });
       this.startNewRound();
     } else {
-      // 代币不足，回到难度选择
-      wx.showToast({ title: '代币不足，请重选难度', icon: 'none' });
-      this.setData({ showPaymentModal: false, showDifficultySelection: true });
+      const msg = res.message || '支付失败，请稍后重试';
+      wx.showToast({ title: msg, icon: 'none' });
+      if (msg.indexOf('代币不足') !== -1) {
+        // 确实是代币不足：关闭弹窗，回到难度选择
+        this.setData({ showPaymentModal: false, showDifficultySelection: true, payCoins: -1 });
+      } else {
+        // 网络/服务器错误：保留弹窗方便重试，并刷新余额显示
+        this.refreshPayCoins();
+      }
     }
   },
 
